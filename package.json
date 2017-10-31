@@ -5,12 +5,13 @@
   "dependencies": {
     "jsgui3": "^0.0.7",
     "websocket": "^1.0.24",
-    "xas2": "^0.0.9",
-    "binary-encoding": "^0.0.28",
+    "xas2": "^0.0.10",
+    "binary-encoding": "^0.0.29",
     "recursive-readdir": "^2.2.1",
     "single-line-log": "^1.1.2",
     "level": "^1.7.0",
-    "rimraf": "^2.6.2"
+    "rimraf": "^2.6.2",
+    "nextleveldb-model": "^0.0.5"
   },
   "engines": {
     "node": ">=8.5.0"
