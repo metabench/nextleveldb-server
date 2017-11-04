@@ -3,7 +3,26 @@
  * 
  * Could possibly load some other modules, like time series handling and encoding.
  * Probably best to write moe code here for the moment.
+ 
+ Will extend the server, using the model. That means that a variety of extensions made possible with the models will be available on the server.
+Having the model client-side enables queries to be encoded effectively.
+Making select - where type queries would be effective, in that OO classes can be used to construct lower level key searches.
+
+
+Could also do with some lower level monitoring functions
+How many records in each table
+How many index records
+
+Getting paging working soon will be useful.
+Want to send a number of individual messages back to the client.
+
+
+
+ 
+ 
  */
+
+
 
 
 
@@ -63,7 +82,75 @@ const LL_COUNT_GET_FIRST_LAST_KEYS_IN_RANGE = 7;
 const LL_WIPE = 20;
 const LL_WIPE_REPLACE = 21;
 
+
+const LL_SUBSCRIBE_ALL = 60;
+const LL_UNSUBSCRIBE_SUBSCRIPTION = 62;
+
+// Then the subscription messages send back data that's been put into the database / commands that have been done on the db.
+
+
+
+
+
+// Subscribe
+//  Subscribe by key prefix
+//   Would mean extra processing in batch puts.
+//    Would mean scanning them to see which subscribers they should be sent to.
+
+const SUB_CONNECTED = 0;
+const SUB_RES_TYPE_BATCH_PUT = 1;
+
+
+
+var map_subscription_event_types = {
+    'connected': SUB_CONNECTED,
+    'batch_put': SUB_RES_TYPE_BATCH_PUT
+
+}
+
+
+
+// Then could have client app that downloads all of the data / the recent data, then subscribes to updates.
+//  Also worth making use of local leveldb server.
+//  A local client would be really useful for this. Could keep a local db synced with a remote one.
+//   Use the local db for startup, so that it does not need to download all the data from a server.
+
+// Short term algorythms or decisions...
+//  Need to make use of data from subscriptions.
+// Subscriptions to the latest data seems like one of the most important features.
+
+// subscribe (buf kp)
+//  returns a subscription id (unique per client)
+//  would work a bit like paging, in that it keeps returning subscription messages to the client.
+//   Each subscription message is numbered.
+
+// unsubscribe (client's subscription id).
+
+
+// Want to load a relatively large dataset to the client, have it use underlying typed arrays.
+//  For the moment, may deal with megabytes of data.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // Optional parameters could help...
+
+
+
+
 
 
 
@@ -73,8 +160,12 @@ const BOOL_TRUE = 7;
 const NULL = 8;
 
 
+var client_subscriptions = {};
 
-var handle_ws_binary = function (connection, nextleveldb_server, message_binary) {
+
+
+
+var handle_ws_binary = function(connection, nextleveldb_server, message_binary) {
 
     // Need error handling.
     //  Need some way of indicating error in the response.
@@ -83,6 +174,11 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     // Except reserve 0 as an id for errors. Would make the normal responses shorter.
     //  Don't accept 0 as a message ID.
     //   Could return an error saying 0 is reserved for errors.
+
+    // Which connection is it coming from?
+    //  Assign a connection id.
+
+
 
 
 
@@ -104,6 +200,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     [i_query_type, pos] = x.read(message_binary, pos);
 
     //console.log('message_id, i_query_type', message_id, i_query_type);
+    //console.log('connection.id', connection.id);
 
     // Need to define a bunch more queries.
 
@@ -509,8 +606,8 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         // Could feed through a paging function that batches the results.
         // batch_put
 
-        console.log('buf_the_rest', buf_the_rest);
-        console.log('buf_the_rest.length', buf_the_rest.length);
+        //console.log('buf_the_rest', buf_the_rest);
+        //console.log('buf_the_rest.length', buf_the_rest.length);
 
         // read two buffers from the query... greater than and less than.
 
@@ -520,7 +617,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         //   How to compose the whole thing in memory reasonably efficiently?
         //   Put the buffers in a vector...
 
-        console.log('paging_option', paging_option);
+        //console.log('paging_option', paging_option);
 
         var b_l, b_u;
 
@@ -533,8 +630,8 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             [b_l, pos] = read_l_buffer(buf_the_rest, pos);
             [b_u, pos] = read_l_buffer(buf_the_rest, pos);
 
-            console.log('b_l', b_l);
-            console.log('b_u', b_u);
+            //console.log('b_l', b_l);
+            //console.log('b_u', b_u);
 
             //throw 'stop';
 
@@ -595,8 +692,8 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         // Could feed through a paging function that batches the results.
         // batch_put
 
-        console.log('buf_the_rest', buf_the_rest);
-        console.log('buf_the_rest.length', buf_the_rest.length);
+        //console.log('buf_the_rest', buf_the_rest);
+        //console.log('buf_the_rest.length', buf_the_rest.length);
 
         // read two buffers from the query... greater than and less than.
 
@@ -606,7 +703,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         //   How to compose the whole thing in memory reasonably efficiently?
         //   Put the buffers in a vector...
 
-        console.log('paging_option', paging_option);
+        //console.log('paging_option', paging_option);
 
         var b_l, b_u;
 
@@ -619,8 +716,8 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             [b_l, pos] = read_l_buffer(buf_the_rest, pos);
             [b_u, pos] = read_l_buffer(buf_the_rest, pos);
 
-            console.log('b_l', b_l);
-            console.log('b_u', b_u);
+            //console.log('b_l', b_l);
+            //console.log('b_u', b_u);
 
             //throw 'stop';
 
@@ -656,7 +753,109 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         }
     }
 
+    if (i_query_type === LL_SUBSCRIBE_ALL) {
+        console.log('LL_SUBSCRIBE_ALL');
 
+        // Send back a message saying the subscription has been set up, give the subscription id.
+
+        /*
+        db.on('db_action', (obj_db_action) => {
+            var type = obj_db_action.type;
+
+            // Then if it's a batch put
+        })
+        */
+
+
+        var unsubscribe_all = nextleveldb_server.ll_subscribe_all((subscription_event) => {
+
+            // sub_msg_id:
+
+            /*
+            if (err) {
+                console.trace();
+                throw err;
+            } else {
+                console.log('ws binary subscription_event', subscription_event);
+
+                // 
+
+
+            }
+            */
+            // remove the target from the subscription event?
+
+            //delete subscription_event.target;
+
+            //console.log('ws binary subscription_event', subscription_event);
+
+            // then encode the message
+
+            var i_response_type = map_subscription_event_types[subscription_event.type];
+            //console.log('i_response_type', i_response_type);
+
+            var msg_response = [buf_msg_id, xas2(subscription_event.sub_msg_id).buffer, xas2(i_response_type).buffer];
+            //console.log('msg_response', msg_response);
+
+
+            if (subscription_event.type === 'batch_put') {
+                msg_response.push(subscription_event.buffer);
+            }
+
+            buf_res = Buffer.concat(msg_response);
+            //console.log('buf_res', buf_res);
+            connection.sendBytes(buf_res);
+
+
+
+            
+        });
+
+        // then store the unsubscribe function.
+
+        // 
+
+        client_subscriptions[connection.id] = client_subscriptions[connection.id] || {};
+        client_subscriptions[connection.id][message_id] = {
+            'unsubscribe': unsubscribe_all
+        }
+
+
+
+        
+
+    }
+
+    if (i_query_type === LL_UNSUBSCRIBE_SUBSCRIPTION) {
+        console.log('LL_UNSUBSCRIBE_SUBSCRIPTION');
+        //console.log('connection.id', connection.id);
+
+        //console.log('buf_the_rest', buf_the_rest);
+
+        //var pos = 0, subscription_id;
+        //[subscription_id, pos] = x.read(buf_the_rest, pos);
+
+        var subscription_id = message_id;
+        //console.log('subscription_id', subscription_id);
+
+        var fn_unsubscribe = client_subscriptions[connection.id][subscription_id].unsubscribe;
+        //console.log('fn_unsubscribe', typeof fn_unsubscribe);
+        var sub_msg_id = fn_unsubscribe();
+
+        // Send a subscription event.
+
+        // We don't have a sub message id for unsubscribe.
+
+        // 
+
+        var msg_response = [buf_msg_id, xas2(sub_msg_id).buffer, xas2(BOOL_TRUE).buffer];
+        buf_res = Buffer.concat(msg_response);
+        connection.sendBytes(buf_res);
+
+
+
+
+    }
 
 
 

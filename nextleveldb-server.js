@@ -50,12 +50,19 @@ var Model_Database = Model.Database;
 //   Large amounts of data within HTML tables made available too.
 
 // Need to do scans / reports to see how much data there is.
+//  Function(s) to estimate the disk space used based on key prefixes.
+
+
+
+
 //  Harder to do with slow count facilities in the DB.
 //   Could have record counts by table, as well as indexed record counts.
 //    As in, a record count stored for each day.
 // Could have new counts table
 //  Or get it working on a lower level.
 
+
+// Will soon get data back from the server through a subscription system.
 
 
 
@@ -94,6 +101,14 @@ var Model_Database = Model.Database;
 //  Use the model, including oo instances that are made specifically, to interact with the DB's data.
 
 // A barrier between the server and the DB itself?
+
+
+// A cache of the client's subscriptions?
+//  The clients have their ids.
+
+
+
+
 
 class NextLevelDB_Server extends Evented_Class {
     constructor(spec) {
@@ -204,6 +219,18 @@ class NextLevelDB_Server extends Evented_Class {
         //  Need some low level functions that get called.
         //   Client could request data between various keys, after having constructed the query.
 
+
+
+
+        // Todo : make sure each connection has an ID.
+        //  May be worth issuing connection security tokens to be sent with requests?
+
+
+        var next_connection_id = 0;
+
+
+
+
         var proceed_2 = () => {
             wsServer.on('request', function (request) {
 
@@ -214,6 +241,8 @@ class NextLevelDB_Server extends Evented_Class {
                     return;
                 }
                 var connection = request.accept('echo-protocol', request.origin);
+                connection.id = next_connection_id++;
+
                 //
                 //console.log((new Date()) + ' Connection accepted.');
                 connection.on('message', function (message) {
@@ -273,6 +302,46 @@ class NextLevelDB_Server extends Evented_Class {
                 })
             }
         })
+    }
+
+    ll_subscribe_all(callback_update) {
+        // Will have multiple callbacks.
+
+        // Should produce a subscription id.
+        //  Each client has their own subscription id?
+
+        // subscription message id
+
+        // But there should be a client subscription id.
+
+        var sub_msg_id = 0;
+        var that = this;
+
+        var process_subscription_event = (e) => {
+            //console.log('server process_subscription_event', e);
+            e.sub_msg_id = sub_msg_id++;
+            callback_update(e);
+
+
+        }
+
+        this.on('db_action', process_subscription_event);
+
+        // could return an unsubscribe function.
+
+        var unsubscribe = () => {
+            that.off('db_action', process_subscription_event);
+            // return
+            return sub_msg_id++;
+
+        }
+
+        process_subscription_event({
+            'type': 'connected'
+        });
+
+        return unsubscribe;
+
     }
 
     
@@ -430,9 +499,6 @@ class NextLevelDB_Server extends Evented_Class {
             })
     }
 
-
-
-
     batch_put(buf, callback) {
         var ops = [];
         var db = this.db;
@@ -451,10 +517,59 @@ class NextLevelDB_Server extends Evented_Class {
         })
         //console.log('ops', JSON.stringify(ops, null, 2));
         //throw 'stop';
+        var that = this;
         db.batch(ops, function (err) {
             if (err) {
                 callback(err);
             } else {
+
+                // Then we notify relevant subscribers that these records have been put into the db.
+                //  We could send back the whole collection of records....
+
+                // If there are subscribers to a particular table or key prefix, may need to do some record decoding to recognise which subscribers to send the data to.
+                //  Key prefix matching should be fairly quick.
+
+                // Can use events, and have subscribers plug into the events.
+
+                // has_table_subscribers
+                // has_alldata_subscribers
+
+                // subscribe_all_updates
+
+                // That seems like the best to start with.
+
+                // Subscriptions to all updates would help with sharding and replication.
+
+
+                // Then there could be index prefix subscriptions.
+
+
+
+
+
+                // could raise an action event.
+                //  then with a type 
+
+
+                that.raise('db_action', {
+                    'type': 'batch_put',
+                    'buffer': buf
+                });
+
+                // Then the subscriptions would have an event that gets raised on this object.
+
+
+
+
+
+
+
+
+
+
+
+
+
                 callback(null, true);
             }
         })

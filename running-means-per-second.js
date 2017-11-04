@@ -6,6 +6,16 @@ var jsgui = require('jsgui3');
 var Evented_Class = jsgui.Evented_Class;
 var log = require('single-line-log').stdout;
 
+// Would be nice to be able to subscribe to this info from the client.
+//  Would also be nice to subscribe to all new data that arrives t the server.
+
+// May be worth having a jsgui server status / admin page.
+
+
+
+
+
+
 
 class Running_Means_Per_Second extends Evented_Class {
 	'constructor'() {
