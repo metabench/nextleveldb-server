@@ -22,6 +22,10 @@ var xas2;
 var x = xas2 = require('xas2');
 
 var fs = require('fs');
+
+// Extra fs tools?
+//  That could be worth separating.
+
 var fs2 = jsgui.fs2;
 
 //var handle_http = require('./handle-http');
@@ -124,6 +128,10 @@ class NextLevelDB_Server extends Evented_Class {
         };
 
         var that = this;
+
+        this.using_prefix_put_alerts
+        this.map_b64kp_subscription_put_alerts = {};
+        this.map_b64kp_subscription_put_alert_counts = {};
 
 
         var db;
@@ -332,6 +340,7 @@ class NextLevelDB_Server extends Evented_Class {
         var unsubscribe = () => {
             that.off('db_action', process_subscription_event);
             // return
+            // why the increment here?
             return sub_msg_id++;
 
         }
@@ -341,6 +350,60 @@ class NextLevelDB_Server extends Evented_Class {
         });
 
         return unsubscribe;
+
+    }
+
+    ll_subscribe_key_prefix_puts(buf_kp, callback_update) {
+        // not sure we should listen to every db_action event
+        //  event name: kp_put_[base64kp]
+        //   map_b64kp_subscription_alerts
+        //  
+
+        // have an array for all of the alerts?
+        //  Maybe using events would make more sense.
+        //   With specific event names.
+        var sub_msg_id = 0;
+        var that = this;
+        console.log('** buf_kp', buf_kp);
+
+        var b64_kp = buf_kp.toString('hex');
+        console.log('b64_kp', b64_kp);
+        //throw 'stop';
+
+        var process_subscription_event = (e) => {
+            //console.log('server process_subscription_event', e);
+            e.sub_msg_id = sub_msg_id++;
+
+            callback_update(e);
+
+
+        }
+
+        if (this.map_b64kp_subscription_put_alert_counts[b64_kp]) {
+            this.map_b64kp_subscription_put_alert_counts[b64_kp]++;
+            this.map_b64kp_subscription_put_alerts[b64_kp].push(process_subscription_event);
+        } else {
+            this.map_b64kp_subscription_put_alert_counts[b64_kp] = 1;
+            this.map_b64kp_subscription_put_alerts[b64_kp] = [process_subscription_event];
+        }
+
+        this.using_prefix_put_alerts = true;
+
+        
+
+
+
+        // the alert counts and the alerts themselves.
+        //  a map of alert functions looks best here.
+        //   don't need to use evented functionalty. Maybe would make sense though.
+
+
+
+
+
+
+
+
 
     }
 
@@ -361,11 +424,7 @@ class NextLevelDB_Server extends Evented_Class {
         this.get_system_db_rows((err, system_db_rows) => {
             if (err) { callback(err); } else {
                 that.model = Model_Database.load(system_db_rows);
-
                 callback(null, that.model);
-
-
-
             }
         });
 
@@ -378,8 +437,7 @@ class NextLevelDB_Server extends Evented_Class {
             //console.log('key.toString()', key.toString());
             //res_keys.push(encodeURI(key));
             count++;
-        })
-            .on('error', function (err) {
+        }).on('error', function (err) {
                 //console.log('Oh my!', err)
                 callback(err);
             })
@@ -502,8 +560,79 @@ class NextLevelDB_Server extends Evented_Class {
     batch_put(buf, callback) {
         var ops = [];
         var db = this.db;
+
+        // Search through that buffer to extract those records with a given key prefix buf.
+        //  We can do that for any key prefixes there are subscription alerts for.
+
+        // map_b64kp_subscription_alerts
+
+        // map_b64kp_subscription_alerts
+
+        //var b64_
+
+        //console.log('batch_put');
+
+        var b64_key, c, l;
+        var matching_alerts;
+
+        // evented_get_row_buffers as kvp buffers?
         Binary_Encoding.evented_get_row_buffers(buf, (arr_row) => {
             //console.log('arr_row', arr_row);
+
+            // Does it begin with any of the key prefixes we have alerts for?
+            //  Maybe we need an alert tree to check this.
+
+            // Or could scan according to the different lengths of key prefixes, each encoded as base64 strings.
+            //  Simple use of a Tree sounds useful.
+            //console.log('\narr_row[0]', arr_row[0]);
+            if (this.using_prefix_put_alerts) {
+                var map_b64kp_subscription_put_alert_counts = this.map_b64kp_subscription_put_alert_counts;
+                var map_b64kp_subscription_put_alerts = this.map_b64kp_subscription_put_alerts;
+
+                b64_key = arr_row[0].toString('hex');
+                //console.log('b64_key', b64_key);
+
+
+                //console.log('using_prefix_put_alerts');
+                //console.log('keys: this.map_b64kp_subscription_put_alert_counts', Object.keys(this.map_b64kp_subscription_put_alert_counts));
+
+                //each(Object.keys(this.map_b64kp_subscription_put_alerts))
+                for (var key in this.map_b64kp_subscription_put_alert_counts) {
+                    //console.log('key', key);
+                    if (b64_key.indexOf(key) === 0) {
+                        //console.log('found matching put alert key prefix', key);
+
+                        // if its found then process the subscription alerts.
+                        ////  could also have 
+
+                        // call each of these alerts.
+
+                        // Would be better to batch these in the near future.
+
+                        matching_alerts = map_b64kp_subscription_put_alerts[key];
+
+                        l = matching_alerts.length;
+                        //console.log('l', l);
+                        for (c = 0; c < l; c++) {
+                            matching_alerts[c]({
+                                'type': 'batch_put',
+                                'buffer': Binary_Encoding.join_buffer_pair(arr_row)
+                            });
+                            // or after the actual put.
+                        }
+                    }
+                }
+            }
+            
+
+            
+            // 
+            
+            
+
+
+            
+
 
             ops.push({
                 'type': 'put',
@@ -514,7 +643,12 @@ class NextLevelDB_Server extends Evented_Class {
             //var decoded_row = decode_model_row(arr_row);
             //console.log('decoded_row', decoded_row);
 
-        })
+        });
+
+        
+
+        
+
         //console.log('ops', JSON.stringify(ops, null, 2));
         //throw 'stop';
         var that = this;
@@ -555,6 +689,14 @@ class NextLevelDB_Server extends Evented_Class {
                     'type': 'batch_put',
                     'buffer': buf
                 });
+
+                // then if there are specific events that get triggered for individual kep prefixes.
+
+
+                // Raise an event with a buffer that contains those key prefixes.
+
+
+
 
                 // Then the subscriptions would have an event that gets raised on this object.
 

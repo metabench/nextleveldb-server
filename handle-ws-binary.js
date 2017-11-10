@@ -15,9 +15,6 @@ How many index records
 
 Getting paging working soon will be useful.
 Want to send a number of individual messages back to the client.
-
-
-
  
  
  */
@@ -26,7 +23,7 @@ Want to send a number of individual messages back to the client.
 
 
 
-var jsgui = require('jsgui3');
+var jsgui = require('lang-mini');
 var tof = jsgui.tof;
 var each = jsgui.each;
 var is_array = jsgui.is_array;
@@ -84,6 +81,7 @@ const LL_WIPE_REPLACE = 21;
 
 
 const LL_SUBSCRIBE_ALL = 60;
+const LL_SUBSCRIBE_KEY_PREFIX_PUTS = 61;
 const LL_UNSUBSCRIBE_SUBSCRIPTION = 62;
 
 // Then the subscription messages send back data that's been put into the database / commands that have been done on the db.
@@ -805,9 +803,6 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
             buf_res = Buffer.concat(msg_response);
             //console.log('buf_res', buf_res);
             connection.sendBytes(buf_res);
-
-
-
             
         });
 
@@ -820,11 +815,83 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
             'unsubscribe': unsubscribe_all
         }
 
+    }
 
+    // LL_SUBSCRIBE_KEY_PREFIX_PUTS
 
-        
+    if (i_query_type === LL_SUBSCRIBE_KEY_PREFIX_PUTS) {
+        console.log('LL_SUBSCRIBE_KEY_PREFIX_PUTS');
+
+        var unsubscribe = nextleveldb_server.ll_subscribe_key_prefix_puts(buf_the_rest, (subscription_event) => {
+            console.log('LL_SUBSCRIBE_KEY_PREFIX_PUTS subscription_event', subscription_event);
+            var i_response_type = map_subscription_event_types[subscription_event.type];
+            //console.log('i_response_type', i_response_type);
+            var msg_response = [buf_msg_id, xas2(subscription_event.sub_msg_id).buffer, xas2(i_response_type).buffer];
+
+            if (subscription_event.type === 'batch_put') {
+                msg_response.push(subscription_event.buffer);
+            }
+            // both buffer puts and individual record puts
+            // Also handle buffering / debouncing of recodrd puts.
+
+            console.log('msg_response', msg_response);
+
+            buf_res = Buffer.concat(msg_response);
+            console.log('buf_res', buf_res);
+            //console.log('no response sent (still developing)');
+            connection.sendBytes(buf_res);
+            
+        });
+
+        // then store the unsubscribe function.
+        // 
+
+        client_subscriptions[connection.id] = client_subscriptions[connection.id] || {};
+        client_subscriptions[connection.id][message_id] = {
+            'unsubscribe': unsubscribe_all
+        }
 
     }
+
+
+    /*
+    if (i_query_type === LL_SUBSCRIBE_KEY_PREFIX) {
+        console.log('LL_SUBSCRIBE_KEY_PREFIX');
+
+        var unsubscribe_key_prefix = nextleveldb_server.ll_subscribe_key_prefix((subscription_event) => {
+
+            // sub_msg_id:
+
+            // remove the target from the subscription event?
+
+            //delete subscription_event.target;
+
+            //console.log('ws binary subscription_event', subscription_event);
+
+            // then encode the message
+
+            var i_response_type = map_subscription_event_types[subscription_event.type];
+            //console.log('i_response_type', i_response_type);
+
+            var msg_response = [buf_msg_id, xas2(subscription_event.sub_msg_id).buffer, xas2(i_response_type).buffer];
+            //console.log('msg_response', msg_response);
+
+            // would need to 
+
+            if (subscription_event.type === 'batch_put') {
+                msg_response.push(subscription_event.buffer);
+            }
+
+            buf_res = Buffer.concat(msg_response);
+            //console.log('buf_res', buf_res);
+            connection.sendBytes(buf_res);
+
+
+
+            
+        });
+    }
+    */
 
     if (i_query_type === LL_UNSUBSCRIBE_SUBSCRIPTION) {
         console.log('LL_UNSUBSCRIBE_SUBSCRIPTION');
