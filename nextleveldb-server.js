@@ -329,9 +329,8 @@ class NextLevelDB_Server extends Evented_Class {
             //console.log('server process_subscription_event', e);
             e.sub_msg_id = sub_msg_id++;
             callback_update(e);
-
-
         }
+
 
         this.on('db_action', process_subscription_event);
 
@@ -370,39 +369,38 @@ class NextLevelDB_Server extends Evented_Class {
         console.log('b64_kp', b64_kp);
         //throw 'stop';
 
+        // Working on batching these
+
         var process_subscription_event = (e) => {
             //console.log('server process_subscription_event', e);
             e.sub_msg_id = sub_msg_id++;
 
             callback_update(e);
-
-
         }
 
-        if (this.map_b64kp_subscription_put_alert_counts[b64_kp]) {
-            this.map_b64kp_subscription_put_alert_counts[b64_kp]++;
-            this.map_b64kp_subscription_put_alerts[b64_kp].push(process_subscription_event);
-        } else {
-            this.map_b64kp_subscription_put_alert_counts[b64_kp] = 1;
-            this.map_b64kp_subscription_put_alerts[b64_kp] = [process_subscription_event];
-        }
+        var evt_name = 'put_kp_batch_' + b64_kp;
 
-        this.using_prefix_put_alerts = true;
+        this.on(evt_name, process_subscription_event);
+
+        // Done using evented class like the subscribe all function seems best.
+
 
         
+        if (this.map_b64kp_subscription_put_alert_counts[b64_kp]) {
+            this.map_b64kp_subscription_put_alert_counts[b64_kp]++;
+            //this.map_b64kp_subscription_put_alerts[b64_kp].push(process_subscription_event);
+        } else {
+            this.map_b64kp_subscription_put_alert_counts[b64_kp] = 1;
+            //this.map_b64kp_subscription_put_alerts[b64_kp] = [process_subscription_event];
+        }
+        
 
+        this.using_prefix_put_alerts = true;
 
 
         // the alert counts and the alerts themselves.
         //  a map of alert functions looks best here.
         //   don't need to use evented functionalty. Maybe would make sense though.
-
-
-
-
-
-
-
 
 
     }
@@ -573,7 +571,29 @@ class NextLevelDB_Server extends Evented_Class {
         //console.log('batch_put');
 
         var b64_key, c, l;
-        var matching_alerts;
+
+        // Alerts of multiple rows to multiple clients.
+
+        // rows by subscription.
+
+        
+        // Find out which keys are being listened to.
+        //  Then raise the appropriate events for them.
+
+
+
+
+        //var matching_alerts = [];
+
+        // matching subscriptions
+
+        // a batch for each key
+
+        var map_key_batches = {};
+
+
+        //var prefix_put_alerts_batch = [];
+        //var prefix_put_alerts_batch = [];
 
         // evented_get_row_buffers as kvp buffers?
         Binary_Encoding.evented_get_row_buffers(buf, (arr_row) => {
@@ -585,9 +605,13 @@ class NextLevelDB_Server extends Evented_Class {
             // Or could scan according to the different lengths of key prefixes, each encoded as base64 strings.
             //  Simple use of a Tree sounds useful.
             //console.log('\narr_row[0]', arr_row[0]);
+
+            
+
             if (this.using_prefix_put_alerts) {
+                //prefix_put_alerts_batch = [];
                 var map_b64kp_subscription_put_alert_counts = this.map_b64kp_subscription_put_alert_counts;
-                var map_b64kp_subscription_put_alerts = this.map_b64kp_subscription_put_alerts;
+                //var map_b64kp_subscription_put_alerts = this.map_b64kp_subscription_put_alerts;
 
                 b64_key = arr_row[0].toString('hex');
                 //console.log('b64_key', b64_key);
@@ -597,10 +621,30 @@ class NextLevelDB_Server extends Evented_Class {
                 //console.log('keys: this.map_b64kp_subscription_put_alert_counts', Object.keys(this.map_b64kp_subscription_put_alert_counts));
 
                 //each(Object.keys(this.map_b64kp_subscription_put_alerts))
+
+                // Looks like we need to store the put alerts by key with the subscription id.
+                
+
+
                 for (var key in this.map_b64kp_subscription_put_alert_counts) {
                     //console.log('key', key);
                     if (b64_key.indexOf(key) === 0) {
                         //console.log('found matching put alert key prefix', key);
+
+                        map_key_batches[key] = map_key_batches[key] || [];
+                        map_key_batches[key].push(arr_row);
+
+
+
+
+
+
+
+                        //match_subscribers[]
+
+                        //prefix_put_alerts_batch.push(row);
+
+                        // 
 
                         // if its found then process the subscription alerts.
                         ////  could also have 
@@ -609,17 +653,26 @@ class NextLevelDB_Server extends Evented_Class {
 
                         // Would be better to batch these in the near future.
 
-                        matching_alerts = map_b64kp_subscription_put_alerts[key];
 
-                        l = matching_alerts.length;
+
+                        //matching_alerts = map_b64kp_subscription_put_alerts[key];
+
+                        //l = matching_alerts.length;
+
+                        
                         //console.log('l', l);
-                        for (c = 0; c < l; c++) {
+                        //for (c = 0; c < l; c++) {
+
+                            /*
                             matching_alerts[c]({
                                 'type': 'batch_put',
                                 'buffer': Binary_Encoding.join_buffer_pair(arr_row)
                             });
+                            */
+
+                            //prefix_put_alerts_batch.push(arr_row);
                             // or after the actual put.
-                        }
+                        //}
                     }
                 }
             }
@@ -685,10 +738,33 @@ class NextLevelDB_Server extends Evented_Class {
                 //  then with a type 
 
 
+                // One system subscruibes to all puts / batch puts.
                 that.raise('db_action', {
                     'type': 'batch_put',
                     'buffer': buf
                 });
+
+
+                //if (prefix_put_alerts_batch.length > 0) {
+                //    
+                //}
+
+                each(map_key_batches, (map_key_batch, key) => {
+                    //console.log('1) key', key);
+                    console.log('map_key_batch', map_key_batch);
+                    //var buf_encoded_batch = Model_Database.encode_arr_rows_to_buf(map_key_batch);
+                    //var buf_encoded_batch = Binary_Encoding.encode_to_buffer(map_key_batch);
+
+                    //var buf_encoded_batch = Model_Database.encode_arr_rows_to_buf(map_key_batch);
+                    var buf_encoded_batch = Model_Database.encode_model_rows(map_key_batch);
+
+
+                    //console.log('buf_encoded_batch', buf_encoded_batch);
+                    that.raise('put_kp_batch_' + key, {
+                        'type': 'batch_put',
+                        'buffer': buf_encoded_batch
+                    });
+                })
 
                 // then if there are specific events that get triggered for individual kep prefixes.
 

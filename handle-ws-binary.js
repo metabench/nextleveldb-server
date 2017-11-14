@@ -823,7 +823,7 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
         console.log('LL_SUBSCRIBE_KEY_PREFIX_PUTS');
 
         var unsubscribe = nextleveldb_server.ll_subscribe_key_prefix_puts(buf_the_rest, (subscription_event) => {
-            console.log('LL_SUBSCRIBE_KEY_PREFIX_PUTS subscription_event', subscription_event);
+            //console.log('LL_SUBSCRIBE_KEY_PREFIX_PUTS subscription_event', subscription_event);
             var i_response_type = map_subscription_event_types[subscription_event.type];
             //console.log('i_response_type', i_response_type);
             var msg_response = [buf_msg_id, xas2(subscription_event.sub_msg_id).buffer, xas2(i_response_type).buffer];
@@ -834,10 +834,10 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
             // both buffer puts and individual record puts
             // Also handle buffering / debouncing of recodrd puts.
 
-            console.log('msg_response', msg_response);
+            //console.log('msg_response', msg_response);
 
             buf_res = Buffer.concat(msg_response);
-            console.log('buf_res', buf_res);
+            //console.log('buf_res', buf_res);
             //console.log('no response sent (still developing)');
             connection.sendBytes(buf_res);
             
