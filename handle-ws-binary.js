@@ -19,10 +19,6 @@ Want to send a number of individual messages back to the client.
  
  */
 
-
-
-
-
 var jsgui = require('lang-mini');
 var tof = jsgui.tof;
 var each = jsgui.each;
@@ -97,8 +93,6 @@ const LL_UNSUBSCRIBE_SUBSCRIPTION = 62;
 
 const SUB_CONNECTED = 0;
 const SUB_RES_TYPE_BATCH_PUT = 1;
-
-
 
 var map_subscription_event_types = {
     'connected': SUB_CONNECTED,
@@ -452,6 +446,12 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
 
     // LL_COUNT_GET_FIRST_LAST_KEYS_IN_RANGE
 
+    //  Think this will be used to show there are at least 2 records there?
+    // Count between keys actually?
+
+    
+
+    /*
     if (i_query_type === LL_COUNT_GET_FIRST_LAST_KEYS_IN_RANGE) {
         console.log('LL_COUNT_GET_FIRST_LAST_KEYS_IN_RANGE');
 
@@ -525,6 +525,7 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
                 });
         }
     }
+    */
 
 
 

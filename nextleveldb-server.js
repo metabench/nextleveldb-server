@@ -1,3 +1,28 @@
+/*
+    Get fully working server implementation deployed.
+        Server-side model gets loaded, so 
+    Leave the current data1 instance running, and see about importing data from it.
+    Currently not streaming records from the server fully.
+
+    // Or look on the server to correct the model.
+    //  Facility to directly edit rows would be useful.
+
+    // Could have been generating some records incorrectly on the server.
+
+    // Maybe functionality to fix the existing server's data would be useful.
+    //  View existing server's data too.
+
+    
+
+
+    
+
+
+
+
+
+*/
+
 var jsgui = require('jsgui3');
 var tof = jsgui.tof;
 var each = jsgui.each;
@@ -47,6 +72,10 @@ var levelup = require('level');
 var Model = require('nextleveldb-model');
 var Model_Database = Model.Database;
 
+
+
+const CORE_MIN_PREFIX = 0;
+const CORE_MAX_PREFIX = 9;
 // Definitely want this up and running on a server soon.
 //  Need to have HTML output of data tables too.
 //  Maybe viewing pages.
@@ -420,12 +449,51 @@ class NextLevelDB_Server extends Evented_Class {
         var that = this;
 
         this.get_system_db_rows((err, system_db_rows) => {
+            // These system db rows could be wrong.
+            //  Could be a problem with the existing DB's model records.
+            
+
+
             if (err) { callback(err); } else {
                 that.model = Model_Database.load(system_db_rows);
                 callback(null, that.model);
             }
         });
 
+    }
+
+    ll_count_keys_in_range(buf_l, buf_u, callback) {
+        var count = 0;
+        //var res = [];
+        this.db.createKeyStream({
+            'gt': buf_l,
+            'lt': buf_u
+        }).on('data', function (key) {
+            //arr_res.push(x(key.length).buffer);
+            //console.log('key', key);
+            //arr_res.push(key);
+            count++;
+        }).on('error', function (err) {
+            //console.log('Oh my!', err)
+            callback(err);
+        }).on('close', function () {
+            //console.log('Stream closed')
+        }).on('end', function () {
+            //callback(null, res);
+            //console.log('*** count', count);
+            callback(null, count);
+        });
+    }
+
+    get core_lu_buffers() {
+        var res = [xas2(CORE_MIN_PREFIX).buffer, xas2(CORE_MAX_PREFIX).buffer];
+        return res;
+    }
+
+    count_core(callback) {
+        var [bl, bu] = this.core_lu_buffers;
+        this.ll_count_keys_in_range(bl, bu, callback);
+        //this.
     }
 
     ll_count(callback) {
@@ -492,13 +560,13 @@ class NextLevelDB_Server extends Evented_Class {
         // tables ids 0, 1, 2, 3
         // tables, native types, table fields, table indexes
 
-
         // so, the very start of the key space between 0 and 7 (1 + 2 * 3)  1 being a 0 indexed 2
         //  tables key space starts at 2, each table has got 2 key spaces
+        var res_records = [];
 
         this.db.createReadStream({
-            'gte': xas2(0).buffer,
-            'lte': xas2(9).buffer}).on('data', function (record) {
+            'gte': xas2(CORE_MIN_PREFIX).buffer,
+            'lte': xas2(CORE_MAX_PREFIX).buffer}).on('data', function (record) {
             //console.log('key', key);
             //console.log('key.toString()', key.toString());
             res_records.push([record.key, record.value]);
@@ -866,7 +934,10 @@ if (require.main === module) {
 
                             var start_with_core_model = () => {
                                 // Could do an initial db setup...
-                                ls.ll_count((err, count) => {
+
+
+
+                                ls.count_core((err, count) => {
                                     if (err) {
                                         throw err;
                                     }
@@ -883,6 +954,8 @@ if (require.main === module) {
                                         // A standard instance of the Model will allow us to get the records quickly.
 
                                         // It would be useful to put all of the ll records into the db with one function call.
+
+                                        /*
 
                                         var mdb = new Model.Database();
                                         mdb.create_db_core_model();
@@ -908,6 +981,8 @@ if (require.main === module) {
                                                 });
                                             }
                                         });
+
+                                        */
                                     } else {
                                         // Get all of the records...
                                         //  Non-streaming.
@@ -923,6 +998,28 @@ if (require.main === module) {
                                         });
                                         */
 
+                                        ls.load_model((err, model) => {
+                                            if (err) { throw err; } else {
+                                                //console.log('model', model);
+                                                console.log('model loaded');
+
+                                                // get_arr_table_ids_and_names
+
+                                                console.log('ls.model.get_arr_table_ids_and_names', ls.model.arr_table_ids_and_names);
+                                                console.log('ls.model.description', ls.model.description);
+
+
+                                                // get_str_info
+                                                //  or a getter
+
+
+
+
+                                            }
+                                        })
+
+
+                                        /*
                                         ls.get_system_db_buffer((err, buf_system) => {
                                             if (err) {
                                                 throw err;
@@ -934,12 +1031,15 @@ if (require.main === module) {
                                                 console.log('mdb', m_system_db);
                                             }
                                         })
+                                        */
+
+
                                         //ls.get_all_decoded(
                                     }
                                 });
                             }
 
-                            //start_with_core_model();
+                            start_with_core_model();
 
                             
 
