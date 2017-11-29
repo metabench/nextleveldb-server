@@ -3,16 +3,16 @@
   "main": "nextleveldb-server.js",
   "license": "MIT",
   "dependencies": {
-    "jsgui3": "^0.0.9",
+    "binary-encoding": "^0.0.33",
+    "jsgui3": "0.0.9",
     "lang-mini": "^0.0.1",
-    "websocket": "^1.0.24",
-    "xas2": "^0.0.10",
-    "binary-encoding": "^0.0.30",
-    "recursive-readdir": "^2.2.1",
-    "single-line-log": "^1.1.2",
     "level": "^1.7.0",
+    "nextleveldb-model": "0.0.10",
+    "recursive-readdir": "^2.2.1",
     "rimraf": "^2.6.2",
-    "nextleveldb-model": "^0.0.7"
+    "single-line-log": "^1.1.2",
+    "websocket": "^1.0.24",
+    "xas2": "0.0.10"
   },
   "engines": {
     "node": ">=8.5.0"
@@ -23,5 +23,5 @@
     "type": "git",
     "url": "https://github.com/metabench/nextleveldb-server.git"
   },
-  "version": "0.0.8"
+  "version": "0.0.10"
 }

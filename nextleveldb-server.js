@@ -192,6 +192,7 @@ class NextLevelDB_Server extends Evented_Class {
 
         var wsServer = new WebSocketServer({
             httpServer: server,
+            maxReceivedFrameSize: 512000000,
             // You should not use autoAcceptConnections for production
             // applications, as it defeats all standard cross-origin protection
             // facilities built into the protocol and the browser.  You should
@@ -283,14 +284,14 @@ class NextLevelDB_Server extends Evented_Class {
                 //
                 //console.log((new Date()) + ' Connection accepted.');
                 connection.on('message', function (message) {
-                    //console.log('message', message);
+                    console.log('message', message);
                     if (message.type === 'utf8') {
                         throw 'deprecating http interface';
 
                         //handle_ws_utf8(connection, that, that.fns_ws, message);
                     }
                     else if (message.type === 'binary') {
-                        //console.log('Received Binary Message of ' + message.binaryData.length + ' bytes');
+                        console.log('Received Binary Message of ' + message.binaryData.length + ' bytes');
                         handle_ws_binary(connection, that, message.binaryData);
 
 
@@ -299,6 +300,7 @@ class NextLevelDB_Server extends Evented_Class {
                 });
                 connection.on('close', function (reasonCode, description) {
                     console.log((new Date()) + ' Peer ' + connection.remoteAddress + ' disconnected.\n');
+                    console.log('reasonCode, description', reasonCode, description);
                     // Then need to unsubscribe from event handler.
 
                     // Cancel the subscriptions.
@@ -647,9 +649,6 @@ class NextLevelDB_Server extends Evented_Class {
         
         // Find out which keys are being listened to.
         //  Then raise the appropriate events for them.
-
-
-
 
         //var matching_alerts = [];
 

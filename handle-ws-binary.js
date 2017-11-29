@@ -176,6 +176,7 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
 
     var pos, buf_res;
     //console.log('Received message_binary: ' + message_binary);
+    //console.log('Received message_binary length: ' + message_binary.length);
     //bytes_in_this_second = bytes_in_this_second + message.utf8Data.length;
 
     // We may have access to a working model of the system db.
