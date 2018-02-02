@@ -12,15 +12,6 @@
     // Maybe functionality to fix the existing server's data would be useful.
     //  View existing server's data too.
 
-    
-
-
-    
-
-
-
-
-
 */
 
 var jsgui = require('jsgui3');
@@ -625,149 +616,169 @@ class NextLevelDB_Server extends Evented_Class {
             })
     }
 
+
+    // an array batch put too.
+    //  Would not need to decode the buffer.
+
+    arr_batch_put(arr_bufs, callback) {
+
+        // Need to do more to standardise the key prefix subscriptions
+        //  and db put notifications to subscribers.
+
+        let ops = [], db = this.db, b64_key, c, l, map_key_batches = {}, key;
+        let buf_empty = Buffer.alloc(0);
+
+        each(arr_bufs, item => {
+            if (Array.isArray(item)) {
+
+                if (this.using_prefix_put_alerts) {
+                    //prefix_put_alerts_batch = [];
+                    var map_b64kp_subscription_put_alert_counts = this.map_b64kp_subscription_put_alert_counts;
+                    b64_key = item[0].toString('hex');
+    
+                    // Better to use a map and array.
+                    //  Maybe the standard event based system would be fine.
+                    //  Do more work on subscription handling.
+    
+                    for (key in this.map_b64kp_subscription_put_alert_counts) {
+                        //console.log('key', key);
+                        if (b64_key.indexOf(key) === 0) {
+                            //console.log('found matching put alert key prefix', key);
+                            map_key_batches[key] = map_key_batches[key] || [];
+                            map_key_batches[key].push(arr_row);
+                        }
+                    }
+                }
+
+                ops.push({
+                    'type': 'put',
+                    'key': item[0],
+                    'value': item[1]
+                });
+            } else {
+                ops.push({
+                    'type': 'put',
+                    'key': item,
+                    'value': buf_empty
+                });
+            }
+        });
+
+        var that = this;
+        db.batch(ops, function (err) {
+            if (err) {
+                callback(err);
+            } else {
+
+
+                that.raise('db_action', {
+                    'type': 'arr_batch_put',
+                    'value': arr_bufs
+                });
+
+                /*
+                each(map_key_batches, (map_key_batch, key) => {
+                    //console.log('1) key', key);
+                    //console.log('map_key_batch', map_key_batch);
+
+
+                    var buf_encoded_batch = Model_Database.encode_model_rows(map_key_batch);
+                    that.raise('put_kp_batch_' + key, {
+                        'type': 'batch_put',
+                        'buffer': buf_encoded_batch
+                    });
+                });
+                */
+                callback(null, true);
+            }
+        })
+    }
+
+
+
+
     batch_put(buf, callback) {
-        var ops = [];
-        var db = this.db;
+        var ops = [], db = this.db, b64_key, c, l, map_key_batches = {}, key;
 
-        // Search through that buffer to extract those records with a given key prefix buf.
-        //  We can do that for any key prefixes there are subscription alerts for.
+        // Made more complex to deal with data subscriptions.
+        //  It reads through the incoming data to look at the key prefix, and matches that against the subscriptions to key prefixes.
 
-        // map_b64kp_subscription_alerts
+        // Soon, we want to have the code all updated, and ready to download bittrex data easily through an npm installation.
+        //  Would serve the data over port 420 or others.
 
-        // map_b64kp_subscription_alerts
+        // Could then have multiple bittrex collector instances.
+        //  Could even have them obtain data from each other.
 
-        //var b64_
+        // For the moment, want it to gather that data from bittrex, and save it in place.
+        //  Will try having 2 or 3 servers set up to get started.
 
-        //console.log('batch_put');
+        // Having a local one running on the Silverstone PC would definitely be nice too.
+        //  Would be nice to monitor the data transfer rate, as well as to have live price graphs showing on the screen.
 
-        var b64_key, c, l;
+        // Definitely want to get things running well on the level of data structures.
+        //  When there is live data going to an object in the browser, it would be possible to generate some nice views, with added tools.
 
-        // Alerts of multiple rows to multiple clients.
+        // Need the data structures that are connected to the database / database network, and get data updates.
 
-        // rows by subscription.
+        // Could also start by downloading a fairly large piece of structured data from the database in the right format.
+        //  The db itself could use the same data structures with their serialization and deserialization.
 
+
+        // I estimate there is quite a lot more time that needs to be spent working on this, and I need to make that time available.
+
+        // Want to get bittrex data saved soon, and also made available in a high-performance data structure that gives the client access to live data.
         
-        // Find out which keys are being listened to.
-        //  Then raise the appropriate events for them.
+        // 1) Upgrade the data insert, including use of indexes
+        // 2) See about using streaming trading data
+        // 3)  See about using the download recent history calls, and inserting that data into the database.
+        //      when doing the calls, could get a measurement of the time that the data spans.
 
-        //var matching_alerts = [];
-
-        // matching subscriptions
-
-        // a batch for each key
-
-        var map_key_batches = {};
+        // Essentially, continue to upgrade the database part of it, including allowing the database to provide live data.
+        //  Database operating in a network with other databases would be useful too.
 
 
-        //var prefix_put_alerts_batch = [];
-        //var prefix_put_alerts_batch = [];
+
+
+
+
+
+
+
+
+
+
+
 
         // evented_get_row_buffers as kvp buffers?
+        // Works on a low level and does not carry out indexing, but will put indexed records.
+
+        // 
+
         Binary_Encoding.evented_get_row_buffers(buf, (arr_row) => {
-            //console.log('arr_row', arr_row);
-
-            // Does it begin with any of the key prefixes we have alerts for?
-            //  Maybe we need an alert tree to check this.
-
-            // Or could scan according to the different lengths of key prefixes, each encoded as base64 strings.
-            //  Simple use of a Tree sounds useful.
-            //console.log('\narr_row[0]', arr_row[0]);
-
-            
-
             if (this.using_prefix_put_alerts) {
                 //prefix_put_alerts_batch = [];
                 var map_b64kp_subscription_put_alert_counts = this.map_b64kp_subscription_put_alert_counts;
-                //var map_b64kp_subscription_put_alerts = this.map_b64kp_subscription_put_alerts;
-
                 b64_key = arr_row[0].toString('hex');
-                //console.log('b64_key', b64_key);
 
+                // Better to use a map and array.
+                //  Maybe the standard event based system would be fine.
+                //  Do more work on subscription handling.
 
-                //console.log('using_prefix_put_alerts');
-                //console.log('keys: this.map_b64kp_subscription_put_alert_counts', Object.keys(this.map_b64kp_subscription_put_alert_counts));
-
-                //each(Object.keys(this.map_b64kp_subscription_put_alerts))
-
-                // Looks like we need to store the put alerts by key with the subscription id.
-                
-
-
-                for (var key in this.map_b64kp_subscription_put_alert_counts) {
+                for (key in this.map_b64kp_subscription_put_alert_counts) {
                     //console.log('key', key);
                     if (b64_key.indexOf(key) === 0) {
                         //console.log('found matching put alert key prefix', key);
-
                         map_key_batches[key] = map_key_batches[key] || [];
                         map_key_batches[key].push(arr_row);
-
-
-
-
-
-
-
-                        //match_subscribers[]
-
-                        //prefix_put_alerts_batch.push(row);
-
-                        // 
-
-                        // if its found then process the subscription alerts.
-                        ////  could also have 
-
-                        // call each of these alerts.
-
-                        // Would be better to batch these in the near future.
-
-
-
-                        //matching_alerts = map_b64kp_subscription_put_alerts[key];
-
-                        //l = matching_alerts.length;
-
-                        
-                        //console.log('l', l);
-                        //for (c = 0; c < l; c++) {
-
-                            /*
-                            matching_alerts[c]({
-                                'type': 'batch_put',
-                                'buffer': Binary_Encoding.join_buffer_pair(arr_row)
-                            });
-                            */
-
-                            //prefix_put_alerts_batch.push(arr_row);
-                            // or after the actual put.
-                        //}
                     }
                 }
             }
-            
-
-            
-            // 
-            
-            
-
-
-            
-
-
             ops.push({
                 'type': 'put',
                 'key': arr_row[0],
                 'value': arr_row[1]
             });
-            //db.put(
-            //var decoded_row = decode_model_row(arr_row);
-            //console.log('decoded_row', decoded_row);
-
         });
-
-        
-
-        
 
         //console.log('ops', JSON.stringify(ops, null, 2));
         //throw 'stop';
@@ -831,30 +842,7 @@ class NextLevelDB_Server extends Evented_Class {
                         'type': 'batch_put',
                         'buffer': buf_encoded_batch
                     });
-                })
-
-                // then if there are specific events that get triggered for individual kep prefixes.
-
-
-                // Raise an event with a buffer that contains those key prefixes.
-
-
-
-
-                // Then the subscriptions would have an event that gets raised on this object.
-
-
-
-
-
-
-
-
-
-
-
-
-
+                });
                 callback(null, true);
             }
         })
@@ -1006,6 +994,27 @@ if (require.main === module) {
 
                                                 console.log('ls.model.get_arr_table_ids_and_names', ls.model.arr_table_ids_and_names);
                                                 console.log('ls.model.description', ls.model.description);
+
+                                                // Seems like the model gets loaded OK on the server when it starts by default.
+
+                                                // Would like it to be able to consult to model to check index data
+                                                //  Check if a record that is being put, or checked, already exists on the server.
+
+                                                // Programming user-friendly functions so we can see which records already exist or not would help.
+                                                //  ID lookup through indexes.
+
+                                                // Want it so we can look up the ID of a bittrex currency by one of it's index fields.
+
+                                                // Simple function to get the number of indexes that apply to a table.
+                                                //  Would be a query to the table indexes table
+                                                //   May need to consult the index of that table?
+
+                                                // Or less lower level functions to continue to do things with the current interface...?
+                                                //  Get all index records from a table, by name
+                                                //  Get table id / kp by name
+
+
+
 
 
                                                 // get_str_info

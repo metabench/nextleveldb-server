@@ -16,8 +16,28 @@ How many index records
 Getting paging working soon will be useful.
 Want to send a number of individual messages back to the client.
  
+A higher level binary handling system would be of 
+
+
+Handling more complex and thorough server queries would make sense, eg to get a load of info about tables all at once, including record counts.
+
+The core of the DB could do with a nice bit of improvement, allowing for functionality that would have taken multiple calls to be done at once.
+
+
+
+// Number of records in each table being returned alongside the table names.
+
+
+// Getting the table names
+//  Though that means reading it from the server-side model.
+
+
+
  
  */
+
+
+
 
 var jsgui = require('lang-mini');
 var tof = jsgui.tof;
@@ -31,6 +51,8 @@ var x = xas2 = require('xas2');
 // While these will be some work, they will enable a variety of data to be quickly moved in and out of the DB.
 
 var Binary_Encoding = require('binary-encoding');
+var Model = require('nextleveldb-model');
+var Model_Database = Model.Model_Database;
 
 // Could have paged versions of these instructions too?
 //  Building paging into the relevant instructions would make sense, so that we don't have too many instructions, with different versions.
@@ -47,6 +69,7 @@ const PAGING_BYTE_COUNT = 2;
 // All low level functions, operating on the core db.
 // Higher level functions could do things like put a record, where the db system automatically creates the index records too.
 
+// A way to LL put a single record?
 
 const LL_COUNT_RECORDS = 0;
 const LL_PUT_RECORDS = 1;
@@ -59,6 +82,16 @@ const LL_GET_RECORDS_IN_RANGE = 4;
 const LL_COUNT_KEYS_IN_RANGE = 5;
 const LL_GET_FIRST_LAST_KEYS_IN_RANGE = 6;
 const LL_COUNT_GET_FIRST_LAST_KEYS_IN_RANGE = 7;
+
+const LL_COUNT_KEYS_IN_RANGE_UP_TO = 8;
+
+
+// Or have further handlers in other files?
+
+
+
+
+
 // Has paging option.
 //  Number of records per page
 //  Number of bytes per page
@@ -67,9 +100,82 @@ const LL_COUNT_GET_FIRST_LAST_KEYS_IN_RANGE = 7;
 //  Would mean replacing a calling object I think.
 //  Or call a method in it.
 
+
+
+const LL_FIND_COUNT_TABLE_RECORDS_INDEX_MATCH = 11;
+//const LL_PUT_RECORD_INDEX_IT = 12;
+
+
+// Could make 12 polymorphic so it checks if it is given an array?
+const INSERT_TABLE_RECORD = 12;
+const INSERT_RECORDS = 13;
+
+
+// Definitely want it taking in plenty of records per second, and saving them to the DB.
+//  The DB would then send the data on to any subscribers.
+//  The DB would also enable rapid download of historical data in a convenient format / various convenient formats
+//  The DB would enable data items that contain historical data but also have live data updates, from the db, with low latency.
+
+
+
+// For the moment, need to make absolutely certain that the bittrex currencies and markets have been set up correctly.
+//  Then would need to ensure that the trades / order books / market snapshots data tables have been set up correctly.
+//  Then need to collect and save the data.
+//   Do this with multiple nodes.
+//   Set up a node / nodes that collects data from these existing nodes.
+//    Run backups from that node.
+//     Verify those backups, and copy them to other drives.
+//     Copy those backups to cloud storage too.
+//      Work on restoring a new database from the cloud backups.
+
+
+
+
+
+
+
+
+
+
+
+
+
 // const LL_GET_SYSTEM_MODEL = 10
 
 // The system model is tables 0 to 8 I think.
+
+// Load model from data on the server
+//  That would then enable data to be indexed as its put into the database.
+
+// Could still use the relatively complex data set to do with bittrex.
+//  Quite a lot of records here.
+
+
+// LL_PUT_RECORD_INDEX_IT
+
+// LL_PUT_RECORD_NO_OVERWRITE
+//  Needs to check against the unique keys
+
+
+
+// There are advantages to keeping a smaller LL api.
+//  Perhaps I could make a level 2 of the API?
+
+// Or just stick to the essentials to do with indexing records?
+//  Remember - want this to be able to take plenty of data from multiple exchanges quickly.
+
+// Some operations would be simpler without requiring client-side use of a db model.
+//  Updating the database using indexed records and preventing overwrites where necessary will help.
+
+
+
+
+
+
+// Some higher level lower level functions?
+//  Put records using table indexes?
+
+
 
 
 const LL_WIPE = 20;
@@ -205,7 +311,7 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
 
     // Function to read the paging option?
 
-    
+
 
     if (i_query_type === LL_WIPE) {
         console.log('LL_WIPE');
@@ -290,7 +396,7 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
                 if (err) {
                     throw err;
                 } else {
-                    
+
                     //console.log('buf_res', buf_res);
                     connection.sendBytes(buf_res);
                 }
@@ -299,8 +405,10 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
             connection.sendBytes(buf_res);
         }
 
-        
+
     }
+
+
 
 
     if (i_query_type === LL_COUNT_KEYS_IN_RANGE) {
@@ -313,7 +421,7 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
         // then get these separate buffers.
 
         var paging_option, page_size;
-        
+
         pos = 0;
         [paging_option, pos] = x.read(buf_the_rest, pos);
         if (paging_option > 0) {
@@ -328,7 +436,7 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
         buf_the_rest.copy(buf_2, 0, pos);
 
         var s_buf = Binary_Encoding.split_length_item_encoded_buffer(buf_2);
-        
+
         //console.log('buf_the_rest', buf_the_rest);
         //console.log('buf_2', buf_2);
 
@@ -343,22 +451,22 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
 
             //var res = [];
             db.createKeyStream({
-                'gt': s_buf[0],
-                'lt': s_buf[1]
-            }).on('data', function (key) {
-                //arr_res.push(x(key.length).buffer);
-                //console.log('key', key);
-                //arr_res.push(key);
-                count++;
-            })
-                .on('error', function (err) {
+                    'gt': s_buf[0],
+                    'lt': s_buf[1]
+                }).on('data', function(key) {
+                    //arr_res.push(x(key.length).buffer);
+                    //console.log('key', key);
+                    //arr_res.push(key);
+                    count++;
+                })
+                .on('error', function(err) {
                     //console.log('Oh my!', err)
                     callback(err);
                 })
-                .on('close', function () {
+                .on('close', function() {
                     //console.log('Stream closed')
                 })
-                .on('end', function () {
+                .on('end', function() {
                     //callback(null, res);
                     //console.log('*** count', count);
                     arr_res.push(xas2(count).buffer);
@@ -367,6 +475,114 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
                 });
         }
     }
+
+
+    // LL_COUNT_KEYS_IN_RANGE_UP_TO
+
+    if (i_query_type === LL_COUNT_KEYS_IN_RANGE_UP_TO) {
+        console.log('LL_COUNT_KEYS_IN_RANGE_UP_TO');
+
+        // get the rest of the buffer.
+        //console.log('buf_the_rest', buf_the_rest);
+        //console.log('buf_the_rest.length', buf_the_rest.length);
+
+        // then get these separate buffers.
+
+
+        // Fully decoding the input buffer could make sense.
+
+
+
+        var paging_option, page_size, count_limit;
+
+        pos = 0;
+
+
+
+        [paging_option, pos] = x.read(buf_the_rest, pos);
+        if (paging_option > 0) {
+            [page_size, pos] = x.read(buf_the_rest, pos);
+        }
+
+        [count_limit, pos] = x.read(buf_the_rest, pos);
+
+        //console.log('count_limit', count_limit);
+
+        // then make a new buffer, having read paging
+        //console.log('pos', pos);
+
+        //var buf_2 = Buffer.from(buf_the_rest, pos);
+        var buf_2 = Buffer.alloc(buf_the_rest.length - pos);
+        buf_the_rest.copy(buf_2, 0, pos);
+
+        var s_buf = Binary_Encoding.split_length_item_encoded_buffer(buf_2);
+
+        //console.log('buf_the_rest', buf_the_rest);
+        //console.log('buf_2', buf_2);
+
+        //console.log('s_buf', s_buf);
+
+
+
+        // then the count range query with those
+
+        if (paging_option === NO_PAGING) {
+            var arr_res = [buf_msg_id];
+            var count = 0;
+
+            //let reached_limit = false;
+
+
+            //var res = [];
+            let stream = db.createKeyStream({
+                    'gt': s_buf[0],
+                    'lt': s_buf[1]
+                }).on('data', function(key) {
+                    //arr_res.push(x(key.length).buffer);
+                    //console.log('key', key);
+                    //arr_res.push(key);
+
+
+
+                    count++;
+
+                    if (count > count_limit) {
+                        stream.destroy();
+                    }
+                })
+                .on('error', function(err) {
+                    //console.log('Oh my!', err)
+                    callback(err);
+                })
+                .on('close', function() {
+                    //console.log('Stream closed')
+
+                    //arr_res.push(xas2(count).buffer);
+                    //buf_res = Buffer.concat(arr_res);
+                    //connection.sendBytes(buf_res);
+
+
+                    arr_res.push(xas2(count).buffer);
+                    buf_res = Buffer.concat(arr_res);
+                    connection.sendBytes(buf_res);
+
+                })
+                .on('end', function() {
+                    //callback(null, res);
+                    //console.log('*** count', count);
+
+                });
+        }
+    }
+
+
+
+    // call the createKeyStream but be able to cancel it.
+    //  Possibly more advanced iterators could be used.
+
+
+
+
 
     // LL_GET_FIRST_LAST_KEYS_IN_RANGE
 
@@ -380,7 +596,7 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
         // then get these separate buffers.
 
         var paging_option, page_size;
-        
+
         pos = 0;
         [paging_option, pos] = x.read(buf_the_rest, pos);
         if (paging_option > 0) {
@@ -395,7 +611,7 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
         buf_the_rest.copy(buf_2, 0, pos);
 
         var s_buf = Binary_Encoding.split_length_item_encoded_buffer(buf_2);
-        
+
         //console.log('buf_the_rest', buf_the_rest);
         //console.log('buf_2', buf_2);
 
@@ -412,27 +628,27 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
 
             //var res = [];
             db.createKeyStream({
-                'gt': s_buf[0],
-                'lt': s_buf[1]
-            }).on('data', function (key) {
-                if (!first) first = key;
-                last = key;
-                //arr_res.push(x(key.length).buffer);
-                //console.log('key', key);
-                //arr_res.push(key);
-                //count++;
-            })
-                .on('error', function (err) {
+                    'gt': s_buf[0],
+                    'lt': s_buf[1]
+                }).on('data', function(key) {
+                    if (!first) first = key;
+                    last = key;
+                    //arr_res.push(x(key.length).buffer);
+                    //console.log('key', key);
+                    //arr_res.push(key);
+                    //count++;
+                })
+                .on('error', function(err) {
                     //console.log('Oh my!', err)
                     callback(err);
                 })
-                .on('close', function () {
+                .on('close', function() {
                     //console.log('Stream closed')
                 })
-                .on('end', function () {
+                .on('end', function() {
                     //callback(null, res);
                     //console.log('*** count', count);
-                    
+
                     // encode 2 values basically.
                     var encoded_res = Binary_Encoding.join_buffer_pair([first, last]);
                     console.log('encoded_res', encoded_res);
@@ -450,7 +666,7 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
     //  Think this will be used to show there are at least 2 records there?
     // Count between keys actually?
 
-    
+
 
     /*
     if (i_query_type === LL_COUNT_GET_FIRST_LAST_KEYS_IN_RANGE) {
@@ -559,18 +775,18 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
             var arr_res = [buf_msg_id];
 
             //var res = [];
-            db.createKeyStream({}).on('data', function (key) {
-                arr_res.push(x(key.length).buffer);
-                arr_res.push(key);
-            })
-                .on('error', function (err) {
+            db.createKeyStream({}).on('data', function(key) {
+                    arr_res.push(x(key.length).buffer);
+                    arr_res.push(key);
+                })
+                .on('error', function(err) {
                     //console.log('Oh my!', err)
                     callback(err);
                 })
-                .on('close', function () {
+                .on('close', function() {
                     //console.log('Stream closed')
                 })
-                .on('end', function () {
+                .on('end', function() {
                     //callback(null, res);
                     buf_res = Buffer.concat(arr_res);
                     connection.sendBytes(buf_res);
@@ -640,32 +856,32 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
 
             //var res = [];
             db.createKeyStream({
-                'gt': b_l,
-                'lt': b_u
-            }).on('data', function (key) {
-                // will be both the key and the value
-                // will need to combine them as buffers.
-                
-                //var buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
-                // key is a buffer.
+                    'gt': b_l,
+                    'lt': b_u
+                }).on('data', function(key) {
+                    // will be both the key and the value
+                    // will need to combine them as buffers.
+
+                    //var buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
+                    // key is a buffer.
 
 
 
-                //console.log('buf_combined', buf_combined);
-                arr_res.push(xas2(key.length).buffer);
-                arr_res.push(key);
-                //arr_res.push(x(key.length).buffer);
-                //arr_res.push(key);
+                    //console.log('buf_combined', buf_combined);
+                    arr_res.push(xas2(key.length).buffer);
+                    arr_res.push(key);
+                    //arr_res.push(x(key.length).buffer);
+                    //arr_res.push(key);
 
-            })
-                .on('error', function (err) {
+                })
+                .on('error', function(err) {
                     //console.log('Oh my!', err)
                     callback(err);
                 })
-                .on('close', function () {
+                .on('close', function() {
                     //console.log('Stream closed')
                 })
-                .on('end', function () {
+                .on('end', function() {
                     //callback(null, res);
                     buf_res = Buffer.concat(arr_res);
                     connection.sendBytes(buf_res);
@@ -726,26 +942,26 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
 
             //var res = [];
             db.createReadStream({
-                'gt': b_l,
-                'lt': b_u
-            }).on('data', function (data) {
-                // will be both the key and the value
-                // will need to combine them as buffers.
-                var buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
-                //console.log('buf_combined', buf_combined);
-                arr_res.push(buf_combined);
-                //arr_res.push(x(key.length).buffer);
-                //arr_res.push(key);
+                    'gt': b_l,
+                    'lt': b_u
+                }).on('data', function(data) {
+                    // will be both the key and the value
+                    // will need to combine them as buffers.
+                    var buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
+                    //console.log('buf_combined', buf_combined);
+                    arr_res.push(buf_combined);
+                    //arr_res.push(x(key.length).buffer);
+                    //arr_res.push(key);
 
-            })
-                .on('error', function (err) {
+                })
+                .on('error', function(err) {
                     //console.log('Oh my!', err)
                     callback(err);
                 })
-                .on('close', function () {
+                .on('close', function() {
                     //console.log('Stream closed')
                 })
-                .on('end', function () {
+                .on('end', function() {
                     //callback(null, res);
                     buf_res = Buffer.concat(arr_res);
                     connection.sendBytes(buf_res);
@@ -805,7 +1021,7 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
             buf_res = Buffer.concat(msg_response);
             //console.log('buf_res', buf_res);
             connection.sendBytes(buf_res);
-            
+
         });
 
         // then store the unsubscribe function.
@@ -842,7 +1058,7 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
             //console.log('buf_res', buf_res);
             //console.log('no response sent (still developing)');
             connection.sendBytes(buf_res);
-            
+
         });
 
         // then store the unsubscribe function.
@@ -927,8 +1143,174 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
     }
 
 
+    if (i_query_type === LL_FIND_COUNT_TABLE_RECORDS_INDEX_MATCH) {
+        // Need to search for the table records in the database.
+
+        // Need to decode the record.
+        //  Find out what table it is.
+
+        // Consult the model's record and index definition for that table
+        //  Determine what the index values would be for that record
+        //  Check the DB to see if it has that record / count the number of matching index records.
+
+        // Would need to be a full index match.
+        //  At least one of the indexes having a full match.
+
+        // Do this in order to see which bittrex currencies or markets match the given index values of records we have just downloaded
+
+        // Just doing it a single record at a time for the moment.
+
+
+        console.log('LL_FIND_COUNT_TABLE_RECORDS_INDEX_MATCH');
+
+        // buf_the_rest
+        //  this gets decoded into the record.
+
+
+
+
+
+
+
+    }
+
+    if (i_query_type === INSERT_TABLE_RECORD) {
+        console.log('INSERT_TABLE_RECORD');
+
+        // Need to decode the record (array or other object)
+
+        //buf_the_rest = Buffer.alloc(message_binary.length - pos);
+        //message_binary.copy(buf_the_rest, 0, pos);
+
+        var table_id;
+
+
+        /*
+        pos = 0;
+        [table_id, pos] = x.read(buf_the_rest, pos);
+
+        // then make a new buffer, having read paging
+        //console.log('pos', pos);
+
+        //var buf_2 = Buffer.from(buf_the_rest, pos);
+        var buf_2 = Buffer.alloc(buf_the_rest.length - pos);
+        buf_the_rest.copy(buf_2, 0, pos);
+        */
+
+
+        // We should be able to tell from the model what fields there are.
+
+        // Want the count of primary keys for that table.
+
+        console.log('table_id', table_id);
+
+
+        var buf_res = Buffer.concat([buf_msg_id]);
+
+        if (buf_the_rest.length > 0) {
+
+            // Decode a Record according to the Model?
+
+            // Or the record would just be encoded as the binary flexi encoding?
+
+            var [table_id, record] = Binary_Encoding.decode_buffer(buf_the_rest);
+
+            //var decoded = Model_Database.decode_model_row(buf_the_rest);
+            //console.log('decoded', decoded);
+
+            //let [table_id, record] = decoded;
+
+            // So, this way we are able to decode the record.
+            console.log('[table_id, record]', [table_id, record]);
+
+            let model_table = nextleveldb_server.model.tables[table_id];
+            console.log('model_table', model_table);
+
+            // then create a record on that table.
+
+            // Seems like the incrementors have not been set up on the server side model.
+            //  When loading the model, need to make sure that the server side incrementor gets set up properly.
+
+
+            let model_record = model_table.new_record(record);
+            //  That model record could have funtionality to encode itself as a buffer.
+
+
+
+            console.log('model_record', model_record);
+
+            // Then do ll put on the model record encoded.
+
+            // Need encoding to the DB system to be part of the model record.
+            //  Could also get the index records, so to do a batch put.
+
+            //let encoded_record = model_record.to_b
+
+            let arr_record_and_index_buffers = model_record.to_arr_buffer_with_indexes();
+            console.log('arr_record_and_index_buffers', arr_record_and_index_buffers);
+
+            // Then can ll put records.
+            //  
+
+            // Something that arranges the batches.
+
+            nextleveldb_server.arr_batch_put(arr_record_and_index_buffers, (err, res_put) => {
+                if (err) {
+                    throw err;
+                } else {
+                    console.log('res_put', res_put);
+
+                    // Could do this so we return the record's new ID.
+
+                    // Though possibly return thw whole primary key?
+                    //  Different case for when it's an array / multiple items.
+
+
+
+                    if (model_record.arr_data[0].length === 1) {
+                        var msg_response = [buf_msg_id, xas2(model_record.arr_data[0][0]).buffer];
+                        buf_res = Buffer.concat(msg_response);
+                        connection.sendBytes(buf_res);
+                    } else {
+                        throw 'NYI';
+                    }
+
+
+
+
+                }
+            })
+
+
+
+
+
+            //throw 'stop';
+
+            //var decoded = Binary_Encoding.dec
+
+            /*
+            nextleveldb_server.batch_put(buf_the_rest, (err, res_batch_put) => {
+                if (err) {
+                    throw err;
+                } else {
+                    
+                    //console.log('buf_res', buf_res);
+                    connection.sendBytes(buf_res);
+                }
+            })
+            */
+
+
+        } else {
+            connection.sendBytes(buf_res);
+        }
+
+
+    }
+
+
 
 };
 
 module.exports = handle_ws_binary;
-
