@@ -1,0 +1,6 @@
+Thinking of subclassing the server.
+It would have other specific functionality.
+Could have a collector-server?
+
+
+A Server GUI would also be useful.

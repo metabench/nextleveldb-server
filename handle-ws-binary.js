@@ -31,7 +31,7 @@ The core of the DB could do with a nice bit of improvement, allowing for functio
 // Getting the table names
 //  Though that means reading it from the server-side model.
 
-
+// Should generally set the table field types.
 
  
  */
@@ -81,9 +81,11 @@ const LL_GET_RECORDS_IN_RANGE = 4;
 
 const LL_COUNT_KEYS_IN_RANGE = 5;
 const LL_GET_FIRST_LAST_KEYS_IN_RANGE = 6;
-const LL_COUNT_GET_FIRST_LAST_KEYS_IN_RANGE = 7;
+const LL_GET_RECORD = 7;
 
+// Limited to a certain number of items
 const LL_COUNT_KEYS_IN_RANGE_UP_TO = 8;
+const LL_GET_RECORDS_IN_RANGE_UP_TO = 9;
 
 
 // Or have further handlers in other files?
@@ -127,6 +129,16 @@ const INSERT_RECORDS = 13;
 //     Verify those backups, and copy them to other drives.
 //     Copy those backups to cloud storage too.
 //      Work on restoring a new database from the cloud backups.
+
+
+
+// Think we need get the data automatically indexed on the server.
+
+// Could have a lower level db function to index a table.
+
+
+
+//  Worth using the model for this.
 
 
 
@@ -477,6 +489,10 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
     }
 
 
+    // 
+
+
+
     // LL_COUNT_KEYS_IN_RANGE_UP_TO
 
     if (i_query_type === LL_COUNT_KEYS_IN_RANGE_UP_TO) {
@@ -666,83 +682,6 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
     //  Think this will be used to show there are at least 2 records there?
     // Count between keys actually?
 
-
-
-    /*
-    if (i_query_type === LL_COUNT_GET_FIRST_LAST_KEYS_IN_RANGE) {
-        console.log('LL_COUNT_GET_FIRST_LAST_KEYS_IN_RANGE');
-
-        // get the rest of the buffer.
-        //console.log('buf_the_rest', buf_the_rest);
-        //console.log('buf_the_rest.length', buf_the_rest.length);
-
-        // then get these separate buffers.
-
-        var paging_option, page_size;
-        
-        pos = 0;
-        [paging_option, pos] = x.read(buf_the_rest, pos);
-        if (paging_option > 0) {
-            [page_size, pos] = x.read(buf_the_rest, pos);
-        }
-
-        // then make a new buffer, having read paging
-        //console.log('pos', pos);
-
-        //var buf_2 = Buffer.from(buf_the_rest, pos);
-        var buf_2 = Buffer.alloc(buf_the_rest.length - pos);
-        buf_the_rest.copy(buf_2, 0, pos);
-
-        var s_buf = Binary_Encoding.split_length_item_encoded_buffer(buf_2);
-        
-        //console.log('buf_the_rest', buf_the_rest);
-        //console.log('buf_2', buf_2);
-
-        //console.log('s_buf', s_buf);
-
-        // then the count range query with those
-
-        if (paging_option === NO_PAGING) {
-            var arr_res = [buf_msg_id];
-            var count = 0;
-
-            var first;
-            var last;
-
-            //var res = [];
-            db.createKeyStream({
-                'gt': s_buf[0],
-                'lt': s_buf[1]
-            }).on('data', function (key) {
-                if (!first) first = key;
-                last = key;
-                //arr_res.push(x(key.length).buffer);
-                //console.log('key', key);
-                //arr_res.push(key);
-                count++;
-            })
-                .on('error', function (err) {
-                    //console.log('Oh my!', err)
-                    callback(err);
-                })
-                .on('close', function () {
-                    //console.log('Stream closed')
-                })
-                .on('end', function () {
-                    //callback(null, res);
-                    //console.log('*** count', count);
-                    arr_res.push(xas2(count).buffer);
-                    // encode 2 values basically.
-                    var encoded_res = Binary_Encoding.join_buffer_pair([first, last]);
-                    //console.log('encoded_res', encoded_res);
-                    arr_res.push(encoded_res);
-
-                    buf_res = Buffer.concat(arr_res);
-                    connection.sendBytes(buf_res);
-                });
-        }
-    }
-    */
 
 
 
@@ -968,6 +907,124 @@ var handle_ws_binary = function(connection, nextleveldb_server, message_binary) 
                 })
         }
     }
+
+    if (i_query_type === LL_GET_RECORD) {
+        // Decode / get a single key
+        console.log('LL_GET_RECORD', LL_GET_RECORD);
+
+        //let [buf_key, pos] = read_l_buffer(buf_the_rest, pos);
+
+        // buf_the_rest is the key
+        let buf_key = buf_the_rest;
+
+        db.get(buf_key, (err, buf_value) => {
+            if (err) {
+                callback(err);
+            } else {
+                console.log('buf_value', buf_value);
+                // But does get also get the key as well?
+
+                buf_res = Buffer.concat([buf_msg_id, Binary_Encoding.join_buffer_pair([buf_key, buf_value])]);
+                connection.sendBytes(buf_res);
+
+            }
+        })
+
+
+    }
+
+
+    // LL_GET_RECORDS_IN_RANGE_UP_TO
+
+    if (i_query_type === LL_GET_RECORDS_IN_RANGE_UP_TO) {
+        console.log('LL_GET_RECORDS_IN_RANGE_UP_TO');
+
+        // when there are 0 records?
+        // Maybe not returning data OK.
+
+        var paging_option, page_size, count_limit;
+
+        pos = 0;
+        [paging_option, pos] = x.read(buf_the_rest, pos);
+        if (paging_option > 0) {
+            [page_size, pos] = x.read(buf_the_rest, pos);
+        }
+
+        [count_limit, pos] = x.read(buf_the_rest, pos);
+
+        console.log('count_limit', count_limit);
+
+        // Could feed through a paging function that batches the results.
+        // batch_put
+
+        //console.log('buf_the_rest', buf_the_rest);
+        //console.log('buf_the_rest.length', buf_the_rest.length);
+
+        // read two buffers from the query... greater than and less than.
+
+        // Need to encode each key separately.
+        //  Say how long the key is in bytes, then write that key buffer.
+        //  Some kind of buffer vector while building?
+        //   How to compose the whole thing in memory reasonably efficiently?
+        //   Put the buffers in a vector...
+
+        //console.log('paging_option', paging_option);
+
+        var b_l, b_u;
+
+        if (paging_option === NO_PAGING) {
+            // read a couple more buffers.
+
+            // want to read a buffer with the length first.
+
+
+            [b_l, pos] = read_l_buffer(buf_the_rest, pos);
+            [b_u, pos] = read_l_buffer(buf_the_rest, pos);
+
+            //console.log('b_l', b_l);
+            //console.log('b_u', b_u);
+
+            //throw 'stop';
+
+
+            var arr_res = [buf_msg_id];
+            let count = 0;
+
+            //var res = [];
+            let stream = db.createReadStream({
+                    'gt': b_l,
+                    'lt': b_u
+                }).on('data', data => {
+                    // will be both the key and the value
+                    // will need to combine them as buffers.
+                    var buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
+                    //console.log('buf_combined', buf_combined);
+                    arr_res.push(buf_combined);
+                    //arr_res.push(x(key.length).buffer);
+                    //arr_res.push(key);
+                    count++;
+                    if (count > count_limit) {
+                        stream.destroy();
+                    }
+
+                })
+                .on('error', err => {
+                    //console.log('Oh my!', err)
+                    callback(err);
+                })
+                .on('close', () => {
+                    console.log('Stream closed')
+
+                    buf_res = Buffer.concat(arr_res);
+                    connection.sendBytes(buf_res);
+                })
+                .on('end', () => {
+                    //callback(null, res);
+
+                })
+        }
+    }
+
 
     if (i_query_type === LL_SUBSCRIBE_ALL) {
         console.log('LL_SUBSCRIBE_ALL');
