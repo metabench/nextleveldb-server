@@ -2,5 +2,63 @@ Thinking of subclassing the server.
 It would have other specific functionality.
 Could have a collector-server?
 
-
 A Server GUI would also be useful.
+Could have something just saying that it's running. Say what the path is. Say what the IO/s is.
+
+A server with its specific model built in.
+When starting up, will make sure it has that model.
+Can have that built into the server component.
+
+Soon will need to make an authenticated DB system.
+Would use a very simple authentication systm to start with, with usernames and passwords in a config file.
+Could have separate authentication db or service
+Could have authentication within this db.
+Could restrict by IP address.
+
+Definitely need authentication when connecting
+Could have authorisation for tasks
+Could get a session token when the connection is opened.
+
+Client and maybe ll client commands such as list users
+
+Including authentication and authorisation tables into the model.
+Could have another file or function to do that.
+
+Need a somewhat dynamic way of optionally including specific functionality in the initial model. Feature flags could do it.
+
+A separate authorisation and authentication database / service could be useful too.
+Could also provide a&a services to the main db. A number of DBs on the network could refer to that single A&A DB for credential checking.
+To start with, that system could just have a config file of users, with their permissions and roles.
+
+Could allow read table access to any user (could say default user), for some specific tables.
+The authorisation service could track requests to see how many had been done recently, to see if limits have been exceeded, or to charge for request authorisation and fulfilment.
+
+
+// NextLevelDB_Auth_Service
+//  This would possibly have its own NextLevelDB a bit later on. Maybe NextLevelDB_Auth_DB.
+//  The Auth Service could do things such as give out an access token which will last a few days in response to the correct username and password, could be loaded from a config file.
+//   Or could check against password hashes.
+
+
+// The server could be set up to use an auth service. The auth service, or net-auth-service would run on a network port.
+//  Would have a binary interface, and there would be the same command space as nextleveldb-server. The server could use some of those auth funtions itself.
+
+// For the moment, don't need to make the auth-db.
+//  There will be a limited number of users granted access for the moment.
+//  The auth service could work to prevent DOS attacks by authorising normal requests from unknown ip addresses, but keeping track of the rate.
+
+
+
+
+
+
+
+
+
+
+
+
+
+For the moment, getting this running with stability is a priority.
+
+

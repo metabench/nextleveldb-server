@@ -11,30 +11,19 @@ const http = require('http');
 const url = require('url');
 const os = require('os');
 const path = require('path');
-
 const rimraf = require('rimraf');
-
 var WebSocket = require('websocket');
 var WebSocketServer = WebSocket.server;
 
 var xas2;
-//var encodings = require('./encodings-core');
 var x = xas2 = require('xas2');
-
 var fs = require('fs');
 
 // Extra fs tools?
 //  That could be worth separating.
 
 var fs2 = jsgui.fs2;
-
-//var handle_http = require('./handle-http');
-//var handle_ws_utf8 = require('./handle-ws-utf8');
-
 var handle_ws_binary = require('./handle-ws-binary');
-
-// handle_ws_binary
-
 //var Binary_Encoding = require('binary-encoding');
 var Binary_Encoding = require('binary-encoding');
 var Binary_Encoding_Record = Binary_Encoding.Record;
@@ -68,8 +57,6 @@ class NextLevelDB_Server extends Evented_Class {
         this.using_prefix_put_alerts
         this.map_b64kp_subscription_put_alerts = {};
         this.map_b64kp_subscription_put_alert_counts = {};
-
-
         var db;
 
         //if (db_already_exists) {
@@ -81,11 +68,11 @@ class NextLevelDB_Server extends Evented_Class {
         var running_means_per_second = that.running_means_per_second = new Running_Means_Per_Second();
         running_means_per_second.start_single_line_log();
 
-        var server = http.createServer(function(request, response) {
+        var server = http.createServer(function (request, response) {
             handle_http(request, response);
         });
 
-        server.listen(that.port, function() {
+        server.listen(that.port, function () {
             //console.log((new Date()) + ' Server is listening on port 8080');
             console.log("Server is listening on port " + that.port + ', using database path ' + path.normalize(that.db_path));
             //callback(null, that.port);
@@ -106,7 +93,6 @@ class NextLevelDB_Server extends Evented_Class {
         //db = db || (that.db = replace_db_put(levelup(that.db_path, options), that));
         db = db || levelup(this.db_path, this.db_options);
         this.db = db;
-
         var db_already_exists = false;
 
         //console.log('this.db_path', this.db_path);
@@ -148,7 +134,7 @@ class NextLevelDB_Server extends Evented_Class {
         var next_connection_id = 0;
 
         var proceed_2 = () => {
-            wsServer.on('request', function(request) {
+            wsServer.on('request', function (request) {
 
                 if (!originIsAllowed(request.origin)) {
                     // Make sure we only accept requests from an allowed origin
@@ -161,28 +147,20 @@ class NextLevelDB_Server extends Evented_Class {
 
                 //
                 //console.log((new Date()) + ' Connection accepted.');
-                connection.on('message', function(message) {
+                connection.on('message', function (message) {
                     console.log('message', message);
                     if (message.type === 'utf8') {
                         throw 'deprecating http interface';
-
-                        //handle_ws_utf8(connection, that, that.fns_ws, message);
                     } else if (message.type === 'binary') {
-                        console.log('Received Binary Message of ' + message.binaryData.length + ' bytes');
                         handle_ws_binary(connection, that, message.binaryData);
-
-
-                        //connection.sendBytes(message.binaryData);
                     }
                 });
-                connection.on('close', function(reasonCode, description) {
+                connection.on('close', function (reasonCode, description) {
                     console.log((new Date()) + ' Peer ' + connection.remoteAddress + ' disconnected.\n');
                     console.log('reasonCode, description', reasonCode, description);
                     // Then need to unsubscribe from event handler.
-
                     // Cancel the subscriptions.
-
-                    var cancel_subscriptions = function() {
+                    var cancel_subscriptions = function () {
                         each(connection.subscription_handlers, (subscription_handler, event_name) => {
                             that.off(event_name, subscription_handler);
                         })
@@ -192,10 +170,6 @@ class NextLevelDB_Server extends Evented_Class {
             });
             callback(null, true);
         }
-
-        //var proceed = function () {
-
-        //};
     }
 
     ll_wipe(callback) {
@@ -203,17 +177,17 @@ class NextLevelDB_Server extends Evented_Class {
         var that = this;
 
         this.db.close((err) => {
-            if (err) { callback(err); } else {
+            if (err) {
+                callback(err);
+            } else {
                 // Then rimraf the db directory
-
                 rimraf(this.db_path, (err) => {
-                    if (err) { callback(err); } else {
+                    if (err) {
+                        callback(err);
+                    } else {
                         // Create a new db in place
-
                         this.db = levelup(that.db_path, that.db_options);
-
                         callback(null, this.db);
-
                     }
                 })
             }
@@ -221,18 +195,14 @@ class NextLevelDB_Server extends Evented_Class {
     }
 
     ll_subscribe_all(callback_update) {
-
         var sub_msg_id = 0;
         var that = this;
-
         var process_subscription_event = (e) => {
             //console.log('server process_subscription_event', e);
             e.sub_msg_id = sub_msg_id++;
             callback_update(e);
         }
-
         this.on('db_action', process_subscription_event);
-
         // could return an unsubscribe function.
 
         var unsubscribe = () => {
@@ -240,7 +210,6 @@ class NextLevelDB_Server extends Evented_Class {
             // return
             // why the increment here?
             return sub_msg_id++;
-
         }
 
         process_subscription_event({
@@ -255,10 +224,10 @@ class NextLevelDB_Server extends Evented_Class {
 
         var sub_msg_id = 0;
         var that = this;
-        console.log('** buf_kp', buf_kp);
+        //console.log('** buf_kp', buf_kp);
 
         var b64_kp = buf_kp.toString('hex');
-        console.log('b64_kp', b64_kp);
+        //console.log('b64_kp', b64_kp);
         //throw 'stop';
 
         // Working on batching these
@@ -281,10 +250,7 @@ class NextLevelDB_Server extends Evented_Class {
             this.map_b64kp_subscription_put_alert_counts[b64_kp] = 1;
             //this.map_b64kp_subscription_put_alerts[b64_kp] = [process_subscription_event];
         }
-
-
         this.using_prefix_put_alerts = true;
-
     }
 
     load_model(callback) {
@@ -294,15 +260,13 @@ class NextLevelDB_Server extends Evented_Class {
         this.get_system_db_rows((err, system_db_rows) => {
             // These system db rows could be wrong.
             //  Could be a problem with the existing DB's model records.
-
-
-
-            if (err) { callback(err); } else {
+            if (err) {
+                callback(err);
+            } else {
                 that.model = Model_Database.load(system_db_rows);
                 callback(null, that.model);
             }
         });
-
     }
 
     ll_count_keys_in_range(buf_l, buf_u, callback) {
@@ -311,17 +275,17 @@ class NextLevelDB_Server extends Evented_Class {
         this.db.createKeyStream({
             'gt': buf_l,
             'lt': buf_u
-        }).on('data', function(key) {
+        }).on('data', function (key) {
             //arr_res.push(x(key.length).buffer);
             //console.log('key', key);
             //arr_res.push(key);
             count++;
-        }).on('error', function(err) {
+        }).on('error', function (err) {
             //console.log('Oh my!', err)
             callback(err);
-        }).on('close', function() {
+        }).on('close', function () {
             //console.log('Stream closed')
-        }).on('end', function() {
+        }).on('end', function () {
             //callback(null, res);
             //console.log('*** count', count);
             callback(null, count);
@@ -341,19 +305,19 @@ class NextLevelDB_Server extends Evented_Class {
 
     ll_count(callback) {
         var count = 0;
-        this.db.createKeyStream({}).on('data', function(key) {
+        this.db.createKeyStream({}).on('data', function (key) {
                 //console.log('key', key);
                 //console.log('key.toString()', key.toString());
                 //res_keys.push(encodeURI(key));
                 count++;
-            }).on('error', function(err) {
+            }).on('error', function (err) {
                 //console.log('Oh my!', err)
                 callback(err);
             })
-            .on('close', function() {
+            .on('close', function () {
                 //console.log('Stream closed')
             })
-            .on('end', function() {
+            .on('end', function () {
                 callback(null, count);
             })
     }
@@ -361,17 +325,17 @@ class NextLevelDB_Server extends Evented_Class {
     // No paging on this one.
     get_all_db_keys(callback) {
         var res = [];
-        this.db.createKeyStream({}).on('data', function(key) {
+        this.db.createKeyStream({}).on('data', function (key) {
                 res.push(key);
             })
-            .on('error', function(err) {
+            .on('error', function (err) {
                 //console.log('Oh my!', err)
                 callback(err);
             })
-            .on('close', function() {
+            .on('close', function () {
                 //console.log('Stream closed')
             })
-            .on('end', function() {
+            .on('end', function () {
                 callback(null, res);
             })
     }
@@ -380,19 +344,19 @@ class NextLevelDB_Server extends Evented_Class {
         // This has got not means to cancel it. Simple version.
         var res_records = [];
 
-        this.db.createReadStream({}).on('data', function(record) {
+        this.db.createReadStream({}).on('data', function (record) {
                 //console.log('key', key);
                 //console.log('key.toString()', key.toString());
                 res_records.push([record.key, record.value]);
             })
-            .on('error', function(err) {
+            .on('error', function (err) {
                 //console.log('Oh my!', err)
                 callback(err);
             })
-            .on('close', function() {
+            .on('close', function () {
                 //console.log('Stream closed')
             })
-            .on('end', function() {
+            .on('end', function () {
                 callback(null, res_records);
             })
     }
@@ -410,19 +374,19 @@ class NextLevelDB_Server extends Evented_Class {
         this.db.createReadStream({
                 'gte': xas2(CORE_MIN_PREFIX).buffer,
                 'lte': xas2(CORE_MAX_PREFIX).buffer
-            }).on('data', function(record) {
+            }).on('data', function (record) {
                 //console.log('key', key);
                 //console.log('key.toString()', key.toString());
                 res_records.push([record.key, record.value]);
             })
-            .on('error', function(err) {
+            .on('error', function (err) {
                 //console.log('Oh my!', err)
                 callback(err);
             })
-            .on('close', function() {
+            .on('close', function () {
                 //console.log('Stream closed')
             })
-            .on('end', function() {
+            .on('end', function () {
                 callback(null, res_records);
             })
     }
@@ -430,7 +394,6 @@ class NextLevelDB_Server extends Evented_Class {
     get_system_db_buffer(callback) {
         // tables ids 0, 1, 2
         // tables, native types, table fields
-
 
         // so, the very start of the key space between 0 and 7 (1 + 2 * 3)  1 being a 0 indexed 2
         //  tables key space starts at 2, each table has got 2 key spaces
@@ -445,29 +408,24 @@ class NextLevelDB_Server extends Evented_Class {
         this.db.createReadStream({
                 'gte': xas2(0).buffer,
                 'lte': xas2(9).buffer
-            }).on('data', function(record) {
+            }).on('data', function (record) {
                 //console.log('key', key);
                 //console.log('key.toString()', key.toString());
                 //res_records.push([record.key, record.value]);
-
                 arr_buf_res.push(Binary_Encoding.join_buffer_pair([record.key, record.value]));
-
             })
-            .on('error', function(err) {
+            .on('error', function (err) {
                 //console.log('Oh my!', err)
                 callback(err);
             })
-            .on('close', function() {
+            .on('close', function () {
                 //console.log('Stream closed')
             })
-            .on('end', function() {
+            .on('end', function () {
                 //console.log('arr_buf_res', arr_buf_res);
-
                 callback(null, Buffer.concat(arr_buf_res));
             })
     }
-
-
     // an array batch put too.
     //  Would not need to decode the buffer.
 
@@ -475,7 +433,6 @@ class NextLevelDB_Server extends Evented_Class {
 
         // Need to do more to standardise the key prefix subscriptions
         //  and db put notifications to subscribers.
-
         let ops = [],
             db = this.db,
             b64_key, c, l, map_key_batches = {},
@@ -484,12 +441,10 @@ class NextLevelDB_Server extends Evented_Class {
 
         each(arr_bufs, item => {
             if (Array.isArray(item)) {
-
                 if (this.using_prefix_put_alerts) {
                     //prefix_put_alerts_batch = [];
                     var map_b64kp_subscription_put_alert_counts = this.map_b64kp_subscription_put_alert_counts;
                     b64_key = item[0].toString('hex');
-
                     // Better to use a map and array.
                     //  Maybe the standard event based system would be fine.
                     //  Do more work on subscription handling.
@@ -503,7 +458,6 @@ class NextLevelDB_Server extends Evented_Class {
                         }
                     }
                 }
-
                 ops.push({
                     'type': 'put',
                     'key': item[0],
@@ -519,30 +473,15 @@ class NextLevelDB_Server extends Evented_Class {
         });
 
         var that = this;
-        db.batch(ops, function(err) {
+        db.batch(ops, function (err) {
             if (err) {
                 callback(err);
             } else {
-
-
                 that.raise('db_action', {
                     'type': 'arr_batch_put',
                     'value': arr_bufs
                 });
 
-                /*
-                each(map_key_batches, (map_key_batch, key) => {
-                    //console.log('1) key', key);
-                    //console.log('map_key_batch', map_key_batch);
-
-
-                    var buf_encoded_batch = Model_Database.encode_model_rows(map_key_batch);
-                    that.raise('put_kp_batch_' + key, {
-                        'type': 'batch_put',
-                        'buffer': buf_encoded_batch
-                    });
-                });
-                */
                 callback(null, true);
             }
         })
@@ -559,7 +498,6 @@ class NextLevelDB_Server extends Evented_Class {
                 //prefix_put_alerts_batch = [];
                 var map_b64kp_subscription_put_alert_counts = this.map_b64kp_subscription_put_alert_counts;
                 b64_key = arr_row[0].toString('hex');
-
                 // Better to use a map and array.
                 //  Maybe the standard event based system would be fine.
                 //  Do more work on subscription handling.
@@ -580,10 +518,8 @@ class NextLevelDB_Server extends Evented_Class {
             });
         });
 
-        //console.log('ops', JSON.stringify(ops, null, 2));
-        //throw 'stop';
         var that = this;
-        db.batch(ops, function(err) {
+        db.batch(ops, function (err) {
             if (err) {
                 callback(err);
             } else {
@@ -596,13 +532,7 @@ class NextLevelDB_Server extends Evented_Class {
                 each(map_key_batches, (map_key_batch, key) => {
                     //console.log('1) key', key);
                     console.log('map_key_batch', map_key_batch);
-                    //var buf_encoded_batch = Model_Database.encode_arr_rows_to_buf(map_key_batch);
-                    //var buf_encoded_batch = Binary_Encoding.encode_to_buffer(map_key_batch);
-
-                    //var buf_encoded_batch = Model_Database.encode_arr_rows_to_buf(map_key_batch);
                     var buf_encoded_batch = Model_Database.encode_model_rows(map_key_batch);
-
-
                     //console.log('buf_encoded_batch', buf_encoded_batch);
                     that.raise('put_kp_batch_' + key, {
                         'type': 'batch_put',
@@ -612,7 +542,6 @@ class NextLevelDB_Server extends Evented_Class {
                 callback(null, true);
             }
         })
-
     }
 }
 
@@ -620,35 +549,32 @@ class NextLevelDB_Server extends Evented_Class {
 
 let custom_path = '';
 
-custom_path = 'D:\\NextlevelDB\\DB1'
+// Custom path will be within local app config.
+
+custom_path = 'D:\\NextlevelDB\\DB1';
 
 if (require.main === module) {
     var user_dir = os.homedir();
     //console.log('user_dir', user_dir);
     //var docs_dir =
-
-    var path_dbs = user_dir + '/NextLevelDB/dbs'
-
+    var path_dbs = user_dir + '/NextLevelDB/dbs';
     // Would also be worth being able to choose db names
 
-
     fs2.ensure_directory_exists(user_dir + '/NextLevelDB', (err, exists) => {
-        if (err) { throw err } else {
-
+        if (err) {
+            throw err
+        } else {
             fs2.ensure_directory_exists(path_dbs, (err, exists) => {
-                if (err) { throw err } else {
-                    //console.log('dir now exists');
-                    //throw 'stop';
-
+                if (err) {
+                    throw err
+                } else {
                     var db_path = custom_path || path_dbs + '/default';
-
                     //var db_path = 'db';
                     var port = 420;
-
                     // Is the first one the node executable?
 
-                    console.log('process.argv.length', process.argv.length);
-                    console.log('process.argv', process.argv);
+                    //console.log('process.argv.length', process.argv.length);
+                    //console.log('process.argv', process.argv);
 
                     if (process.argv.length === 2) {
                         //db_path = process.argv[1];
@@ -683,35 +609,14 @@ if (require.main === module) {
                                     if (err) {
                                         throw err;
                                     }
-                                    console.log('\n1) count', count);
-
                                     if (count === 0) {
 
                                     } else {
-                                        // Get all of the records...
-                                        //  Non-streaming.
 
-                                        // Should probably have a Binary_Query processor.
-                                        /*
-                                        ls.get_all_db_rows((err, arr_db_rows) => {
+                                        ls.load_model((err, model) => {
                                             if (err) {
                                                 throw err;
                                             } else {
-                                                console.log('arr_db_rows', arr_db_rows);
-                                            }
-                                        });
-                                        */
-
-                                        ls.load_model((err, model) => {
-                                            if (err) { throw err; } else {
-                                                //console.log('model', model);
-                                                console.log('model loaded');
-
-                                                // get_arr_table_ids_and_names
-
-                                                console.log('ls.model.get_arr_table_ids_and_names', ls.model.arr_table_ids_and_names);
-                                                console.log('ls.model.description', ls.model.description);
-
 
                                             }
                                         })
