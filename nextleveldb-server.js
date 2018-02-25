@@ -39,6 +39,39 @@ var Model_Database = Model.Database;
 const CORE_MIN_PREFIX = 0;
 const CORE_MAX_PREFIX = 9;
 
+
+// Authentication is the next core feature of the server.
+//  Could make it so that there is just an admin user for the moment with full permissions.
+//  For some DB things, could also open it up so that any user can read, and there is a rate limiter and / or DOS protector.
+
+// Authentication would enable this DB to run a CMS website.
+
+// For the moment, need to get this deployed onto remote servers
+//  Could also work on error logging in case of failure.
+//  Possibly logging the errors to the DB itself.
+
+
+// Then a multi-client would be useful, to monitor the status of these various servers.
+//  Get servers better at tracking number of records put/got per second again.
+
+// Need to separate out different collectors.
+
+// Bittrex -> DB
+// Others -> DB
+
+// Crypto-Data-Collector seems OK for one machine.
+//  Maybe for coordinating a network too.
+
+// Try collecting data for about 5 or so exchanges soon.
+// Need it so that the collectors can be coded separately, and then started up to collect data for the given DB.
+
+// A&A is probably the highest priority though.
+
+
+
+
+
+
 class NextLevelDB_Server extends Evented_Class {
     constructor(spec) {
         super();
@@ -148,9 +181,9 @@ class NextLevelDB_Server extends Evented_Class {
                 //
                 //console.log((new Date()) + ' Connection accepted.');
                 connection.on('message', function (message) {
-                    console.log('message', message);
+                    //console.log('message', message);
                     if (message.type === 'utf8') {
-                        throw 'deprecating http interface';
+                        throw 'deprecating utf8 interface';
                     } else if (message.type === 'binary') {
                         handle_ws_binary(connection, that, message.binaryData);
                     }
@@ -306,12 +339,8 @@ class NextLevelDB_Server extends Evented_Class {
     ll_count(callback) {
         var count = 0;
         this.db.createKeyStream({}).on('data', function (key) {
-                //console.log('key', key);
-                //console.log('key.toString()', key.toString());
-                //res_keys.push(encodeURI(key));
                 count++;
             }).on('error', function (err) {
-                //console.log('Oh my!', err)
                 callback(err);
             })
             .on('close', function () {
@@ -329,7 +358,6 @@ class NextLevelDB_Server extends Evented_Class {
                 res.push(key);
             })
             .on('error', function (err) {
-                //console.log('Oh my!', err)
                 callback(err);
             })
             .on('close', function () {
@@ -345,12 +373,9 @@ class NextLevelDB_Server extends Evented_Class {
         var res_records = [];
 
         this.db.createReadStream({}).on('data', function (record) {
-                //console.log('key', key);
-                //console.log('key.toString()', key.toString());
                 res_records.push([record.key, record.value]);
             })
             .on('error', function (err) {
-                //console.log('Oh my!', err)
                 callback(err);
             })
             .on('close', function () {
@@ -409,9 +434,6 @@ class NextLevelDB_Server extends Evented_Class {
                 'gte': xas2(0).buffer,
                 'lte': xas2(9).buffer
             }).on('data', function (record) {
-                //console.log('key', key);
-                //console.log('key.toString()', key.toString());
-                //res_records.push([record.key, record.value]);
                 arr_buf_res.push(Binary_Encoding.join_buffer_pair([record.key, record.value]));
             })
             .on('error', function (err) {
@@ -503,9 +525,7 @@ class NextLevelDB_Server extends Evented_Class {
                 //  Do more work on subscription handling.
 
                 for (key in this.map_b64kp_subscription_put_alert_counts) {
-                    //console.log('key', key);
                     if (b64_key.indexOf(key) === 0) {
-                        //console.log('found matching put alert key prefix', key);
                         map_key_batches[key] = map_key_batches[key] || [];
                         map_key_batches[key].push(arr_row);
                     }
@@ -543,19 +563,82 @@ class NextLevelDB_Server extends Evented_Class {
             }
         })
     }
+
+    // increment_incrementor (incrementor_id)
+
+
+    // Could ensure multiple tables with one command from the client.
+    //  Would need to encode the table definitions on the client, and send them to the server.
+    //  The server having its own copy of the model makes it more efficient.
+
+
+    ensure_table(arr_table, callback) {
+
+        // This could load up table definions on the server
+
+
+        /*
+
+        this.load_model((err, model) => {
+            if (err) {
+                callback(err);
+            } else {
+
+                let table_name = arr_table[0];
+                if (model.table_exists(table_name)) {
+
+                } else {
+                    let new_table = model.add_table(arr_table);
+
+                    // A function to get every single lower level DB record from the table, then add this to the database
+
+
+
+                    // And the model would have some db changes too.
+                    //  Changes to an incrementor
+
+
+
+                    // Then get all of the db rows including incrementor rows
+
+
+
+                }
+
+                //if (model.table_exists)
+
+                //model.ensure_table()
+
+            }
+        })
+
+        */
+
+
+    }
 }
 
 // Run it from the command line with a path?
 
-let custom_path = '';
+let custom_path;
 
 // Custom path will be within local app config.
+//  That way it will work better on Linux too.
 
-custom_path = 'D:\\NextlevelDB\\DB1';
+
+
+// Have a look in the config to find the db path.
+
+
+//custom_path = 'D:\\NextlevelDB\\DB1';
+
+// Loading it from local config would be best.
+
+
 
 if (require.main === module) {
     var user_dir = os.homedir();
-    //console.log('user_dir', user_dir);
+    console.log('OS User Directory:', user_dir);
     //var docs_dir =
     var path_dbs = user_dir + '/NextLevelDB/dbs';
     // Would also be worth being able to choose db names
@@ -572,6 +655,8 @@ if (require.main === module) {
                     //var db_path = 'db';
                     var port = 420;
                     // Is the first one the node executable?
+
+                    console.log('db_path', db_path);
 
                     //console.log('process.argv.length', process.argv.length);
                     //console.log('process.argv', process.argv);

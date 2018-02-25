@@ -49,6 +49,37 @@ The authorisation service could track requests to see how many had been done rec
 
 
 
+Just
+Auth_Service
+  That will be used by the NextLevelDB.
+
+AA_Service
+// Authentication and Authorization
+
+// Could check for permission to do a variety of tasks against the auth service
+
+// Check for a password match, then grant an Authentication token.
+// A1 = authentication, A2 = authorisation
+
+// 
+
+
+// The server could be given an authorisation service address.
+//  Maybe it could communicate with websockets.
+//  Should probably be a binary message system, like with NextLevelDB Server and Client.
+//  Will use Binary_Encoding to encode the sent messages.
+
+
+
+
+
+
+
+
+
+NextLevelDB_Auth_Service
+
+
 
 
 
@@ -61,4 +92,85 @@ The authorisation service could track requests to see how many had been done rec
 
 For the moment, getting this running with stability is a priority.
 
+
+
+After having it running with stability, replication, and possibly getting records in an efficient data structure is next.
+Be able to run another db process, and have it stream all of the data from a source database.
+
+  One time sync vs connected sync.
+
+    1) Be able to copy by table first?
+    2)  Would mean synchronising the cores.
+          Various pitfalls, need to avoid them.
+          With a blank database, can copy from another database. Could copy the core, and then copy the various tables over.
+
+    2) Direct copy of records - where appropriate.
+        Could do this when table ids and pks match.
+    
+Want to be able to have a local copy of the DB that has got its records from a remote online DB.
+
+A db with the command copy from remote would make sense.
+
+Could be a binary command.
+
+Would get the model rows from the remote db, then copy over each of the tables separately.
+
+Saving the DB replication settings in the DB?
+Seems like a DB properties table would be useful
+Even a remote db table?
+
+May be worth keeping the DB itself aware of where it will sync to / from.
+That way a db could be told which other DBs to sync from.
+
+Could have a 'peers' table.
+Could subscribe to the updates to such a connected database, and also catch up on the backlog.
+
+Catching up on backlog seems a bit tricky though, making blocks of data seems like a good way for this, even a simple blockchain.
+May require a separate way of storing the files, not keen on that.
+
+Maybe copying the entire database will be the way to do this.
+
+Counting records in ranges, and comparing keys.
+
+Could get the hash of key ranges, and download them if they don't match.
+
+A hash of all of the keys in a table would help to check that all of them have been copied OK.
+
+Want it so that it can be reliably started up, and known to have a full copy of the data once the process has been completed.
+May be best done with a db snapshot.
+
+Stream DB snapshot
+
+Then syncing to the up-to-date records could at first also be done with a full snapshot.
+Could have a system to check for / retrieve the earlier records, but this would vary depending on table encoding.
+
+
+25/02/18 - Improving the paging and data encoding of messages. Making it so that it's faster / requires less code to decode messages.
+Essentially, making a smaller API.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
+
+Also enabling more exchanges' data. Want to get data for a number more exchanges.
+The collector-base will be useful for this. Could start with quite a lot declared already.
 

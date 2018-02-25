@@ -4,10 +4,10 @@
     "license": "MIT",
     "dependencies": {
         "binary-encoding": "^0.0.35",
-        "jsgui3": "0.0.13",
-        "lang-mini": "^0.0.2",
+        "jsgui3": "0.0.16",
+        "lang-mini": "^0.0.3",
         "level": "^1.7.0",
-        "nextleveldb-model": "^0.0.19",
+        "nextleveldb-model": "^0.0.20",
         "recursive-readdir": "^2.2.1",
         "rimraf": "^2.6.2",
         "single-line-log": "^1.1.2",
@@ -23,5 +23,5 @@
         "type": "git",
         "url": "https://github.com/metabench/nextleveldb-server.git"
     },
-    "version": "0.0.16"
+    "version": "0.0.17"
 }
