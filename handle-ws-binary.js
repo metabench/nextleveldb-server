@@ -44,6 +44,7 @@ var tof = jsgui.tof;
 var each = jsgui.each;
 var is_array = jsgui.is_array;
 var arrayify = jsgui.arrayify;
+let def = jsgui.is_defined;
 var Fns = jsgui.Fns;
 
 var x = xas2 = require('xas2');
@@ -62,6 +63,8 @@ const NO_PAGING = 0;
 const PAGING_RECORD_COUNT = 1;
 // Followed by p number
 const PAGING_BYTE_COUNT = 2;
+const PAGING_TIMER = 3;
+
 // Followed by p number
 
 
@@ -113,6 +116,58 @@ const PAGING_BYTE_COUNT = 2;
 
 // A way to LL put a single record?
 
+
+// Will do some significant expansion of the lower level capabilities.
+
+
+// A wider variety of basic functions, and continuing the improved streaming of existing functionality.
+
+// There will be more functionality in the standard server codebase, upon which an API could make it available to clients, which would make that API available locally.
+//  Want structure and index verification available server-side.
+//  Still stuck on problems to do with adding, ensuring and looking up Bittrex currencies :(
+//  Need to be totally sure that these records are added and indexed properly.
+
+// Will do more on server-side testing and copying of databases.
+//  Want it so that a server can copy over records from another server, with ongoing progress indications.
+
+
+// Before DB records are copied over, it could verify that it's the same table structure.
+//  I expect the copying of records will work quickly, but I want to see and measure how many MB/s it goes at, and how many records/s get transferred.
+
+
+
+
+
+/*
+
+LL_GET_TABLE_ID_BY_NAME
+LL_GET_TABLE_KP_BY_NAME
+LL_GET_TABLE_IKP_BY_NAME
+
+These will have versions in the nextleveldb-server codebase, and here the remote calling API will be provided.
+
+table_index_value_lookup
+TABLE_INDEX_VALUE_LOOKUP
+
+
+*/
+
+
+
+
+
+// 05/03/2018 - Will have much more functionality moved into this lower level part, because this part handles the communications, and that is becoming more complicated / advanced.
+
+// Ensuring tables
+//  Getting the index records from a named table
+
+
+
+
+
+
+
+
 const LL_COUNT_RECORDS = 0;
 const LL_PUT_RECORDS = 1;
 
@@ -124,6 +179,9 @@ const LL_GET_ALL_RECORDS = 3;
 
 const LL_GET_KEYS_IN_RANGE = 4;
 const LL_GET_RECORDS_IN_RANGE = 5;
+
+
+
 
 const LL_COUNT_KEYS_IN_RANGE = 6;
 const LL_GET_FIRST_LAST_KEYS_IN_RANGE = 7;
@@ -190,7 +248,12 @@ const INSERT_RECORDS = 13;
 
 
 const ENSURE_TABLE = 20;
+const ENSURE_TABLES = 21;
+const TABLE_EXISTS = 22;
+const TABLE_ID_BY_NAME = 23;
 // RENAME_TABLE
+const GET_TABLE_FIELDS_INFO = 24;
+
 
 
 
@@ -244,6 +307,10 @@ const LL_SUBSCRIBE_ALL = 60;
 const LL_SUBSCRIBE_KEY_PREFIX_PUTS = 61;
 const LL_UNSUBSCRIBE_SUBSCRIPTION = 62;
 
+
+// Misc operations
+
+
 // Then the subscription messages send back data that's been put into the database / commands that have been done on the db.
 
 const LL_WIPE = 100;
@@ -295,14 +362,6 @@ var map_subscription_event_types = {
 
 
 
-
-
-
-
-
-
-
-
 // Optional parameters could help...
 
 
@@ -331,6 +390,9 @@ var client_subscriptions = {};
 
 
 
+
+
+
 const BINARY_PAGING_NONE = 0;
 const BINARY_PAGING_FLOW = 1;
 const BINARY_PAGING_LAST = 2;
@@ -338,7 +400,18 @@ const BINARY_PAGING_LAST = 2;
 const RECORD_PAGING_NONE = 3;
 const RECORD_PAGING_FLOW = 4;
 const RECORD_PAGING_LAST = 5;
-// const PAGING_BLOCKCHAIN = 3;
+const RECORD_UNDEFINED = 6;
+
+// A whole message type for undefined record?
+
+const KEY_PAGING_NONE = 7;
+const KEY_PAGING_FLOW = 8;
+const KEY_PAGING_LAST = 9;
+
+// Simplest error message.
+//  Could have a number, then could have encoded text.
+//  
+const ERROR_MESSAGE = 10;
 
 
 // Message Types (structure involving paging)
@@ -350,7 +423,23 @@ const buf_record_paging_none = xas2(RECORD_PAGING_NONE).buffer;
 const buf_record_paging_flow = xas2(RECORD_PAGING_FLOW).buffer;
 const buf_record_paging_last = xas2(RECORD_PAGING_LAST).buffer;
 
+
+const buf_key_paging_none = xas2(KEY_PAGING_NONE).buffer;
+const buf_key_paging_flow = xas2(KEY_PAGING_FLOW).buffer;
+const buf_key_paging_last = xas2(KEY_PAGING_LAST).buffer;
+
 const return_message_type = true;
+
+
+// When returning a lot of keys at once (or maybe just one key?), will use key paging options.
+//  They are really about specific encoding for transmitting sets of keys.
+
+
+// Need to upgrade and test the client and server side code for transmitting sets of keys, records, and other binary data.
+
+
+
+
 
 var handle_ws_binary = function (connection, nextleveldb_server, message_binary) {
 
@@ -397,8 +486,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 } else {
                     buf_res = Buffer.concat([xas2(message_id).buffer, xas2(BOOL_TRUE).buffer]);
                 }
-
-
                 //console.log('buf_res', buf_res);
                 connection.sendBytes(buf_res);
 
@@ -451,28 +538,102 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         // Count all records
         console.log('LL_COUNT_RECORDS');
 
-        nextleveldb_server.ll_count((err, count) => {
-            if (err) {
-                throw err;
-            } else {
-                console.log('count', count);
-                console.log('return_message_type', return_message_type);
+        // Count could return ongoing counts when the paging option is selected.
+        //  A paging type that returns timed ongoing responses would be nice, meaning every second or whenever, a 'page' message goes to the client, updating the status of the ongoing operation.
 
-                // This could be done with paging.
-                //  Could return a record with each page.
-                //  Could be different to a normal page if necessary.
+        // This can use paging options.
 
-                if (return_message_type) {
-                    // Though paging is an option, this is not a paged or pagable response.
-                    buf_res = Buffer.concat([xas2(message_id).buffer, buf_binary_paging_none, xas2(count).buffer]);
+        //console.log('buf_the_rest.length', buf_the_rest.length);
+
+
+        if (buf_the_rest.length === 0) {
+            nextleveldb_server.ll_count((err, count) => {
+                if (err) {
+                    throw err;
                 } else {
-                    buf_res = Buffer.concat([xas2(message_id).buffer, xas2(count).buffer]);
-                }
+                    //console.log('count', count);
+                    //console.log('return_message_type', return_message_type);
 
-                //console.log('buf_res', buf_res);
-                connection.sendBytes(buf_res);
+                    // This could be done with paging.
+                    //  Could return a record with each page.
+                    //  Could be different to a normal page if necessary.
+
+                    if (return_message_type) {
+                        // Though paging is an option, this is not a paged or pagable response.
+                        buf_res = Buffer.concat([xas2(message_id).buffer, buf_binary_paging_none, xas2(count).buffer]);
+                    } else {
+                        buf_res = Buffer.concat([xas2(message_id).buffer, xas2(count).buffer]);
+                    }
+
+                    //console.log('buf_res', buf_res);
+                    connection.sendBytes(buf_res);
+                }
+            });
+        } else {
+            // Look at the paging buffer.
+            //console.log('buf_the_rest', buf_the_rest);
+
+            let pos = 0,
+                page_number = 0,
+                paging_option, delay;
+            [paging_option, pos] = x.read(buf_the_rest, pos);
+
+            //console.log('paging_option', paging_option);
+
+            if (paging_option === PAGING_TIMER) {
+
+                // Will keep track of the count as it goes on.
+                //  A function to do the count with timed callbacks?
+                //  Maybe observables would be better than them anyway.
+
+                // Call the server count function with callbacks (or maybe an observable.)
+
+                console.log('LL_COUNT_RECORDS, timed paging');
+
+
+                [delay, pos] = x.read(buf_the_rest, pos);
+                console.log('delay', delay);
+
+                // then use the observable interface to ll_count.
+
+                let obs_count = nextleveldb_server.ll_count(delay);
+                console.log('obs_count', obs_count);
+
+                let n_page = 0;
+
+                obs_count.on('next', (e => {
+                    let count = e.count;
+
+                    //buf_res = Buffer.concat([xas2(message_id).buffer, buf_binary_paging_last, xas2(count).buffer]);
+                    //connection.sendBytes(buf_res);
+
+                    console.log('count', count);
+                }))
+                obs_count.on('complete', (count => {
+                    console.log('complete count', count);
+
+                    // Last page / complete page.
+
+                    buf_res = Buffer.concat([xas2(message_id).buffer, buf_binary_paging_last, xas2(page_number++).buffer, xas2(count).buffer]);
+                    connection.sendBytes(buf_res);
+
+                    // Then output this to the client.
+
+
+
+
+                }));
+
             }
-        });
+
+
+
+            //throw 'NYI';
+        }
+
+
+
+
     }
 
     // Lower level put records, where it puts it directly into the db
@@ -491,6 +652,10 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         //console.log('buf_the_rest.length', buf_the_rest.length);
 
         //throw 'stop';
+
+        // Not sure if server batch_put needs more upgrades.
+
+
 
         if (buf_the_rest.length > 0) {
             nextleveldb_server.batch_put(buf_the_rest, (err, res_batch_put) => {
@@ -519,6 +684,8 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
     if (i_query_type === LL_COUNT_KEYS_IN_RANGE) {
         console.log('LL_COUNT_KEYS_IN_RANGE');
+
+        // Could return the ongoing count when using paging.
 
         // get the rest of the buffer.
         //console.log('buf_the_rest', buf_the_rest);
@@ -828,7 +995,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
             if (return_message_type) {
                 // Though paging is an option, this is not a paged or pagable response.
-                var arr_res = [buf_msg_id, buf_record_paging_none];
+                var arr_res = [buf_msg_id, buf_key_paging_none];
             } else {
                 var arr_res = [buf_msg_id];
             }
@@ -851,6 +1018,41 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     connection.sendBytes(buf_res);
                 })
         }
+
+
+        if (paging_option === PAGING_RECORD_COUNT) {
+            page_records_max = page_size;
+            let arr_page = new Array(page_records_max);
+
+            let c = 0,
+                page_number = 0,
+                arr_res, buf_combined;
+            db.createKeyStream({}).on('data', (key) => {
+                    arr_page[c++] = Buffer.concat([xas2(key.length).buffer, key]);
+                    if (c === page_records_max) {
+                        connection.sendBytes(Buffer.concat([buf_msg_id, buf_key_paging_flow, xas2(page_number++).buffer].concat(arr_page)));
+                        c = 0;
+                        // Could empty that array, would that be faster than GC?
+                        arr_page = new Array(page_records_max);
+                    }
+                })
+                .on('error', function (err) {
+                    //console.log('Oh my!', err)
+                    callback(err);
+                })
+                .on('close', function () {
+                    //console.log('Stream closed')
+                })
+                .on('end', function () {
+                    //arr_res = ;
+                    //buf_res = ;
+                    connection.sendBytes(Buffer.concat([buf_msg_id, buf_key_paging_last, xas2(page_number).buffer].concat(arr_page.slice(0, c))));
+                })
+        }
+
+
+
+
     }
 
     // Could try this without managing our own paging
@@ -910,6 +1112,13 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 })
                 .on('error', function (err) {
                     //console.log('Oh my!', err)
+
+                    // Should have a way of sending failure messages back to the client.
+                    //  Having a return message type seems essential for error handling.
+                    //   Though could have some binary sequence which would only be for errors, eg [!ERROR!], and check for that in the messages when not using return_message_type
+
+
+
                     callback(err);
                 })
                 .on('close', function () {
@@ -970,9 +1179,10 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             let arr_page = new Array(page_records_max);
 
             let c = 0,
-                page_number = 0;
-            db.createReadStream({}).on('data', function (data) {
-                    let buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
+                page_number = 0,
+                arr_res, buf_combined;
+            db.createReadStream({}).on('data', (data) => {
+                    buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
                     //console.log('buf_combined', buf_combined);
                     // include it into the paged records.
                     arr_page[c++] = buf_combined;
@@ -982,16 +1192,18 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                         //  Would need to encode the page, try using binary encoding to put a bunch of records together.
                         // encoding the records together.
                         //  can concat the separate records together as with non-paging.
-                        console.log('page_number', page_number);
+                        //console.log('page_number', page_number);
 
-                        let arr_res = [buf_msg_id, buf_record_paging_flow, xas2(page_number++).buffer].concat(arr_page);
+                        //arr_res = [buf_msg_id, buf_record_paging_flow, xas2(page_number++).buffer].concat(arr_page);
+                        //buf_res = Buffer.concat(arr_res);
+                        //connection.sendBytes(buf_res);
 
-                        buf_res = Buffer.concat(arr_res);
-                        connection.sendBytes(buf_res);
+                        connection.sendBytes(Buffer.concat([buf_msg_id, buf_record_paging_flow, xas2(page_number++).buffer].concat(arr_page)));
 
-                        console.log('buf_res.length', buf_res.length);
+                        //console.log('buf_res.length', buf_res.length);
                         //let buf_encoded_page = Binary_Encoding.flexi_encode()
                         c = 0;
+                        // Could empty that array, would that be faster than GC?
                         arr_page = new Array(page_records_max);
                     }
                 })
@@ -1003,7 +1215,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     //console.log('Stream closed')
                 })
                 .on('end', function () {
-                    let arr_res = [buf_msg_id, buf_record_paging_last, xas2(page_number++).buffer];
+                    arr_res = [buf_msg_id, buf_record_paging_last, xas2(page_number).buffer].concat(arr_page.slice(0, c));
                     buf_res = Buffer.concat(arr_res);
                     connection.sendBytes(buf_res);
 
@@ -1011,7 +1223,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     //  For the moment, the last page having no data should be fine.
                     //  Won't always be like that.
 
-                    // The last page with no data.
+                    // The last page with no data?????
 
 
                     //buf_res = Buffer.concat(arr_res);
@@ -1044,9 +1256,9 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
         pos = 0;
         [paging_option, pos] = x.read(buf_the_rest, pos);
-        if (paging_option > 0) {
-            [page_size, pos] = x.read(buf_the_rest, pos);
-        }
+        //if (paging_option > 0) {
+
+        //}
 
         // Could feed through a paging function that batches the results.
         // batch_put
@@ -1062,7 +1274,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         //   How to compose the whole thing in memory reasonably efficiently?
         //   Put the buffers in a vector...
 
-        //console.log('paging_option', paging_option);
+        console.log('paging_option', paging_option);
 
         var b_l, b_u;
 
@@ -1082,7 +1294,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
             if (return_message_type) {
                 // Though paging is an option, this is not a paged or pagable response.
-                var arr_res = [buf_msg_id, buf_record_paging_none];
+                var arr_res = [buf_msg_id, buf_key_paging_none];
             } else {
                 var arr_res = [buf_msg_id];
             }
@@ -1100,7 +1312,15 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
 
 
+
+
                     //console.log('buf_combined', buf_combined);
+
+                    // A keys paging return type?
+                    //  Could just use Binary_Encoding.
+
+                    // Possibly going through ws-binary and changing to Binary_Encoding where possible would be best.
+
                     arr_res.push(xas2(key.length).buffer);
                     arr_res.push(key);
                     //arr_res.push(x(key.length).buffer);
@@ -1120,7 +1340,65 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     connection.sendBytes(buf_res);
                 })
         }
+
+        if (paging_option === PAGING_RECORD_COUNT) {
+            // Read the page size.
+            [page_size, pos] = x.read(buf_the_rest, pos);
+            [b_l, pos] = read_l_buffer(buf_the_rest, pos);
+            [b_u, pos] = read_l_buffer(buf_the_rest, pos);
+            let c = 0;
+            let arr_page = new Array(page_size);
+
+            db.createKeyStream({
+                    'gt': b_l,
+                    'lt': b_u
+                }).on('data', function (key) {
+
+                    //arr_page.push(xas2(key.length).buffer);
+                    //arr_page.push(key);
+
+                    arr_page[c++] = (Buffer.concat([xas2(key.length).buffer, key]));
+
+                    if (c === page_records_max) {
+                        connection.sendBytes(Buffer.concat([buf_msg_id, buf_key_paging_flow, xas2(page_number++).buffer].concat(arr_page)));
+                        c = 0;
+                        // Could empty that array, would that be faster than GC?
+                        arr_page = new Array(page_records_max);
+                    }
+
+                    //Binary_Encoding.join_buffer_pair([data.key, data.value])
+                    //arr_res.push(x(key.length).buffer);
+                    //arr_res.push(key);
+                })
+                .on('error', function (err) {
+                    //console.log('Oh my!', err)
+                    callback(err);
+                })
+                .on('close', function () {
+                    //console.log('Stream closed')
+                })
+                .on('end', function () {
+                    //callback(null, res);
+                    //buf_res = Buffer.concat(arr_res);
+                    //connection.sendBytes(buf_res);
+                    connection.sendBytes(Buffer.concat([buf_msg_id, buf_key_paging_last, xas2(page_number).buffer].concat(arr_page.slice(0, c))));
+                })
+        }
     }
+
+
+    // Could move some of the paging handling / processing out of this level, and into the nextleveldb-server.
+    //  Having observables in there would be useful.
+    //   Also would be nice to have a lower surface area of DB calls, so the the DB API can be upgraded (though that would make it slower if there is another function call in between)
+    //    Could do with a slightly more abstracted interface involving observables for managing fairly large throughputs of data in managable and efficient chunks.
+
+    // Seems like we will have fairly large / comprehensive changes to the core of the database operations, but not to the record structure.
+
+
+
+
+
+
 
 
 
@@ -1153,6 +1431,9 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         //   Put the buffers in a vector...
 
         //console.log('paging_option', paging_option);
+
+        // Paging here would be useful.
+        //  Test it too.
 
         var b_l, b_u;
 
@@ -1198,9 +1479,41 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 })
                 .on('end', function () {
                     //callback(null, res);
+                    //console.log('arr_res', arr_res);
                     buf_res = Buffer.concat(arr_res);
                     connection.sendBytes(buf_res);
                 })
+        }
+
+        if (paging_option === PAGING_RECORD_COUNT) {
+            [b_l, pos] = read_l_buffer(buf_the_rest, pos);
+            [b_u, pos] = read_l_buffer(buf_the_rest, pos);
+
+            db.createReadStream({
+                    'gt': b_l,
+                    'lt': b_u
+                }).on('data', function (data) {
+                    // will be both the key and the value
+                    // will need to combine them as buffers.
+                    var buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
+                    arr_res.push(buf_combined);
+                    //arr_res.push(x(key.length).buffer);
+                    //arr_res.push(key);
+
+                })
+                .on('error', function (err) {
+                    //console.log('Oh my!', err)
+                    callback(err);
+                })
+                .on('close', function () {
+                    //console.log('Stream closed')
+                })
+                .on('end', function () {
+                    //callback(null, res);
+                    buf_res = Buffer.concat(arr_res);
+                    connection.sendBytes(buf_res);
+                })
+
         }
     }
 
@@ -1211,7 +1524,38 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
         db.get(buf_key, (err, buf_value) => {
             if (err) {
-                callback(err);
+                //callback(err);
+
+
+                // Key not found...
+                //  Maybe just return an 'undefined'.
+
+
+                // An undefined record / or a record not found response.
+
+                // 
+
+                if (return_message_type) {
+                    // Though paging is an option, this is not a paged or pagable response.
+                    let msg_response = [buf_msg_id, xas2(RECORD_UNDEFINED).buffer];
+                    console.log('buf_msg_id', buf_msg_id);
+                    console.log('msg_response', msg_response);
+                    connection.sendBytes(Buffer.concat(msg_response));
+                    console.log('1) sent RECORD_UNDEFINED message (it\'s own message type!) to the client.');
+                } else {
+                    throw 'NYI';
+                }
+
+
+                //console.trace();
+                //console.log('err', err);
+                //console.log('Object.keys(err)', Object.keys(err));
+                //console.log('buf_key', buf_key);
+
+                // error return.
+
+
+
             } else {
                 console.log('buf_value', buf_value);
                 // But does get also get the key as well?
@@ -1223,17 +1567,18 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     buf_res = Buffer.concat([buf_msg_id, Binary_Encoding.join_buffer_pair([buf_key, buf_value])]);
                 }
 
-
                 connection.sendBytes(buf_res);
 
             }
         })
 
-
     }
 
 
     // LL_GET_RECORDS_IN_RANGE_UP_TO
+
+    // Could just use a limit property.
+
 
     if (i_query_type === LL_GET_RECORDS_IN_RANGE_UP_TO) {
         console.log('LL_GET_RECORDS_IN_RANGE_UP_TO');
@@ -1324,6 +1669,13 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     //callback(null, res);
                 })
         }
+
+        if (paging_option === PAGING_RECORD_COUNT) {
+            throw 'NYI'
+
+        }
+
+
     }
 
 
@@ -1480,10 +1832,125 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         let def = Binary_Encoding.decode_buffer(buf_the_rest);
         console.log('def', def);
 
+        // A callback usage of ensure_table should be OK.
+        //  Though logging / checking data could be returned when using an observable.
+
+        // overwrite / modify / error if exists already.
+
+
+
+        nextleveldb_server.ensure_table(def, (err, res_ensure) => {
+            // If there is an error, need to use error encoding.
+            //  I think that encoding error statuses in the return messages is important.
+            //   Don't use http codes over websockets.
+            //   Should send status codes back in the websocket messages.
+
+            // send a message back encapsulating the result.
+
+            //  should be true or an error.
+            //   need to be able to send back error messages.
+
+            if (err) {
+                throw 'NYI'
+            } else {
+
+                // Maybe something saying the table already exists, or was created.
+                //  Not keen on overwriting existing table structure.
+                //   Could have an error for if it already exists.
+                //   Though in some conditions could change fields, including going through records doing that.
+
+
+
+
+                var msg_response = [buf_msg_id, xas2(BOOL_TRUE).buffer];
+                buf_res = Buffer.concat(msg_response);
+                connection.sendBytes(buf_res);
+            }
+
+
+
+
+
+        });
+
+
+
+
 
         // Won't have a paged response
 
         throw 'stop';
+
+    }
+
+    if (i_query_type === ENSURE_TABLES) {
+        console.log('ENSURE_TABLES');
+
+        let def = Binary_Encoding.decode_buffer(buf_the_rest)[0];
+        // For some reason, decoding of the buffer puts it all into a new array.
+
+        console.log('def', def);
+
+
+        // When we use an observable but have no paging as an option...
+
+
+        // A callback usage of ensure_table should be OK.
+        //  Though logging / checking data could be returned when using an observable.
+
+        // overwrite / modify / error if exists already.
+        // This may be better with an observer, where it sends back multiple reply messages.
+
+        // An observable for all the tables would be better.
+
+        // Get an observable for it, and use a wrapper to output it to the response.
+
+        nextleveldb_server.ensure_tables(def, (err, res_ensure) => {
+            // If there is an error, need to use error encoding.
+            //  I think that encoding error statuses in the return messages is important.
+            //   Don't use http codes over websockets.
+            //   Should send status codes back in the websocket messages.
+
+            // send a message back encapsulating the result.
+
+            //  should be true or an error.
+            //   need to be able to send back error messages.
+
+            // Could look to see what paging is requsted.
+
+
+            if (err) {
+                console.trace();
+                throw 'NYI'
+            } else {
+
+                // Maybe something saying the table already exists, or was created.
+                //  Not keen on overwriting existing table structure.
+                //   Could have an error for if it already exists.
+                //   Though in some conditions could change fields, including going through records doing that.
+
+                // 
+
+                // Something in the return to say there is no paging in the message too?
+                console.log('ENSURE_TABLES res_ensure', res_ensure);
+                var msg_response = [buf_msg_id, buf_binary_paging_none, xas2(BOOL_TRUE).buffer];
+                buf_res = Buffer.concat(msg_response);
+                connection.sendBytes(buf_res);
+            }
+
+
+
+
+
+        });
+
+
+
+
+
+        // Won't have a paged response
+
+        //throw 'stop';
 
     }
 
@@ -1554,6 +2021,8 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
             //let encoded_record = model_record.to_b
 
+            // I think this does the job on the server of making index records OK.
+
             let arr_record_and_index_buffers = model_record.to_arr_buffer_with_indexes();
             console.log('arr_record_and_index_buffers', arr_record_and_index_buffers);
 
@@ -1594,6 +2063,157 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         } else {
             connection.sendBytes(buf_res);
         }
+    }
+
+    if (i_query_type === TABLE_EXISTS) {
+        // Decode the table name
+
+        // Will send back a binary response message.
+        console.log('TABLE_EXISTS');
+
+        let table_name = Binary_Encoding.decode_buffer(buf_the_rest)[0];
+        console.log('table_name', table_name);
+
+        nextleveldb_server.table_exists(table_name, (err, exists) => {
+            if (err) {
+                throw 'NYI';
+            } else {
+
+                let msg_response = [buf_msg_id, buf_binary_paging_none, xas2(exists).buffer];
+                connection.sendBytes(Buffer.concat(msg_response));
+
+            }
+        })
+
+        //throw 'stop';
+
+    }
+
+    // TABLE_ID_BY_NAME
+
+    if (i_query_type === TABLE_ID_BY_NAME) {
+        // Decode the table name
+
+        // Will send back a binary response message.
+        console.log('TABLE_ID_BY_NAME');
+
+        // Always need to fish it out of an array, because there are 0 or more items encoded into the buffer.
+
+
+        let table_name = Binary_Encoding.decode_buffer(buf_the_rest)[0];
+        //console.log('table_name', table_name);
+
+        nextleveldb_server.get_table_id_by_name(table_name, (err, table_id) => {
+            if (err) {
+                // connection send error, could provide the string error message, possibly an int / xas2 error code.
+                // ERR_TABLE_NOT_FOUND
+
+                // paging flow error, so that it knows the error 
+
+                console.log('err', err);
+                throw err;
+            } else {
+                //console.log('table_id', table_id);
+
+                if (def(table_id)) {
+                    // It seems the client needs to use Binary_Encoding's decode_bufer, which is a bit less concise.
+                    let buf_encoded = Binary_Encoding.flexi_encode_item(table_id);
+
+                    //console.log('buf_encoded', buf_encoded);
+
+
+                    let msg_response = [buf_msg_id, buf_binary_paging_none, buf_encoded];
+                    connection.sendBytes(Buffer.concat(msg_response));
+
+                } else {
+                    // return an error message, because the table does not exist.
+
+                    // Table not found.
+
+
+
+                    let msg_response = [buf_msg_id, xas2(ERROR_MESSAGE).buffer];
+                    connection.sendBytes(Buffer.concat(msg_response));
+                    //console.log('1) sent simple error message to the client');
+                    console.trace();
+
+                    // Table not found.
+
+                    // 
+
+                    // Just the simplest error returned.
+
+
+                }
+
+
+
+
+
+            }
+        })
+
+
+
+
+        // Then call the server function.
+        //  Maybe xas2 could handle negative integers too, this could return -1 if the table is not found.
+        //  However, for the moment, from this part we send back an error message when appropriate.
+
+
+
+
+
+        //throw 'stop';
+
+    }
+
+    if (i_query_type === GET_TABLE_FIELDS_INFO) {
+        let table_id;
+        console.log('GET_TABLE_FIELDS_INFO: ' + GET_TABLE_FIELDS_INFO);
+
+        // Read the data out, just as an xas2.
+        //  
+
+        console.log('buf_the_rest', buf_the_rest);
+
+        //let i = Binary_Encoding.decode_buffer(buf_the_rest);
+
+        [table_id, pos] = x.read(buf_the_rest, 0);
+        console.log('table_id', table_id);
+        //let table_id = i[0];
+
+        nextleveldb_server.get_table_fields_info(table_id, (err, table_fields_info) => {
+            if (err) {
+                throw err;
+            } else {
+                console.log('table_fields_info', table_fields_info);
+                // encode it
+
+                let buf_encoded = Binary_Encoding.flexi_encode_item(table_fields_info);
+                console.log('buf_encoded', buf_encoded);
+
+                // Send the response back to the client.
+                let msg_response = [buf_msg_id, buf_binary_paging_none, buf_encoded];
+                connection.sendBytes(Buffer.concat(msg_response));
+
+
+
+            }
+        })
+
+
+
+
+
+
+        //console.log('table_id', table_id);
+
+
+        // Get the table name or id.
+        //  If we have the table name, look up the id.
+
+
 
 
     }

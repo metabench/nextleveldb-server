@@ -148,6 +148,44 @@ Could have a system to check for / retrieve the earlier records, but this would 
 25/02/18 - Improving the paging and data encoding of messages. Making it so that it's faster / requires less code to decode messages.
 Essentially, making a smaller API.
 
+26/02/2018 - Made nice improvements to the message encoding/decoding, with paging capabilities. The system keeps getting more complex overall. Reaching a point where we will have a good enough stable version.
+Next important stages are 
+
+  authentication authorisation security
+  deployment
+
+Need to make the capabilities for security. Having an authentication and authorisation system / separate services would be useful. 
+
+
+
+05/03/2018
+Undergoung many changes / improvements to increase the flexability, including an observable pattern with paging, and putting more advanced functionality into the server process.
+Advanced functionality for server:
+  Ensuring a table is in the database (including fields and indexes, relevant incrementors) using a binary encoded definition object.
+  Doing that for multiple tables, getting feedback through observable over websocket.
+  
+After that, we will have more means to ensure that the database structure is set up as needed, and for the time being raise alerts / stop if there are problems with the current setup.
+Want to get the currently operating database backed up as well / soon as possible.
+I think that means a substatial amount of work upgrading the database so that we have a very well working system to upgrade it to.
+Ensuring the structure so that it restarts correctly is important.
+A massively expanded interface and ways of interacting with / finding out about the DB structure will be useful.
+
+
+Working more on client-side full DB backup mechanisms makes sense...
+We are changing the communication protocol, with a variety of different commands.
+Need this working reliably with crypto-data-collector on locally before redeploying this server code and new client code to the Montreal servers. May need to keep it running there for a while as is.
+Getting this very reliable for obtaining and backing up crypto data seems important.
+
+A command to locally backup the database would be very useful too.
+Could do the binary encoded rows through some streaming compression.
+
+
+
+
+
+
+
+
 
 
 
