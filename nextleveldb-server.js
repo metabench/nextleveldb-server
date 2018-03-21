@@ -1864,7 +1864,7 @@ class NextLevelDB_Server extends Evented_Class {
                 let res = [];
 
                 each(fields, field => {
-                    console.log('field', field);
+                    //console.log('field', field);
                     //console.log('keys: field', Object.keys(field));
 
                     let id = field.id;

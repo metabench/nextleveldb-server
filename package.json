@@ -7,8 +7,8 @@
         "command-line-args": "^5.0.2",
         "deep-diff": "^0.3.8",
         "deep-equal": "^1.0.1",
-        "jsgui3": "0.0.16",
-        "lang-mini": "^0.0.4",
+        "jsgui3": "0.0.17",
+        "lang-mini": "^0.0.5",
         "level": "^3.0.0",
         "nextleveldb-model": "^0.0.22",
         "recursive-readdir": "^2.2.2",
@@ -26,5 +26,5 @@
         "type": "git",
         "url": "https://github.com/metabench/nextleveldb-server.git"
     },
-    "version": "0.0.18"
+    "version": "0.0.19"
 }
