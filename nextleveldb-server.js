@@ -182,6 +182,14 @@ let differencing = (orig, current) => {
 
 }
 
+let get_map_cookies = request_cookies => {
+    let res = {};
+    each(request_cookies, request_cookie => {
+        res[request_cookie.name] = request_cookie.value
+    })
+    return res;
+}
+
 class NextLevelDB_Server extends Evented_Class {
     constructor(spec) {
         super();
@@ -227,11 +235,54 @@ class NextLevelDB_Server extends Evented_Class {
             autoAcceptConnections: false
         });
 
+
         function originIsAllowed(origin) {
-            console.log('originIsAllowed origin', origin);
+            console.log('\noriginIsAllowed origin', origin);
+            //throw 'stop';
             // put logic here to detect whether the specified origin is allowed.
             return true;
         };
+
+
+        // need to load access tokens from the config
+
+        this.map_access_tokens = {};
+
+        let load_config_access_tokens = () => {
+            var config = require('my-config').init({
+                path: path.resolve('../../config/config.json') //,
+                //env : process.env['NODE_ENV']
+                //env : process.env
+            });
+            let root_tokens = config.nextleveldb_access.root;
+            console.log('root_tokens', root_tokens);
+            //this.map_access_tokens.root = root_tokens;
+
+            each(root_tokens, root_token => {
+                this.map_access_tokens[root_token] = 'root';
+            })
+
+            console.log('this.map_access_tokens', this.map_access_tokens);
+
+
+            //this.map_access_tokens[]
+            //console.log('this.map_access_tokens.root', this.map_access_tokens.root);
+
+        }
+        load_config_access_tokens();
+
+        let check_access_token = access_token => {
+            let username = this.map_access_tokens[access_token];
+            console.log('username', username);
+
+            let allowed = false;
+
+            if (username === 'root') {
+                allowed = true;
+            }
+
+            return allowed;
+        }
 
 
 
@@ -359,37 +410,94 @@ class NextLevelDB_Server extends Evented_Class {
 
             wsServer.on('request', function (request) {
 
-                if (!originIsAllowed(request.origin)) {
-                    // Make sure we only accept requests from an allowed origin
-                    request.reject();
-                    console.log((new Date()) + ' Connection from origin ' + request.origin + ' rejected.');
-                    return;
-                }
-                var connection = request.accept('echo-protocol', request.origin);
-                connection.id = next_connection_id++;
+                //console.log('request', request);
+                console.log('request.origin', request.origin);
 
-                //
-                //console.log((new Date()) + ' Connection accepted.');
-                connection.on('message', function (message) {
-                    //console.log('message', message);
-                    if (message.type === 'utf8') {
-                        throw 'deprecating utf8 interface';
-                    } else if (message.type === 'binary') {
-                        handle_ws_binary(connection, that, message.binaryData);
+                console.log('Object.keys(request)', Object.keys(request));
+                console.log('Object.keys(request.socket)', Object.keys(request.socket));
+                // console.log('(request.socket)', (request.socket));
+                console.log('Object.keys(request.socket.server)', Object.keys(request.socket.server));
+                console.log('Object.keys(request.socket._peername)', Object.keys(request.socket._peername));
+                console.log('(request.socket._peername)', (request.socket._peername));
+
+                console.log('request.cookies', request.cookies);
+
+                let map_cookies = get_map_cookies(request.cookies);
+                console.log('map_cookies', map_cookies);
+
+                let provided_access_token = map_cookies['access_token'];
+
+
+                // Check the provided access token to see if it's allowed.
+
+                let access_allowed = check_access_token(provided_access_token);
+                console.log('access_allowed', access_allowed);
+
+
+                if (!access_allowed) {
+                    request.reject();
+                    console.log((new Date()) + ' Valid access token required.');
+                    return;
+                } else {
+
+                    if (!originIsAllowed(request.origin)) {
+                        // Make sure we only accept requests from an allowed origin
+
+                        // Could check for the correct authorisation cookies.
+
+
+
+                        request.reject();
+                        console.log((new Date()) + ' Connection from origin ' + request.origin + ' rejected.');
+                        return;
                     }
-                });
-                connection.on('close', function (reasonCode, description) {
-                    console.log((new Date()) + ' Peer ' + connection.remoteAddress + ' disconnected.\n');
-                    console.log('reasonCode, description', reasonCode, description);
-                    // Then need to unsubscribe from event handler.
-                    // Cancel the subscriptions.
-                    var cancel_subscriptions = function () {
-                        each(connection.subscription_handlers, (subscription_handler, event_name) => {
-                            that.off(event_name, subscription_handler);
-                        })
-                    };
-                    cancel_subscriptions();
-                });
+
+                    // // This is a possible place to check authentication and authorisation.
+                    // Could just check for a valid access token. If a valid token is provided, then we can continue.
+                    //  Worth handing it to an auth module. Authenticates a user has the access token, authorises them to connect.
+
+
+
+
+
+                    var connection = request.accept('echo-protocol', request.origin);
+                    connection.id = next_connection_id++;
+
+                    //
+                    //console.log((new Date()) + ' Connection accepted.');
+                    connection.on('message', function (message) {
+                        //console.log('message', message);
+                        if (message.type === 'utf8') {
+                            throw 'deprecating utf8 interface';
+                        } else if (message.type === 'binary') {
+
+
+
+                            handle_ws_binary(connection, that, message.binaryData);
+                        }
+                    });
+                    connection.on('close', function (reasonCode, description) {
+                        console.log((new Date()) + ' Peer ' + connection.remoteAddress + ' disconnected.\n');
+                        console.log('reasonCode, description', reasonCode, description);
+                        // Then need to unsubscribe from event handler.
+                        // Cancel the subscriptions.
+                        var cancel_subscriptions = function () {
+                            each(connection.subscription_handlers, (subscription_handler, event_name) => {
+                                that.off(event_name, subscription_handler);
+                            })
+                        };
+                        cancel_subscriptions();
+                    });
+                }
+
+                // Make the request using the right server access token.
+                //  Access token and IP address, assess them and log them.
+
+                // For the moment, want to restrict access to any client that does not have the access token.
+                //  Read-only will log IP addresses (when it's time to do so);
+
+
+
             });
             callback(null, true);
         }

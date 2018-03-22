@@ -472,6 +472,12 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     message_binary.copy(buf_the_rest, 0, pos);
     var buf_msg_id = xas2(message_id).buffer;
 
+
+    // This would be a point to read the auth token, if there is one.
+    //  Auth will first be done on connection, so an access token would not need to be provided with each websocket request
+    //   - Except that would be an extra security option.
+
+
     if (i_query_type === LL_WIPE) {
         console.log('LL_WIPE');
         nextleveldb_server.ll_wipe((err, db) => {
@@ -1982,7 +1988,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
         // We should be able to tell from the model what fields there are.
         // Want the count of primary keys for that table.
-        console.log('table_id', table_id);
+        //console.log('table_id', table_id);
 
         var buf_res = Buffer.concat([buf_msg_id]);
 
