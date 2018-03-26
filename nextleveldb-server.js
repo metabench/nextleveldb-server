@@ -112,6 +112,11 @@ const CORE_MAX_PREFIX = 9;
 //   Need it so that a field with a '+' is (an autoincrementing) xas2 integer.
 
 
+// 26/03/2018
+//  Have done more work on binary commands.
+//  Have the foundation for a server connecting to another server to download all records in a table.
+
+
 
 let kp_to_range = buf_kp => {
     let buf_0 = Buffer.alloc(1);

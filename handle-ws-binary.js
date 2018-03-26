@@ -316,6 +316,8 @@ const LL_UNSUBSCRIBE_SUBSCRIPTION = 62;
 const LL_WIPE = 100;
 const LL_WIPE_REPLACE = 101;
 
+const LL_SEND_MESSAGE_RECEIPT = 120;
+
 
 
 // Subscribe
@@ -438,7 +440,7 @@ const return_message_type = true;
 // Need to upgrade and test the client and server side code for transmitting sets of keys, records, and other binary data.
 
 
-
+let map_received_page = {};
 
 
 var handle_ws_binary = function (connection, nextleveldb_server, message_binary) {
@@ -1407,7 +1409,29 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
 
 
+    if (i_query_type === LL_SEND_MESSAGE_RECEIPT) {
+        //console.log('LL_SEND_MESSAGE_RECEIPT');
+        pos = 0;
+        let message_id, page_number;
+        [message_id, pos] = x.read(buf_the_rest, pos);
+        [page_number, pos] = x.read(buf_the_rest, pos);
 
+        //console.log('buf_the_rest', buf_the_rest);
+
+        //console.log('LL_SEND_MESSAGE_RECEIPT', message_id, page_number);
+
+        if (!map_received_page[message_id]) {
+            map_received_page[message_id] = page_number;
+        }
+
+        if (map_received_page[message_id] < page_number) {
+            map_received_page[message_id] = page_number;
+        }
+
+
+
+
+    }
 
 
 
@@ -1519,27 +1543,94 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             var arr_res = [buf_msg_id, buf_record_paging_flow];
             // Send back flow pages when the data is being got.
 
+            let buf_combined;
+
             // And need to put the results into pages.
-            db.createReadStream({
+
+            // Can we slow down this stream if it's reading too fast for the client?
+
+            // Can use stream.pause to pause the reading.
+            //  Could do this in response to a message?
+            //  
+
+            let read_stream = db.createReadStream({
                     'gt': b_l,
                     'lt': b_u
                 }).on('data', function (data) {
 
                     // will be both the key and the value
                     // will need to combine them as buffers.
-                    var buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
+                    buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
                     //console.log('buf_combined', buf_combined);
                     //arr_res.push(buf_combined);
                     arr_page[c++] = buf_combined;
 
                     if (c === page_size) {
 
-                        console.log('sending page', page_number);
+                        //console.log('sending page', page_number);
+                        //console.log('pre read_stream.pause');
+
+                        // Check the current page number to see how far behind it is.
+
+                        let latest_received_page = map_received_page[message_id];
+                        //console.log('map_received_page', map_received_page);
+
+                        let delay = 0,
+                            pages_diff = 0;
+                        if (typeof latest_received_page !== 'undefined') {
+                            pages_diff = page_number - latest_received_page;
+
+                            if (pages_diff > 2) {
+                                delay = 250;
+                            }
+                            if (pages_diff > 4) {
+                                delay = 500;
+                            }
+                            if (pages_diff > 6) {
+                                delay = 1000;
+                            }
+                            if (pages_diff > 8) {
+                                delay = 2000;
+                            }
+
+                        }
+                        //console.log('pages_diff', pages_diff);
+
+                        read_stream.pause();
+                        setTimeout(() => {
+                            read_stream.resume();
+                        }, delay);
 
                         connection.sendBytes(Buffer.concat([buf_msg_id, buf_record_paging_flow, xas2(page_number++).buffer].concat(arr_page)));
                         c = 0;
                         // Could empty that array, would that be faster than GC?
                         arr_page = new Array(page_size);
+
+
+                        // On the client-side, don't want to pause the whole socket.
+
+
+
+
+
+                        // Try pausing the reading of the stream for 1s.
+                        //  Will be able to pause streams when the client-side receive buffer becomes too large.
+                        //   Could have a client-side message to say which is the last message received and processed.
+                        //    Then if it gets out of sync by more than n (ie 4), it waits until the client has caught up.
+
+                        // Would need client-side acknowledgement of receiving the messages.
+                        //  Client-side and server-side pause commands would be useful.
+
+                        // Important to be able to correctly sync large amounts of data, fast, or at least fast enough while also reliably.
+                        //  The sender's internet connection may be much faster than the receiver's.
+
+                        // Some small messages in the protocol to say the last message number in a message chain could help.
+                        //  Small receive packets would be sent back to the server.
+
+
+
+
+
                     }
                     //arr_res.push(x(key.length).buffer);
                     //arr_res.push(key);
