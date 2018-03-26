@@ -1484,9 +1484,9 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     // will be both the key and the value
                     // will need to combine them as buffers.
                     var buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
-                    arr_page[c++] = buf_combined;
+                    //arr_page[c++] = buf_combined;
                     //console.log('buf_combined', buf_combined);
-                    //arr_res.push(buf_combined);
+                    arr_res.push(buf_combined);
                     //arr_res.push(x(key.length).buffer);
                     //arr_res.push(key);
 
