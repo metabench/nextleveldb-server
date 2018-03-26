@@ -1316,10 +1316,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     //var buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
                     // key is a buffer.
 
-
-
-
-
                     //console.log('buf_combined', buf_combined);
 
                     // A keys paging return type?
@@ -1354,6 +1350,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             [b_u, pos] = read_l_buffer(buf_the_rest, pos);
             let c = 0;
             let arr_page = new Array(page_size);
+            let page_number = 0;
 
             db.createKeyStream({
                     'gt': b_l,
@@ -1365,11 +1362,12 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
                     arr_page[c++] = (Buffer.concat([xas2(key.length).buffer, key]));
 
-                    if (c === page_records_max) {
+
+                    if (c === page_size) {
                         connection.sendBytes(Buffer.concat([buf_msg_id, buf_key_paging_flow, xas2(page_number++).buffer].concat(arr_page)));
                         c = 0;
                         // Could empty that array, would that be faster than GC?
-                        arr_page = new Array(page_records_max);
+                        arr_page = new Array(page_size);
                     }
 
                     //Binary_Encoding.join_buffer_pair([data.key, data.value])
@@ -1377,7 +1375,8 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     //arr_res.push(key);
                 })
                 .on('error', function (err) {
-                    //console.log('Oh my!', err)
+                    //console.log('Oh my!', err) 
+
                     callback(err);
                 })
                 .on('close', function () {
@@ -1387,7 +1386,12 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     //callback(null, res);
                     //buf_res = Buffer.concat(arr_res);
                     //connection.sendBytes(buf_res);
-                    connection.sendBytes(Buffer.concat([buf_msg_id, buf_key_paging_last, xas2(page_number).buffer].concat(arr_page.slice(0, c))));
+                    //connection.sendBytes(Buffer.concat([buf_msg_id, buf_key_paging_last, xas2(page_number).buffer].concat(arr_page.slice(0, c))));
+
+
+                    arr_res = [buf_msg_id, buf_record_paging_last, xas2(page_number).buffer].concat(arr_page.slice(0, c));
+                    buf_res = Buffer.concat(arr_res);
+                    connection.sendBytes(buf_res);
                 })
         }
     }
@@ -1418,15 +1422,20 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
         pos = 0;
         [paging_option, pos] = x.read(buf_the_rest, pos);
+        //console.log('paging_option', paging_option);
         if (paging_option > 0) {
             [page_size, pos] = x.read(buf_the_rest, pos);
         }
 
+        //let c = 0,
+        //    page_number = 0;
+
+        //console.log('page_size', page_size);
         // Could feed through a paging function that batches the results.
         // batch_put
 
         //console.log('buf_the_rest', buf_the_rest);
-        //console.log('buf_the_rest.length', buf_the_rest.length);
+        //console.lo g('buf_the_rest.length', buf_the_rest.length);
 
         // read two buffers from the query... greater than and less than.
 
@@ -1467,11 +1476,17 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     'gt': b_l,
                     'lt': b_u
                 }).on('data', function (data) {
+
+                    //arr_page[c++] = (Buffer.concat([xas2(key.length).buffer, key]));
+
+
+
                     // will be both the key and the value
                     // will need to combine them as buffers.
                     var buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
+                    arr_page[c++] = buf_combined;
                     //console.log('buf_combined', buf_combined);
-                    arr_res.push(buf_combined);
+                    //arr_res.push(buf_combined);
                     //arr_res.push(x(key.length).buffer);
                     //arr_res.push(key);
 
@@ -1489,20 +1504,43 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     buf_res = Buffer.concat(arr_res);
                     connection.sendBytes(buf_res);
                 })
-        }
+        } else if (paging_option === PAGING_RECORD_COUNT) {
 
-        if (paging_option === PAGING_RECORD_COUNT) {
+            //[page_size, pos] = x.read(buf_the_rest, pos);
+
+            //console.log('page_size', page_size);
+
             [b_l, pos] = read_l_buffer(buf_the_rest, pos);
             [b_u, pos] = read_l_buffer(buf_the_rest, pos);
+            let c = 0;
+            let arr_page = new Array(page_size);
+            let page_number = 0;
 
+            var arr_res = [buf_msg_id, buf_record_paging_flow];
+            // Send back flow pages when the data is being got.
+
+            // And need to put the results into pages.
             db.createReadStream({
                     'gt': b_l,
                     'lt': b_u
                 }).on('data', function (data) {
+
                     // will be both the key and the value
                     // will need to combine them as buffers.
                     var buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
-                    arr_res.push(buf_combined);
+                    //console.log('buf_combined', buf_combined);
+                    //arr_res.push(buf_combined);
+                    arr_page[c++] = buf_combined;
+
+                    if (c === page_size) {
+
+                        console.log('sending page', page_number);
+
+                        connection.sendBytes(Buffer.concat([buf_msg_id, buf_record_paging_flow, xas2(page_number++).buffer].concat(arr_page)));
+                        c = 0;
+                        // Could empty that array, would that be faster than GC?
+                        arr_page = new Array(page_size);
+                    }
                     //arr_res.push(x(key.length).buffer);
                     //arr_res.push(key);
 
@@ -1516,10 +1554,16 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 })
                 .on('end', function () {
                     //callback(null, res);
+                    //buf_res = Buffer.concat(arr_res);
+                    //connection.sendBytes(buf_res);
+
+                    arr_res = [buf_msg_id, buf_record_paging_last, xas2(page_number).buffer].concat(arr_page.slice(0, c));
                     buf_res = Buffer.concat(arr_res);
                     connection.sendBytes(buf_res);
                 })
 
+        } else {
+            throw 'Unexpected paging option'
         }
     }
 
