@@ -33,6 +33,12 @@ The core of the DB could do with a nice bit of improvement, allowing for functio
 
 // Should generally set the table field types.
 
+// Soon expand this to neatly sync from other DBs.
+//  Will take a while, but progress indicators and maybe validation will help.
+
+
+
+
  
  */
 
@@ -64,6 +70,34 @@ const PAGING_RECORD_COUNT = 1;
 // Followed by p number
 const PAGING_BYTE_COUNT = 2;
 const PAGING_TIMER = 3;
+
+// Not very keen on including compression option in with paging.
+//  That would be whether to use compression or not.
+//  Then if compression is used, we read at least another xas2 number to see what compression type is being used.
+//   Think we want a fast and fairly high compression default / mid compression and high speed.
+//  Or have an option for extended options following.
+//   The extended options would have bytes for compression type / params, and limit.
+
+// Extended options for compression, and limit, would be really useful, and backwards compat.
+
+// Seems somewhat tricky at this stage to extend the calling options.
+
+// Extending the return options too.
+
+// More capabilities to track records per second, and also the paging count records in range would help.
+
+// Key samples, eg every 1000th key would help.
+//  Then we could get relatively long lists of sampled keys, and use them to download the data while being able to give a progress report on how far to completion.
+//  Sampling keys every 64000 (or n) records could help to tell how far through it's gone.
+
+
+
+
+
+
+
+
+
 
 // Followed by p number
 
@@ -712,6 +746,8 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         // then make a new buffer, having read paging
         //console.log('pos', pos);
 
+        //console.log('paging_option', paging_option);
+
         //var buf_2 = Buffer.from(buf_the_rest, pos);
         var buf_2 = Buffer.alloc(buf_the_rest.length - pos);
         buf_the_rest.copy(buf_2, 0, pos);
@@ -760,8 +796,116 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     buf_res = Buffer.concat(arr_res);
                     connection.sendBytes(buf_res);
                 });
+        } else if (paging_option === PAGING_TIMER) {
+            // A timed pager.
+            let paging_delay = page_size;
+            console.log('paging_delay', paging_delay);
+            var arr_res = [buf_msg_id, buf_binary_paging_flow];
+
+            var count = 0,
+                page_number = 0;
+            //var res = [];
+            let interval;
+
+            let key_stream = db.createKeyStream({
+                    'gt': s_buf[0],
+                    'lt': s_buf[1]
+                }).on('data', function (key) {
+                    //arr_res.push(x(key.length).buffer);
+                    //console.log('key', key);
+                    //arr_res.push(key);
+
+                    count++;
+                })
+                .on('error', function (err) {
+                    //console.log('Oh my!', err)
+                    callback(err);
+                })
+                .on('close', function () {
+                    //console.log('Stream closed')
+                })
+                .on('end', function () {
+                    //callback(null, res);
+                    //console.log('*** count', count);
+                    clearInterval(interval);
+
+                    //arr_res.push(xas2(count).buffer);
+
+                    //buf_res = Buffer.concat(arr_res);
+                    //connection.sendBytes(buf_res);
+
+                    // Repeat the last one?
+                    //  Best not to right now.
+
+                    buf_res = Buffer.concat([buf_msg_id, buf_binary_paging_last, xas2(page_number).buffer, Binary_Encoding.flexi_encode_item(count)]);
+                    connection.sendBytes(buf_res);
+                });
+
+            interval = setInterval(() => {
+                // Operation stopped if 20 pages pending reception confirmation from the client.
+
+                //console.log('count', count);
+
+                let latest_received_page = map_received_page[message_id];
+                //console.log('latest_received_page', latest_received_page);
+
+                let delay = 0,
+                    pages_diff = 0;
+                if (typeof latest_received_page !== 'undefined') {
+                    pages_diff = page_number - latest_received_page;
+
+                }
+                //console.log('pages_diff', pages_diff);
+
+                if (pages_diff > 20) {
+                    key_stream.destroy();
+                    clearInterval(interval);
+                }
+
+
+                //buf_res = Buffer.concat([buf_msg_id, buf_binary_paging_flow, xas2(count).buffer]);
+                buf_res = Buffer.concat([buf_msg_id, buf_binary_paging_flow, xas2(page_number++).buffer, Binary_Encoding.flexi_encode_item(count)]);
+                connection.sendBytes(buf_res);
+            }, paging_delay)
+
+
+        } else {
+            throw 'NYI'
         }
+
+        /*
+
+        if (return_message_type) {
+            // Though paging is an option, this is not a paged or pagable response.
+            var arr_res = [buf_msg_id, buf_binary_paging_flow];
+        } else {
+            var arr_res = [buf_msg_id];
+        }
+        */
+
+
+
+
     }
+
+
+    // For copying and syncing, will have some key comparison operations.
+    //  Stream all keys for a table from the other db, and for missing keys retrieve the records (or just values) and put them into the DB (matching with keys).
+
+    // Should be able to get many keys copied to the DB quickly, though the goal is to have a server running locally, as well as workstation, with syncing taking place from the montreal cloud.
+    // Will do more with getting the data from one server to another, and reliably setting it up so it takes place automatically.
+
+
+    // Connect to another DB, and observe the keys on a table. Compare basis tables first. Could check refs to do this comparison.
+    //  Compare all of the values in one table - observe all of the keys in the source table, and compare with the keys in this table.
+
+    // Further key streaming and comparison operations would be very useful.
+    //  streaming low level get keys looks like the next thing to work on as an Observable.
+
+
+
+
+
 
 
     // 
@@ -1365,6 +1509,64 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     arr_page[c++] = (Buffer.concat([xas2(key.length).buffer, key]));
 
 
+                    // This should also have flow control.
+
+                    // Having flow control here will enable many keys to be read, and as they get read, if they are not in the db, to get requested.
+                    //  One way copy sync.
+                    //  copy_table_records_from
+
+                    // copy_table_from
+                    // copy_table_structure_from
+
+                    // (_from)
+
+                    // Have a system where a DB server can be told of other clients to connect to.
+                    //  Then it can do connected operations, such as copy_remote_table
+
+                    // A copy_remote_table system would be great to be able to call from the client.
+                    //  Gets progress updates, as client is not copying it itself, but instructing the server to copy it.
+
+                    // Once copy_remote_table works nicely, including on the client, a lot can be done on the xeon.
+                    //  it will be useful for syncing because it won't copy records it does not need to copy.
+
+                    // Would get more complex if it needs to translate any records.
+                    //  It could download denormalised records.
+                    //  Denormalizaton and renormalization would then be extra features.
+
+                    // Will get the remote DBs copying / syncing to local.
+                    //  Having a local server will help.
+                    //  Need to get the data closer to data analysis form.
+
+                    // Being able to export the data to disk, on the server will be very useful.
+                    //  Will be nicest to keep data within the network and the app for the moment though.
+
+                    // Want to get all 3 dbs streaming to a local machine soon.
+                    //  Then get them streaming to the Xeon
+                    //  Then streaming from xeon to workstation.
+
+                    // Will have commands to get a server to subscribe to table updates from another
+                    //  But may have to validate the table structure is the same.
+                    //  Would likely need to update incrementors too as they change.
+
+
+                    // Quite a lot more to do to get full syncing.
+
+                    // The streaming looks fairly powerful so far, and we would before long have the capability to shard data puts, and the streaming from each would
+                    //  be a bit tricky to coordinate, but possible. Could get some to slow down or pause if they get ahead. Then merge results and send them to a client.
+                    //   Or the client could stream results from multiple servers.
+
+
+
+
+
+
+
+
+
+
+
+
+
                     if (c === page_size) {
                         connection.sendBytes(Buffer.concat([buf_msg_id, buf_key_paging_flow, xas2(page_number++).buffer].concat(arr_page)));
                         c = 0;
@@ -1427,10 +1629,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         if (map_received_page[message_id] < page_number) {
             map_received_page[message_id] = page_number;
         }
-
-
-
-
     }
 
 
@@ -1446,10 +1644,26 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
         pos = 0;
         [paging_option, pos] = x.read(buf_the_rest, pos);
+
+
         //console.log('paging_option', paging_option);
         if (paging_option > 0) {
             [page_size, pos] = x.read(buf_the_rest, pos);
         }
+
+        // Reading a compression option byte could be useful.
+        //  Though it could be made a part of the paging_option
+        //   Don't want to make it too complex.
+        //   Do need backward compatability.
+
+
+        // Compression info could be within paging option too?
+        //  Communication Options, perhaps it could be changed to.
+
+        // info on encoding type, whether or not to use compression etc.
+
+
+
 
         //let c = 0,
         //    page_number = 0;
@@ -1500,10 +1714,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     'gt': b_l,
                     'lt': b_u
                 }).on('data', function (data) {
-
                     //arr_page[c++] = (Buffer.concat([xas2(key.length).buffer, key]));
-
-
 
                     // will be both the key and the value
                     // will need to combine them as buffers.
@@ -1593,6 +1804,9 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                                 delay = 2000;
                             }
 
+                            // if it gets too high, then stop the stream?
+                            //  ie the client has 
+
                         }
                         //console.log('pages_diff', pages_diff);
 
@@ -1601,6 +1815,27 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                             read_stream.resume();
                         }, delay);
 
+                        // Possibility of applying a compression algorythm to the arr_page?
+                        //  Compressing the data could raise the throughput to the client.
+                        //   Currently data seems about 5 times the size when over the wire rather than in the DB.
+
+                        // Could have a compressed data format for record paging.
+                        //  Maybe use Binary_Encoding's buffer compression?
+
+                        // Or have a different Buffer_Compression module available.
+                        //  Don't want streaming compression, as we compress parts of the stream, ie some messages within it.
+
+                        // record paging flow, with compression?
+                        //  then read another xas2 number, or maybe read a CompressionInfo object.
+
+                        // For the moment could have most basic compression options, with sensible defaults.
+
+                        //  The client could request compression too.
+                        //  Reading compression info from the request would be sensible.
+
+
+
+
                         connection.sendBytes(Buffer.concat([buf_msg_id, buf_record_paging_flow, xas2(page_number++).buffer].concat(arr_page)));
                         c = 0;
                         // Could empty that array, would that be faster than GC?
@@ -1608,10 +1843,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
 
                         // On the client-side, don't want to pause the whole socket.
-
-
-
-
 
                         // Try pausing the reading of the stream for 1s.
                         //  Will be able to pause streams when the client-side receive buffer becomes too large.
@@ -1626,11 +1857,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
                         // Some small messages in the protocol to say the last message number in a message chain could help.
                         //  Small receive packets would be sent back to the server.
-
-
-
-
-
                     }
                     //arr_res.push(x(key.length).buffer);
                     //arr_res.push(key);
