@@ -64,12 +64,12 @@ var Model_Database = Model.Model_Database;
 // Could have paged versions of these instructions too?
 //  Building paging into the relevant instructions would make sense, so that we don't have too many instructions, with different versions.
 
-
 const NO_PAGING = 0;
 const PAGING_RECORD_COUNT = 1;
+const PAGING_KEY_COUNT = 2;
 // Followed by p number
-const PAGING_BYTE_COUNT = 2;
-const PAGING_TIMER = 3;
+const PAGING_BYTE_COUNT = 3;
+const PAGING_TIMED = 4;
 
 // Not very keen on including compression option in with paging.
 //  That would be whether to use compression or not.
@@ -195,6 +195,14 @@ TABLE_INDEX_VALUE_LOOKUP
 // Ensuring tables
 //  Getting the index records from a named table
 
+
+
+// Get this syncing, by copying table records, checking table records match values too
+//  Can read records of whole tables too, check them. Start with currencies and markets.
+
+// Want to get this working for other exchanges too soon.
+
+// See about an observable key stream soon. That would be useful in order to see which records we would need to get from the DB.
 
 
 
@@ -799,7 +807,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         } else if (paging_option === PAGING_TIMER) {
             // A timed pager.
             let paging_delay = page_size;
-            console.log('paging_delay', paging_delay);
+            //console.log('paging_delay', paging_delay);
             var arr_res = [buf_msg_id, buf_binary_paging_flow];
 
             var count = 0,
@@ -1295,6 +1303,14 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             //[page_records_max, pos] = x.read(buf_the_rest, pos);
             //console.log('page_records_max', page_records_max);
 
+            // This needs backpressure handling too.
+            //  Well connected servers can send data out faster than clients can receive.
+            //   This is one reason compression will speed up the client experience if done right.
+
+
+
+
+
             page_records_max = page_size;
 
             // array of result items up to that size.
@@ -1396,7 +1412,13 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         return [buf_res, pos3];
     }
 
+
+
+
     // LL_GET_KEYS_IN_RANGE
+
+    // Needs paging improvement including backpressure.
+
 
     if (i_query_type === LL_GET_KEYS_IN_RANGE) {
         console.log('LL_GET_KEYS_IN_RANGE');
@@ -1489,7 +1511,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 })
         }
 
-        if (paging_option === PAGING_RECORD_COUNT) {
+        if (paging_option === PAGING_KEY_COUNT) {
             // Read the page size.
             [page_size, pos] = x.read(buf_the_rest, pos);
             [b_l, pos] = read_l_buffer(buf_the_rest, pos);
@@ -1498,7 +1520,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             let arr_page = new Array(page_size);
             let page_number = 0;
 
-            db.createKeyStream({
+            let read_stream = db.createKeyStream({
                     'gt': b_l,
                     'lt': b_u
                 }).on('data', function (key) {
@@ -1506,8 +1528,11 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     //arr_page.push(xas2(key.length).buffer);
                     //arr_page.push(key);
 
-                    arr_page[c++] = (Buffer.concat([xas2(key.length).buffer, key]));
 
+                    // This needs to slow down sending if a receipt backlog builds up.
+
+
+                    arr_page[c++] = (Buffer.concat([xas2(key.length).buffer, key]));
 
                     // This should also have flow control.
 
@@ -1567,8 +1592,45 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
 
 
+
+
                     if (c === page_size) {
+
+                        let latest_received_page = map_received_page[message_id];
+                        //console.log('map_received_page', map_received_page);
+                        let delay = 0,
+                            pages_diff = 0;
+
+
+                        if (typeof latest_received_page !== 'undefined') {
+                            pages_diff = page_number - latest_received_page;
+                            if (pages_diff > 2) {
+                                delay = 250;
+                            }
+                            if (pages_diff > 4) {
+                                delay = 500;
+                            }
+                            if (pages_diff > 6) {
+                                delay = 1000;
+                            }
+                            if (pages_diff > 8) {
+                                delay = 2000;
+                            }
+                        }
+
+                        if (delay > 0) {
+                            //console.log('pages_diff', pages_diff);
+                            read_stream.pause();
+                            setTimeout(() => {
+                                read_stream.resume();
+                            }, delay);
+                        }
+
+
+
+
                         connection.sendBytes(Buffer.concat([buf_msg_id, buf_key_paging_flow, xas2(page_number++).buffer].concat(arr_page)));
+                        //console.log('sent page ' + (page_number - 1));
                         c = 0;
                         // Could empty that array, would that be faster than GC?
                         arr_page = new Array(page_size);
@@ -1593,9 +1655,10 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     //connection.sendBytes(Buffer.concat([buf_msg_id, buf_key_paging_last, xas2(page_number).buffer].concat(arr_page.slice(0, c))));
 
 
-                    arr_res = [buf_msg_id, buf_record_paging_last, xas2(page_number).buffer].concat(arr_page.slice(0, c));
+                    arr_res = [buf_msg_id, buf_key_paging_last, xas2(page_number).buffer].concat(arr_page.slice(0, c));
                     buf_res = Buffer.concat(arr_res);
                     connection.sendBytes(buf_res);
+                    console.log('sent end');
                 })
         }
     }
@@ -1785,7 +1848,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
                         let latest_received_page = map_received_page[message_id];
                         //console.log('map_received_page', map_received_page);
-
                         let delay = 0,
                             pages_diff = 0;
                         if (typeof latest_received_page !== 'undefined') {

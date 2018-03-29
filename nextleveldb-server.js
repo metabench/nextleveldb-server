@@ -116,6 +116,40 @@ const CORE_MAX_PREFIX = 9;
 //  Have done more work on binary commands.
 //  Have the foundation for a server connecting to another server to download all records in a table.
 
+// 27/03/2018
+//  Getting to the stage where cumulative hashes of records could be useful.
+//   Or key comparison tasks?
+//   Could pause whichever stream gets ahead, and stream the output.
+
+// Could check consistency with record range hashes.
+//  Could be useful for comparing table structure in the core
+//  Also for comparing tables such as currencies and markets to check for consistency.
+
+// Could turn to JSON and then just compare the strings in JS to start with.
+// With the normalised records, need to check they are based on the same values.
+
+
+
+
+
+// A server could have a number of remote connections.
+//  Being able to initiate and use remote connections would be a useful server-side piece of functionality.
+//  Then make it available to the client.
+// Want to be able, through a client, to get one server to copy table records from another server
+// That will be a useful way to start and test the sync.
+// Then there will be other sync modes, where a server will automatically sync from another server.
+
+// May be good to use a single Amazon server for that, or another cloud provider.
+
+
+
+
+
+
+
+
+
+
 
 
 let kp_to_range = buf_kp => {
