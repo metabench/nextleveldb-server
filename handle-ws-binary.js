@@ -1584,16 +1584,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
 
 
-
-
-
-
-
-
-
-
-
-
                     if (c === page_size) {
 
                         let latest_received_page = map_received_page[message_id];
@@ -1616,18 +1606,23 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                             if (pages_diff > 8) {
                                 delay = 2000;
                             }
+
+
+
                         }
 
-                        if (delay > 0) {
-                            //console.log('pages_diff', pages_diff);
-                            read_stream.pause();
-                            setTimeout(() => {
-                                read_stream.resume();
-                            }, delay);
+                        if (pages_diff > 20) {
+                            key_stream.destroy();
+                            clearInterval(interval);
+                        } else {
+                            if (delay > 0) {
+                                //console.log('pages_diff', pages_diff);
+                                read_stream.pause();
+                                setTimeout(() => {
+                                    read_stream.resume();
+                                }, delay);
+                            }
                         }
-
-
-
 
                         connection.sendBytes(Buffer.concat([buf_msg_id, buf_key_paging_flow, xas2(page_number++).buffer].concat(arr_page)));
                         //console.log('sent page ' + (page_number - 1));
@@ -1670,9 +1665,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     //    Could do with a slightly more abstracted interface involving observables for managing fairly large throughputs of data in managable and efficient chunks.
 
     // Seems like we will have fairly large / comprehensive changes to the core of the database operations, but not to the record structure.
-
-
-
 
     if (i_query_type === LL_SEND_MESSAGE_RECEIPT) {
         //console.log('LL_SEND_MESSAGE_RECEIPT');

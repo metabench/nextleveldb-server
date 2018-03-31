@@ -128,6 +128,33 @@ const CORE_MAX_PREFIX = 9;
 // Could turn to JSON and then just compare the strings in JS to start with.
 // With the normalised records, need to check they are based on the same values.
 
+// 31/03/2018
+//  Noticed that incrementors had not been correctly updated in some cases. That means new rows could have been created with a PK value of 0, overwriting other records.
+//  May need some data recovery / checking if we are to use the data?
+//  Maybe it ruined the Bitcoin data, as that is at index 0.
+//  Could have startup checks on tables with autoincrementing keys, to see what the highest value is, and compare that with the incrementor field.
+//   If (on startup) the incrementor is less than the highest key value, it sets it to the highest key value + 1
+//   Have clients listen to changes in the model (all the DB's core), so it can increment / update the index on the client side when it changes on the server.
+//    Could reload the model, or process model updates by row.
+//  Keeping the incrementors synced seems like a bit of a challenge.
+
+
+// Want client-side function (or on server?) to get the last record in any table.
+//  This could be used at start-up to assign what the incrementor value should be
+
+// A version of NextLevelDB_Server with safety checks upon start looks like it will be the next stage.
+
+
+
+// Core - Would handle net io and opening the DB on disk.
+// (Standard) - Would have most of the functionality.
+// Safety
+//  Seems to deserve its own file. Not sure about using its own class. Safety checking on startup seems like distinctive functionality.
+// P2P
+
+
+
+
 
 
 
@@ -162,64 +189,7 @@ let kp_to_range = buf_kp => {
     return [Buffer.concat([buf_kp, buf_0]), Buffer.concat([buf_kp, buf_1])];
 }
 
-let differencing = (orig, current) => {
-    let changed = [],
-        added = [],
-        deleted = [];
-
-    let map_orig = {},
-        map_current = {},
-        map_orig_records = {};
-
-
-    each(orig, (record) => {
-        let [key, value] = record;
-        map_orig[key.toString('hex')] = [value];
-        map_orig_records[key.toString('hex')] = record;
-    })
-    //console.log('map_orig', map_orig);
-
-    each(current, (record) => {
-        let [key, value] = record;
-        map_current[key.toString('hex')] = [value];
-
-        // does it appear in orig?
-
-        if (map_orig[key.toString('hex')]) {
-            if (deep_equal(map_orig[key.toString('hex')][0], value)) {
-
-            } else {
-                //changed.push([record]);
-                changed.push([map_orig_records[key.toString('hex')], record]);
-            }
-        } else {
-            added.push(record);
-        }
-
-
-    })
-
-    each(orig, (record) => {
-        let [key, value] = record;
-        //map_orig[key] = value;
-        if (map_current[key.toString('hex')]) {
-
-        } else {
-            deleted.push(record);
-        }
-    })
-
-    let res = {
-        changed: changed,
-        added: added,
-        deleted: deleted
-    }
-
-    return res;
-
-
-
-}
+let differencing = Model_Database.model_rows_diff;
 
 let get_map_cookies = request_cookies => {
     let res = {};
@@ -376,13 +346,13 @@ class NextLevelDB_Server extends Evented_Class {
             } else {
                 // need to create the model, then ll_put those records into the db.
                 let model = new Model_Database();
-                console.log('model', model);
+                //console.log('model', model);
                 let buf = model.get_model_rows_encoded();
-                console.log('buf.length', buf.length);
+                //console.log('buf.length', buf.length);
                 //console.log('decoded new model', Model_Database.decode_model_rows(buf));
 
                 var arr_core = Binary_Encoding.split_length_item_encoded_buffer_to_kv(buf);
-                console.log('arr_core', arr_core);
+                //console.log('arr_core', arr_core);
 
 
                 // 13/03/2018 The table incremntor is OK here.
@@ -403,7 +373,7 @@ class NextLevelDB_Server extends Evented_Class {
                         if (err) {
                             callback(err);
                         } else {
-                            console.log('all_db_rows', all_db_rows);
+                            //console.log('all_db_rows', all_db_rows);
                             this.model = model;
 
                             proceed_2();
@@ -636,9 +606,9 @@ class NextLevelDB_Server extends Evented_Class {
                 //console.log('system_db_rows', system_db_rows);
                 // The table incrementor value should be at least about 4.
 
-                let decoded_system_db_rows = Model_Database.decode_model_rows(system_db_rows);
-                //console.log('decoded_system_db_rows', decoded_system_db_rows);
-                //console.log('decoded_system_db_rows.length', decoded_system_db_rows.length);
+                //let decoded_system_db_rows = Model_Database.decode_model_rows(system_db_rows);
+                console.log('system_db_rows', system_db_rows);
+                console.log('system_db_rows.length', system_db_rows.length);
                 //throw 'stop';
                 //throw 'stop';
 
@@ -1743,7 +1713,7 @@ class NextLevelDB_Server extends Evented_Class {
 
 
 
-                        let diff = differencing(old_model_rows, new_model_rows);
+                        let diff = Model_Database.diff_model_rows(old_model_rows, new_model_rows);
                         //console.log('diff ' + JSON.stringify(diff, null, 4));
 
                         //console.log('diff.changed.length', diff.changed.length);
