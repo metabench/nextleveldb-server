@@ -79,6 +79,98 @@ const path = require('path');
 
 
 
+// This could also enable some safety checking instructions from the client.
+//  To begin with though, it will mainly do the safety checks on restart.
+
+// This could have functionality to check when there are data outliers, or points that vary massively from the record before, with it likely to be contamination from another data series.
+
+
+// Test data series for outliers.
+//  That seems like a long-running process that could be done over the binary API.
+
+// The safer version will be made and deployed to servers which have been running for a while, down to server 1.
+//  Checking and fixing the incrementors.
+
+// Could do some more tests from the client to detect discrepencies.
+//  Download table subset, and detect value changes between items.
+//   The distribution of value % changes between items would be useful too.
+
+
+// Server could also send incrementor updates to all clients.
+//  Need some way of avoiding multiple clients from overwriting each other on incrementors
+//   Could do this with write protected records.
+//   Could also do this by getting the incrementation done on the server side.
+
+// We'll get this data mismatch / contamination problem sorted out.
+//  Let's look at the tables of currencies and markets on the various servers.
+// Data1 has been running over 1 month, with 0 server restarts and 15 collector restarts.
+
+// Want to make sure the other machines have got their data properly too.
+//  Data validation / verification before data import.
+
+
+// Get one server (local for the moment) to get updates from one of the remote servers.
+
+
+// Generating graphs would be a good next stage on the server.
+//  Rendering data as time-series data.
+
+// Find repeated rows where values should be unique
+
+
+
+// Could check for repeated or orphan rows.
+//  Seems very likely that some of the data, specifically data2 and data3, have been corrupted.
+//  Not sure about data1. It looks like it is worthwhile to put a new server instance onto it soon.
+
+// Maybe be sure to get data copying / syncing / amalgamation going from 2 servers to a local server soon.
+//  Worth leaving server1 just in case it's coping OK.
+//  Possibly some values have been written very wrong, and we may need to cross-reference to see what the correct values are going back.
+
+// Data4 and data5 are now going.
+//  We could copy their data to the local machine, and / or a server running on the Xeon.
+//  Seems important to be able to reconnect to a dropped connection, with a connection being dropped for a few seconds / minutes.
+
+
+
+// Downloading / copying to local seems most important.
+//  Checking table integrity (same structure) before copying is the right way to do it for now.
+
+// Check that it has got the same core db.
+
+
+// The p2p db will do that as it connects.
+
+// For the moment, will get it to confirm that it's got the same table for a named table.
+//  For snapshot data sync, referenced tables must be synced too.
+
+// copy_remote_table_to_local
+
+
+// compare_remote_table_to_local
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -107,7 +199,71 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
 
     }
 
-    safety_check(fix_errors = false) {
+
+    check_autoincrementing_table_pk(table_name, callback) {
+
+        //console.log('table_name', table_name);
+        this.get_table_id_by_name(table_name, (err, table_id) => {
+            if (err) {
+                callback(err);
+            } else {
+                //console.log('table_id', table_id);
+                //throw 'stop';
+
+                this.get_last_key_in_table(table_id, (err, last_key) => {
+                    if (err) {
+                        callback(err);
+                    } else {
+                        //console.log('last_key', last_key);
+
+                        if (typeof last_key === 'undefined') {
+                            // Incrementor should be 0.
+
+                            callback(null, true);
+
+                        } else {
+                            // Then look up the incrementor value in the model.
+                            let table = this.model.tables[table_id];
+                            let inc_value = table.pk_incrementor.value;
+                            //console.log('inc_value', inc_value);
+                            //console.log('last_key', last_key);
+
+                            if (inc_value !== last_key[1] + 1) {
+                                // need to update it in the DB
+
+                                table.pk_incrementor.value = last_key[1] + 1;
+                                let buf_inc = table.pk_incrementor.get_record_bin();
+
+                                //console.log('buf_inc', buf_inc);
+
+                                this.db.put(buf_inc[0], buf_inc[1], (err, res_put) => {
+                                    if (err) {
+                                        callback(err);
+                                    } else {
+                                        console.log('FIXED - Updated incrementor ' + table.pk_incrementor.name + ' from ' + inc_value + ' to ' + table.pk_incrementor.value);
+                                        callback(null, true);
+                                    }
+                                });
+
+                            } else {
+                                callback(null, true);
+                            }
+                        }
+
+
+
+
+
+                    }
+                })
+
+
+            }
+        })
+
+    }
+
+    safety_check(fix_errors = false, callback) {
         // Check all tables which have got autoincrementing keys
 
         let autoincrementing_pk_tables = [];
@@ -119,8 +275,41 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
         })
 
         console.log('autoincrementing_pk_tables.length', autoincrementing_pk_tables.length);
+
+        // Then with these tables, find the last key in those tables.
+
+
+        let fns = Fns();
+        each(autoincrementing_pk_tables, table => {
+            fns.push([this, this.check_autoincrementing_table_pk, [table.name]])
+        });
+        fns.go((err, res_all) => {
+            if (err) {
+                callback(err);
+            } else {
+                callback(null, res_all);
+            }
+        })
+
+
+
+
+        // then for each of them, do check_autoincrementing_table_pk
+        //  Then make sure we have got the data gathering running OK, getting the data to local.
+        //   Gather from more sources too.
+
+        // Currency data, other exchanges, stock exchanges
+        //  Make data viewing UI.
+
+
+
+
+
         // Then check that the highest pk value is the incrementor value - 1.
         //  If it's not, then fixing the error will be to update the incrementor value.
+
+
+        // Then for each of these, check the 
 
 
 
@@ -165,6 +354,8 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
 
 
     }
+
+    // check, fix, maintain (check and fix)
 
 
     start(callback) {

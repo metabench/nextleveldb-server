@@ -5,6 +5,7 @@ const is_array = jsgui.is_array;
 const arrayify = jsgui.arrayify;
 const get_a_sig = jsgui.get_a_sig;
 const Fns = jsgui.Fns;
+const def = jsgui.is_defined;
 //const clone = jsgui.clone;
 
 
@@ -607,7 +608,7 @@ class NextLevelDB_Server extends Evented_Class {
                 // The table incrementor value should be at least about 4.
 
                 //let decoded_system_db_rows = Model_Database.decode_model_rows(system_db_rows);
-                console.log('system_db_rows', system_db_rows);
+                //console.log('system_db_rows', system_db_rows);
                 console.log('system_db_rows.length', system_db_rows.length);
                 //throw 'stop';
                 //throw 'stop';
@@ -630,6 +631,9 @@ class NextLevelDB_Server extends Evented_Class {
                 // Check that the model rows from the db are the same length as those re-obtained from the model db.
 
 
+                // Leaving out the index of incrementors.??
+                // 
+
                 let model_rows = this.model.get_model_rows();
                 //console.log('system_db_rows.length', system_db_rows.length);
                 //console.log('model_rows.length', model_rows.length);
@@ -644,6 +648,11 @@ class NextLevelDB_Server extends Evented_Class {
 
                     console.log('model_rows', Model_Database.decode_model_rows(model_rows));
                     console.log('system_db_rows', Model_Database.decode_model_rows(system_db_rows));
+
+
+                    // Not so sure that an index of incrementors is that useful....
+                    //  However, missing such an index (when expected) will cause a crash here.
+                    //  Could remove that index of incrementors.
 
 
 
@@ -1940,6 +1949,83 @@ class NextLevelDB_Server extends Evented_Class {
 
 
 
+
+    }
+
+    get_last_key_in_table(table, callback) {
+        let table_id, table_name;
+        let t_table = tof(table);
+        //console.log('table', table);
+        if (t_table === 'number') {
+            table_id = table;
+        }
+        if (t_table === 'string') {
+            table_name = table;
+        }
+
+
+        let proceed = () => {
+            let i_kp = table_id * 2 + 2;
+            //console.log('i_kp', i_kp);
+            let kp = xas2(i_kp).buffer;
+            let buf_0 = Buffer.alloc(1);
+            buf_0.writeUInt8(0, 0);
+            let buf_255 = Buffer.alloc(1);
+            buf_255.writeUInt8(255, 0);
+            //console.log('kp', kp);
+
+            let buf_l = Buffer.concat([kp, buf_0]);
+            let buf_u = Buffer.concat([kp, buf_255]);
+            //console.log('buf_l', buf_l);
+            //console.log('buf_u', buf_u);
+
+            let res;
+
+            this.db.createKeyStream({
+                    'gte': buf_l,
+                    'lte': buf_u,
+                    'limit': 1,
+                    'reverse': true
+                }).on('data', function (key) {
+                    //console.log('key', key);
+                    res = key;
+
+                })
+                .on('error', function (err) {
+                    //console.log('Oh my!', err);
+                })
+                .on('close', function () {
+                    //console.log('Stream closed');
+                })
+                .on('end', function () {
+                    // decode
+                    if (res) {
+                        //console.log('res', res);
+                        let decoded = Model_Database.decode_key(res);
+                        callback(null, decoded);
+                    } else {
+                        callback(null, undefined);
+                    }
+                    //console.log('Stream ended')
+                });
+        }
+
+
+        if (def(table_id)) {
+            // do a range query.
+
+            proceed();
+
+        } else {
+            this.get_table_id_by_name(table_name, (err, _table_id) => {
+                if (err) {
+                    callback(err);
+                } else {
+                    table_id = _table_id;
+                    proceed();
+                }
+            })
+        }
 
     }
 

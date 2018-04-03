@@ -1432,6 +1432,27 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         [paging_option, pos] = x.read(buf_the_rest, pos);
         //if (paging_option > 0) {
 
+
+        // let [paging, pos] = Paging.read(buf_the_rest, pos);
+
+        // Paging.read would be easier.
+
+        // Then when having read the paging option, we have easy access to 'limit' and 'reverse' variables.
+        //  Reverse and limit 1 will enable the key before a key to be obtained easily, as well as the last key in a range / table.
+        //  That will help with checking incrementors have been set correctly.
+        //   Will have a simple db repair that sets all pk incrementors to the last key + 1.
+        //   Checking and repairing incrementors on start seems like a good way to do this.
+
+        // Worth getting another deployment or two up and running?
+        //  Getting the safety / fixed version running will be very useful.
+
+        // Could have lower level, and server function:
+        //  get_last_key_in_table
+        //   That would mean we can quickly get on with the incrementor db repair on start.
+        //    That would fix data4 and data5, hopefully before its too late.
+
+
+
         //}
 
         // Could feed through a paging function that batches the results.

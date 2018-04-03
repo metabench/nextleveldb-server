@@ -120,6 +120,74 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
 
     }
 
+    get_client_by_db_name(source_db_name) {
+        console.log('this.map_client_indexes', this.map_client_indexes);
+        console.log('this.clients', this.clients);
+        console.log('source_db_name', source_db_name);
+        return this.clients[this.map_client_indexes[source_db_name]];
+    }
+
+
+    // Could compare the models with specific tables loaded too.
+
+
+    // The core models
+    get_local_and_remote_models(remote_db_name, callback) {
+        let client = this.get_client_by_db_name(remote_db_name);
+        console.log('client', client);
+
+        // Maybe a copy of the local model?
+
+        client.load_core((err, remote_model) => {
+            if (err) {
+                callback(err);
+            } else {
+                this.load_model((err, local_model) => {
+                    if (err) {
+                        callback(err);
+                    } else {
+                        callback(null, [local_model, remote_model]);
+                    }
+                })
+
+            }
+        })
+    }
+
+    diff_local_and_remote_models(remote_db_name, callback) {
+        this.get_local_and_remote_models(remote_db_name, (err, models) => {
+            if (err) {
+                callback(err);
+            } else {
+                let [local, remote] = models;
+                let res = local.diff(remote);
+                callback(null, res);
+            }
+        })
+    }
+
+
+    /*
+    compare_remote_table_to_local(remote_db_name, table_name, callback) {
+        // Would be more complicated to do an observable streaming comparison.
+        let client = this.get_client_by_db_name(remote_db_name);
+        console.log('client', client);
+
+        // compare the table definition
+        // compare the table records.
+
+        // Could use a version of the remote model and a version of the local model.
+        //  get_local_and_remote_models would be a good basis to start comparisons.
+        //   loading models is one of those platform features now, we can use it to carry out various tasks.
+
+
+
+
+
+
+    }
+    */
+
 
     // This syncing looks like it will be somewhat complex, as there are different possibilities as to what can be directly copied over and how.
 
@@ -147,7 +215,7 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                 //console.log('remote_model', remote_model);
 
                 let diff = local_model.diff(remote_model);
-                console.log('diff', diff);
+                //console.log('diff', JSON.stringify(diff, null, 2));
 
             }
 
@@ -219,7 +287,10 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
             if (err) {
                 callback(err);
             } else {
-                this.copy_from_source_dbs(callback);
+
+                callback(null, res);
+
+                //this.copy_from_source_dbs(callback);
             }
         });
     }
@@ -355,6 +426,8 @@ if (require.main === module) {
     console.log('config.source_dbs', config.source_dbs);
     //throw 'stop';
 
+    console.log('config.nextleveldb_connections', config.nextleveldb_connections);
+
     each(config.source_dbs, (name) => {
         //console.log('config_source_db', config_source_db);
 
@@ -434,6 +507,33 @@ if (require.main === module) {
                             throw err;
                         } else {
                             console.log('NextLevelDB_P2P_Server Started');
+
+
+                            /*
+
+                            ls.compare_remote_table_to_local('data4', 'bittrex currencies', (err, res) => {
+                                if (err) {
+                                    throw err;
+                                } else {
+                                    console.log('res', res);
+                                }
+                            })
+
+                            */
+
+                            // get_local_and_remote_models
+
+                            ls.diff_local_and_remote_models('data5', (err, res) => {
+                                if (err) {
+                                    throw err;
+                                } else {
+                                    console.log('res', res);
+
+                                    console.log('diff', JSON.stringify(res, null, 2));
+
+
+                                }
+                            })
 
                             // DB could create its own core model when it first starts.
                             //  Simpler to save the client from having to do it.
