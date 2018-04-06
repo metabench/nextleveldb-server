@@ -604,7 +604,7 @@ class NextLevelDB_Server extends Evented_Class {
             if (err) {
                 callback(err);
             } else {
-                //console.log('system_db_rows', system_db_rows);
+                console.log('system_db_rows', system_db_rows);
                 // The table incrementor value should be at least about 4.
 
                 //let decoded_system_db_rows = Model_Database.decode_model_rows(system_db_rows);
@@ -639,24 +639,56 @@ class NextLevelDB_Server extends Evented_Class {
                 //console.log('model_rows.length', model_rows.length);
 
                 if (model_rows.length !== system_db_rows.length) {
-                    console.log('system_db_rows.length', system_db_rows.length);
+                    //console.log('system_db_rows.length', system_db_rows.length);
                     console.log('model_rows.length', model_rows.length);
 
                     // 13/03/2018 - This is a newly discovered bug where the model does not make every table (missing the native types table) when it gets reconstructed.
 
                     // do a diff here?
 
-                    console.log('model_rows', Model_Database.decode_model_rows(model_rows));
-                    console.log('system_db_rows', Model_Database.decode_model_rows(system_db_rows));
+                    //console.log('model_rows', Model_Database.decode_model_rows(model_rows));
+                    //console.log('system_db_rows', Model_Database.decode_model_rows(system_db_rows));
 
 
                     // Not so sure that an index of incrementors is that useful....
                     //  However, missing such an index (when expected) will cause a crash here.
                     //  Could remove that index of incrementors.
 
+                    //let models_diff = this.model.diff();
+
+                    // Need to do db kv row diff.
 
 
-                    callback(new Error('Mismatch between core db rows and core rows obtained from model'));
+
+                    //let diff = deep_diff(model_rows, system_db_rows);
+
+                    //
+
+                    let diff = Model_Database.diff_model_rows(Model_Database.decode_model_rows(model_rows), Model_Database.decode_model_rows(system_db_rows));
+                    console.log('diff', JSON.stringify(diff, null, 2));
+
+                    console.log('diff.changed.length', diff.changed.length);
+                    console.log('diff.added.length', diff.added.length);
+                    console.log('diff.deleted.length', diff.deleted.length);
+
+                    //each(diff.changed, changed => console.log('changed', changed));
+
+                    each(diff.changed, changed => {
+                        console.log('changed[0]', changed[0]);
+                        console.log('changed[1]', changed[1]);
+
+
+
+                    });
+
+
+                    // Though this error is very annoying, it will help to keep things in sync and prevent it from getting worse.
+                    //  This checks that the model rows have been loaded properly from the DB
+
+                    callback(new Error('Mismatch between core db rows and core rows obtained from model. '));
+
+
+
                 } else {
                     callback(null, that.model);
                 }
@@ -1332,12 +1364,6 @@ class NextLevelDB_Server extends Evented_Class {
         })
 
 
-
-
-
-
-
-
     }
 
     // ll_count with progress / observable
@@ -1382,6 +1408,12 @@ class NextLevelDB_Server extends Evented_Class {
                 callback(null, res_records);
             })
     }
+
+
+    // get table system db rows
+    //  
+
+
 
     // Get system db rows...
 
@@ -1506,7 +1538,138 @@ class NextLevelDB_Server extends Evented_Class {
         })
     }
 
+    batch_put_table_records(table_name, records, callback) {
+        var ops = [],
+            db = this.db,
+            b64_key, c, l, map_key_batches = {},
+            key;
+
+        // Maybe table does not exist locally
+        let table = this.model.map_tables[table_name];
+        console.log('table', table);
+        // Maybe it's OK when restarting anew because the local system has already copied the core model?
+
+        //throw 'stop';
+        if (table) {
+            let kp = table.id * 2 + 2;
+
+            each(arr, row => {
+                row.splice(0, 0, kp);
+
+                if (this.using_prefix_put_alerts) {
+                    //prefix_put_alerts_batch = [];
+                    var map_b64kp_subscription_put_alert_counts = this.map_b64kp_subscription_put_alert_counts;
+                    b64_key = arr_row[0].toString('hex');
+                    // Better to use a map and array.
+                    //  Maybe the standard event based system would be fine.
+                    //  Do more work on subscription handling.
+
+                    for (key in this.map_b64kp_subscription_put_alert_counts) {
+                        if (b64_key.indexOf(key) === 0) {
+                            map_key_batches[key] = map_key_batches[key] || [];
+                            map_key_batches[key].push(arr_row);
+                        }
+                    }
+                }
+                ops.push({
+                    'type': 'put',
+                    'key': row[0],
+                    'value': row[1]
+                });
+            });
+
+            db.batch(ops, err => {
+                if (err) {
+                    callback(err);
+                } else {
+
+                    this.raise('db_action', {
+                        'type': 'batch_put',
+                        'arr': arr
+                    });
+
+                    each(map_key_batches, (map_key_batch, key) => {
+                        //console.log('1) key', key);
+                        console.log('map_key_batch', map_key_batch);
+                        var buf_encoded_batch = Model_Database.encode_model_rows(map_key_batch);
+                        //console.log('buf_encoded_batch', buf_encoded_batch);
+                        this.raise('put_kp_batch_' + key, {
+                            'type': 'batch_put',
+                            'buffer': buf_encoded_batch
+                        });
+                    });
+                    callback(null, true);
+                }
+            })
+        } else {
+            callback(new Error('Table ' + table_name + ' does not exist locally'));
+        }
+
+
+    }
+
+    batch_put_decoded_arr(arr, callback) {
+        var ops = [],
+            db = this.db,
+            b64_key, c, l, map_key_batches = {},
+            key;
+
+        each(arr, row => {
+            if (this.using_prefix_put_alerts) {
+                //prefix_put_alerts_batch = [];
+                var map_b64kp_subscription_put_alert_counts = this.map_b64kp_subscription_put_alert_counts;
+                b64_key = arr_row[0].toString('hex');
+                // Better to use a map and array.
+                //  Maybe the standard event based system would be fine.
+                //  Do more work on subscription handling.
+
+                for (key in this.map_b64kp_subscription_put_alert_counts) {
+                    if (b64_key.indexOf(key) === 0) {
+                        map_key_batches[key] = map_key_batches[key] || [];
+                        map_key_batches[key].push(arr_row);
+                    }
+                }
+            }
+            ops.push({
+                'type': 'put',
+                'key': row[0],
+                'value': row[1]
+            });
+        });
+
+
+        db.batch(ops, err => {
+            if (err) {
+                callback(err);
+            } else {
+
+                this.raise('db_action', {
+                    'type': 'batch_put',
+                    'arr': arr
+                });
+
+                each(map_key_batches, (map_key_batch, key) => {
+                    //console.log('1) key', key);
+                    console.log('map_key_batch', map_key_batch);
+                    var buf_encoded_batch = Model_Database.encode_model_rows(map_key_batch);
+                    //console.log('buf_encoded_batch', buf_encoded_batch);
+                    this.raise('put_kp_batch_' + key, {
+                        'type': 'batch_put',
+                        'buffer': buf_encoded_batch
+                    });
+                });
+                callback(null, true);
+            }
+        })
+
+
+    }
+
+
     batch_put(buf, callback) {
+
+        // buf is an array by default? An array of buffers?
+
         var ops = [],
             db = this.db,
             b64_key, c, l, map_key_batches = {},
@@ -1539,6 +1702,9 @@ class NextLevelDB_Server extends Evented_Class {
 
 
         Binary_Encoding.evented_get_row_buffers(buf, (arr_row) => {
+
+            console.log('arr_row', arr_row);
+
             if (this.using_prefix_put_alerts) {
                 //prefix_put_alerts_batch = [];
                 var map_b64kp_subscription_put_alert_counts = this.map_b64kp_subscription_put_alert_counts;

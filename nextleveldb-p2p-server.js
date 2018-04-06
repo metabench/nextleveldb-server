@@ -13,8 +13,13 @@ const Evented_Class = lang.Evented_Class;
 
 const NextLevelDB_Server = require('./nextleveldb-server');
 const NextLevelDB_Client = require('nextleveldb-client');
+const Model = require('nextleveldb-model');
+const Model_Database = Model.Database;
 const fs2 = lang.fs2;
 
+
+const Binary_Encoding = require('binary-encoding');
+const database_encoding = Model.encoding;
 
 const os = require('os');
 const path = require('path');
@@ -154,16 +159,50 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
         })
     }
 
+    get_remote_buf_core(remote_db_name, callback) {
+        let client = this.get_client_by_db_name(remote_db_name);
+        client.load_buf_core(callback);
+    }
+
+
+
     diff_local_and_remote_models(remote_db_name, callback) {
-        this.get_local_and_remote_models(remote_db_name, (err, models) => {
-            if (err) {
-                callback(err);
-            } else {
-                let [local, remote] = models;
-                let res = local.diff(remote);
-                callback(null, res);
-            }
-        })
+
+        let a = arguments,
+            sig = get_a_sig(a);
+
+
+        if (sig === '[s,f]') {
+
+        }
+        if (sig === '[f]') {
+            callback = a[0];
+            remote_db_name = null;
+        }
+
+
+        // diff all of them...
+
+        if (remote_db_name !== null) {
+            this.get_local_and_remote_models(remote_db_name, (err, models) => {
+                if (err) {
+                    callback(err);
+                } else {
+                    let [local, remote] = models;
+                    let res = local.diff(remote);
+                    callback(null, res);
+                }
+            });
+        } else {
+            // Do it on all of them
+            throw 'NYI';
+        }
+
+
+
+        // Don't get given a remote DB name, then it's all of them.
+
+
     }
 
 
@@ -301,7 +340,6 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                 callback(err);
             } else {
                 console.log('cb super NextLevelDB_P2P_Serverstart');
-
                 this.connect_to_source_dbs((err, res) => {
                     if (err) {
                         callback(err);
@@ -309,12 +347,753 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                         console.log('connected to source DBs');
                         callback(null, true);
                     }
-                })
-
+                });
                 // connect to the source DBs
             }
-
         })
+    }
+
+
+
+    // This isn't working (syncing by table).
+    //  Would probably need further tests to check everything is working OK when syncing.
+
+    //  I think that a duplicate_db table sync system would be best.
+    //  It simply gets the core from the other DB, then it syncs over the table records
+    //   Probably best to recreate the index records on the receiving side.
+
+
+    // Downloads the whole core from elsewhere, then replaces the local core with that.
+    //  This is to be considered an overwrite_copy_sync.
+    //   Should possibly check for existing tables that conflict with the key space.
+    //   Could assume we are doing this on new DBs though.
+    //    Restarting that DB becomes more complex.
+    //     With the same structure we would see only a few differences in the core records, if any.
+
+    // Could possibly copy over a larger key range too, including the whole of the structure tables.
+
+    // 
+
+    unsafe_sync(db_name, callback) {
+        // Does not do it by model, does it lower level by records.
+
+        this.get_remote_buf_core(db_name, (err, remote_buf_core) => {
+            if (err) {
+                callback(err);
+            } else {
+                this.batch_put(remote_buf_core, (err, res_put) => {
+                    if (err) {
+                        res.raise('error', err);
+                    } else {
+                        console.log('have put record batch.');
+
+                        // load the model on the local client?
+                        //  And use that model to index the incoming records.
+                        //   Sync the records from the tables.
+
+
+
+
+
+                        callback(null, res_put);
+                    }
+                });
+            }
+        })
+
+    }
+
+
+
+
+
+
+
+
+
+    _start_db_sync(db_name) {
+
+
+
+        let res = new Evented_Class();
+
+        this.get_local_and_remote_models(db_name, (err, models) => {
+            if (err) {
+                throw err;
+            } else {
+
+                let [local, remote] = models;
+                let diff = local.diff(remote);
+
+                //console.log('diff', diff);
+
+                //console.log('diff', JSON.stringify(diff, null, 2));
+
+                console.log('diff.count', diff.count);
+
+                // Could use these differences in the model to determine which tables will need to be synced.
+                //  Syncing here will always be about requesting data.
+
+
+                if (diff.count === 0) {
+                    // Should be able to do the sync so far...
+                    res.raise('next', 'Verified database models match');
+
+                    // Then download all of the keys....
+                    //  Could do this on a very low level.
+                    //   Even the incrementors would be the same at this stage
+                    //    Meaning the syncing would have to take place amongst the non-structural tables.
+                    //     Such as snapshot records.
+
+                    // find every table that is not core / system, and does not have any autoincrementing PKs?
+                    // When syncing tables, will need to sync the tables ahead of them
+
+                    let obs_sync_non_core_tables = this.sync_db_non_core_tables(db_name);
+                } else {
+                    // This looks like it will be the way to spin up a db instance and have it copy data from another instance automatically
+                    //  and relatively quickly.
+
+                    // Will not be that huge an algorithm.
+
+
+                    // Need to find out for every table what its outward fk links are
+
+
+                    each(diff.changed, change => {
+                        //console.log('change', change);
+
+                        let [before, after] = change;
+
+                        let int_kp = before[0][0];
+                        //console.log('int_kp', int_kp);
+
+                        if (int_kp === 0) {
+                            // Its an incrementor
+
+                            let name = before[0][2];
+                            console.log('incrementor ' + name + ' changed from ' + before[1] + ' to ' + after[1]);
+
+
+                            if (name === 'incrementor') {
+                                let vdiff = after[1] - before[1];
+                                console.log(vdiff + ' new incrementors');
+                            }
+
+                            if (name === 'table') {
+                                let vdiff = after[1] - before[1];
+                                console.log(vdiff + ' new tables');
+                            }
+
+
+
+                        }
+
+                        if (int_kp === 2) {
+                            // Tables table record
+                            //  Need to reflect / process a change to the table record.
+                            //   Will need to handle the structure of tables changing, or their number of keys...
+                            //   Currently working on creating new tables in the sync.
+
+                            // Would be nice to have a function to download a table, and all tables it relies on.
+                            //  Would be quite a useful function on the server-side that would sync a table.
+
+                            // The normalised nature of the db makes syncing more difficult right now.
+                            //  Need to approach it in stages.
+
+                            // Very soon want it so that it downloads all data smoothly and relatively quickly.
+
+                            //  Should probably keep the DB structures syncronised accross dbs.
+                            //   ie the same IDs for anything which gets referred to accross the cluster.
+
+                        }
+                    });
+
+
+                    let syncable_tables = [];
+                    let ctu = true;
+
+                    each(diff.added, item => {
+                        console.log('item', item);
+                        let int_kp = item[0][0];
+                        if (int_kp === 2) {
+                            let table_id = item[0][1];
+                            let table_name = item[1][0];
+                            console.log('Added table: ' + table_name + ' at id ' + table_id);
+                            // Check there is not already a table at that ID.
+                            //  
+                            if (this.model.tables[table_id]) {
+                                res.raise('error', new Error('Attempting to sync table ' + table_name + ' to id ' + table_id + ' but table ' + this.model.tables[table_id].name + ' is already there.'));
+                                ctu = false;
+                                // Stop running this
+                            } else {
+                                syncable_tables.push(table_name);
+                            }
+                        }
+                    })
+
+                    if (ctu) {
+                        let map_tables_fk_refs = remote.map_tables_fk_refs;
+                        console.log('map_tables_fk_refs', map_tables_fk_refs);
+                        console.log('syncable_tables', syncable_tables);
+
+
+                        // then sync the tables when ready.
+                        //  Observe something to see when it's ready.
+
+                        let ready_notifier = new Evented_Class();
+
+                        let level_0_ref_tables = [];
+                        let map_l0 = {};
+                        each(syncable_tables, syncable_table => {
+                            if (!map_tables_fk_refs[syncable_table]) {
+                                level_0_ref_tables.push(syncable_table);
+                                map_l0[syncable_table] = true;
+                            }
+                        });
+
+                        console.log('level_0_ref_tables', level_0_ref_tables);
+
+                        let q_table_sync = [];
+                        let pending = [];
+
+                        let sync_when_ready = function (table_name) {
+                            if (map_l0[table_name]) {
+                                q_table_sync.push(table_name);
+                            } else {
+                                // a pending table list.
+                                pending.push(table_name);
+                            }
+                        }
+
+
+
+                        each(syncable_tables, syncable_table => sync_when_ready(syncable_table));
+
+                        console.log('q_table_sync', q_table_sync);
+
+
+
+
+
+                        let process = () => {
+                            // shift the first item from q_table_sync
+
+                            let item = q_table_sync.shift();
+                            console.log('process item', item);
+
+
+                            if (item) {
+                                let obs_sync = this.sync_db_table(db_name, item, remote);
+                                obs_sync.on('complete', () => {
+                                    console.log('obs_sync complete');
+
+
+
+
+                                    process();
+                                })
+                                obs_sync.on('error', (err) => {
+                                    console.log('obs_sync error');
+                                    res.raise('error', err);
+
+
+
+                                    //process();
+                                })
+                            } else {
+                                process_complete();
+                            }
+
+
+                            // sync that table
+
+                            // could do sync table records.
+                            //  would need to update relevant incrementor and table field records too.
+                            //   Even keeping the table field ids the same between syncs would be useful.
+                            //   Means that a db that has got a different structure already (extra tables / fields) can't join that cluster.
+                            //    The joining db could change itself so that the needed key positions are free.
+                            //     Maybe that would even mean a process of pausing where it updates its own structure.
+                            //      Would have to notify clients of this.
+
+
+
+
+
+
+
+
+
+
+
+
+
+                        }
+
+                        let process_complete = () => {
+                            console.log('process_complete', process_complete);
+                        }
+
+                        process();
+
+
+                        // start syncing these.
+
+                        // 
+
+                    }
+
+                    // Then for each of the syncable tables, we sync it when it's ready to be synced. Precursor / structural / platform tables must have already been synced.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                    // Looks like we will need to sync various structural tables.
+
+                    // // Need to work out the syncing path.
+                    //  Sequence of tables to sync.
+
+                    // Sync structural tables which have got no fk references.
+
+                    // Keep track of when tables are ready to sync.
+
+                    // For each table, will will know which 
+
+
+
+
+
+                }
+            }
+        });
+        return res;
+    }
+
+
+
+    sync_db_table_structure(db_name, table_name, remote_model) {
+        // This is an observable too.
+
+        // Could do a get table structure records from the server.
+        //  Model invalidation on the server?
+        //   So when a record within the core changes, the model becomes invalid, and needs to be reloaded before it can used.
+        //    get_valid_model(callback) function.
+        //    could use load_model for the moment, then replace it with the more optimised version.
+
+        console.log('sync_db_table_structure table_name', table_name);
+
+        // get the table structure binary records.
+        let buf_structure = remote_model.map_tables[table_name].buf_structure;
+        console.log('buf_structure', buf_structure);
+
+        let rbs = database_encoding.buffer_to_buffer_pairs(buf_structure);
+        console.log('rbs', rbs);
+
+        //throw 'stop';
+
+        let decoded_rbs = database_encoding.decode_model_rows(rbs);
+        console.log('decoded_rbs', decoded_rbs);
+
+
+
+
+        // then do the (low level) put operation upon these encoded model rows.
+
+        let res = new Evented_Class();
+
+
+        this.batch_put(buf_structure, (err, res_put) => {
+            if (err) {
+                res.raise('error', err);
+            } else {
+
+
+                //throw 'stop';
+                res.raise('complete');
+            }
+        });
+
+        // 
+
+        return res;
+
+
+
+
+
+
+    }
+
+
+    sync_db_table(db_name, table_name, remote_model) {
+        let res = new Evented_Class();
+
+
+        // Maybe don't give an update on all of the syncing. Could do it after pages loaded
+        console.log('sync_db_table');
+
+        console.log('db_name', db_name);
+        console.log('table_name', table_name);
+
+
+        let client = this.clients[this.map_client_indexes[db_name]];
+        // 
+
+
+        // Do any other tables use this table as an FK?
+        //  Would be nice if the model held maps of what links to a table.
+        //   Would be: whenever a table is added to / created within the Model, it checks to see which table(s) it refers to. Then adds that to inward_fk_refs array on that table.
+        //    for the moment, an inward_fk_refs scan would be OK.
+        //  If it has any inward fk refs, we don't want to update any values.
+        //   Want to verify that the values are the same.
+        //    Will raise an error if we find any differing values in such a table.
+        //    Will copy over new values.
+
+        let model_table = remote_model.map_tables[table_name];
+
+
+        let do_table_data_sync = () => {
+            this.get_table_id_by_name(table_name, (err, table_id) => {
+                if (err) {
+                    res.raise('error', err);
+                } else {
+
+                    // Could have different syncing systems to handle large or small amounts of rows?
+
+                    // Could avoid decoding the records too.
+                    //  What about the index records?
+                    //  Looks like they would be handled separately in ll downloads.
+                    //  Before syncing, could carry out index verification on the target DB.
+
+                    // Before getting the table records, we need to sync the table structure
+
+
+
+
+
+
+                    let obs_table_records = client.get_table_records(table_name, true);
+
+                    // obs_table_records.pause(), obs_table_records.resume();
+                    //  could fit that into the client and server with some lower level instructions.
+
+
+
+
+                    obs_table_records.on('next', data => {
+                        console.log('obs_table_records data', data);
+                        console.log('obs_table_records data.length', data.length);
+
+                        if (data.length > 1) {
+
+                            // Batch put table records.
+                            //  Will insert the table kp itself.
+
+
+
+
+
+                            this.batch_put_table_records(table_name, data, (err, res_put) => {
+                                if (err) {
+                                    res.raise('error', err);
+                                } else {
+                                    console.log('have put record batch.');
+                                }
+                            });
+
+
+
+                        }
+
+
+
+
+                        // Want to put this data into the db.
+
+                        // 
+
+
+
+
+
+                    })
+                    obs_table_records.on('complete', data => {
+                        console.log('obs_table_records complete', data);
+
+                        res.raise('complete');
+
+                    })
+
+
+
+
+
+
+
+
+
+                    // paged download of the table rows
+
+                    // just sync by getting all of the records for the moment.
+
+
+                    // Syncing by keys...
+
+
+                }
+            })
+        }
+
+        if (model_table.inward_fk_refs.length === 0) {
+
+            // Still need to sync the structure.
+
+            let obs_sync = this.sync_db_table_structure(db_name, table_name, remote_model);
+
+
+            obs_sync.on('complete', () => {
+                do_table_data_sync();
+            })
+
+            //
+
+
+            // Also want to avoid indexed tables for the moment.
+            //  Better to verify the index on the remote table before copying it.
+            //  However the safer db system will have its own index verification.
+
+
+
+
+
+
+
+
+
+
+        } else {
+            // Becomes trickier.
+            //  Syncing will be about compare / verify / add.
+            //   Fine to add new data (however not expecting to because of model comparison showing the incrementors are in the same state)
+            console.log('has inward fk refs');
+
+            // That's OK if the table with the FKs does not exist here yet.
+
+            if (this.model.map_tables[table_name]) {
+
+                // Should be fine.
+
+                do_table_data_sync();
+
+                //throw 'table already exists';
+            } else {
+
+                let obs_sync = this.sync_db_table_structure(db_name, table_name, remote_model);
+
+
+                //throw 'stop';
+                //do_table_data_sync();
+
+            }
+
+
+            // Get the data, and compare with what exists.
+            // Checking the records individually could take a while.
+
+
+
+            /*
+            process.nextTick(() => {
+                res.raise('complete');
+            })
+            */
+
+
+
+        }
+
+
+        // Check to see if the table exists in the local model.
+        if (this.model.map_tables[table_name]) {
+
+
+            console.log('model_table.inward_fk_refs', model_table.inward_fk_refs);
+
+
+
+
+
+        } else {
+
+        }
+
+
+        // Probably need to load the remote model version.
+
+
+
+        //console.log('model_table', model_table);
+
+        //let inward_fk_refs = model_table.inward_fk_refs;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        // get the table id, then download all of the records.
+
+        // Table ids should match in both DBs, because the core models have been compared and found to be the same.
+
+
+
+
+        return res;
+
+    }
+
+    sync_db_non_core_tables(db_name) {
+        let res = new Evented_Class();
+        // Assuming the models match.
+
+        // get the non-core table names from the model
+
+        //let non_core_table_names = this.model.
+
+        console.log('non_core_table_names', this.model.non_core_table_names);
+
+
+        // Go through them in order, syncing the records.
+        //  Bandwidth could be saved by checking with a checksum / hash.
+
+        // but anyway, for each of these, in sequence, we will sync that table
+
+        //let fns = Fns();
+
+        // Do this using a callback?
+        //  Get fns working with observable?
+
+        // Sequence the observables?
+
+        // fns but with an observable?
+        //  Don't think that fns will work that way, doubt it can fit the API.
+
+        // Observable sequencing seems best here.
+
+
+
+        //each(this.model.non_core_table_names, table_name => fns.push([this, sync_db_table, [db_name, table_name]]));
+        //fns.go((err, res_all) => {
+        //    if (err) {
+        //        res.raise('error', err);
+        //    }
+        //});
+
+        let q_obs = [];
+
+        // But this won't execute the observables in sequence.
+
+        // Queue up the observables fn calls.
+        each(this.model.non_core_table_names, table_name => {
+
+            q_obs.push([this, this.sync_db_table, [db_name, table_name]]);
+        });
+
+
+
+        let execute_q_obs = (q_obs) => {
+            let res = new Evented_Class();
+
+            let c = 0;
+            let process = () => {
+
+                if (c < q_obs.length) {
+                    let q_item = q_obs[c];
+
+                    let obs_q_item = q_item[1].apply(q_item[0], q_item[2]);
+
+                    obs_q_item.on('next', data => {
+                        let e = {
+                            n: c,
+                            params: q_item[2],
+                            'data': data
+                        }
+                        res.raise('next', e);
+                    });
+                    obs_q_item.on('error', error => {
+                        let e = {
+                            n: c,
+                            params: q_item[2],
+                            'data': data
+                        }
+                        res.raise('error', e);
+                    });
+                    obs_q_item.on('complete', data => {
+                        let e = {
+                            n: c,
+                            params: q_item[2],
+                            'data': data
+                        }
+                        console.log('pre raise item complete');
+                        res.raise('item_complete', e);
+                        c++;
+                        process();
+                    });
+
+                } else {
+                    // raise an all complete?
+                    res.raise('complete');
+                }
+
+            }
+            process();
+
+            return res;
+        }
+
+
+        let obs_all = execute_q_obs(q_obs);
+
+        obs_all.on('next', data => {
+
+        });
+
+
+        //each(this.model.non_core_table_names, table_name => {
+        //    arr_obs.push(this.sync_db_table(db_name, table_name));
+        //});
+
+
+
+
+
+
+
+        return res;
+
     }
 
     // When it starts up, it will sync from other database(s).
@@ -497,8 +1276,6 @@ if (require.main === module) {
                         }
                     });
 
-
-
                     // There could be a web admin interface too.
 
                     ls.start((err, res_started) => {
@@ -507,6 +1284,78 @@ if (require.main === module) {
                             throw err;
                         } else {
                             console.log('NextLevelDB_P2P_Server Started');
+
+                            /*
+
+                            let obs_sync = ls.start_db_sync('data5');
+
+                            obs_sync.on('next', message => {
+                                console.log('message', message);
+                            });
+                            obs_sync.on('error', err => {
+                                console.log('err', err);
+                                throw err;
+                            });
+                            */
+
+
+
+
+
+                            ls.diff_local_and_remote_models('data5', (err, diff) => {
+                                if (err) {
+                                    throw err;
+                                } else {
+                                    console.log('diff', diff);
+
+                                    console.log('diff', JSON.stringify(diff, null, 2));
+
+
+                                    if (diff.count === 0) {
+                                        // Should be able to do the sync so far...
+                                        console.log('no need to sync core');
+
+                                        // Copy over the table data.
+                                        //  Sync all table data
+
+                                        // sync all tables data
+                                        //  sync all non-core tables.
+
+
+
+
+                                        // Could record syncing in a sync_progress table
+                                        //  Harder to do now that we are not changing the core
+                                        //  Expanding system tables will be useful in the future.
+
+                                        // May make a change_table_id procedure, it would take quite a while.
+                                        //  Best to do this on start I think, but if it changes the index then writes will be OK.
+                                        //  Best to freeze the table ID until it is free.
+
+
+
+
+
+
+
+                                    } else {
+
+                                        // Copies over the core
+                                        ls.unsafe_sync('data5', (err, res) => {
+                                            if (err) {
+                                                throw err;
+                                            } else {
+                                                console.log('unsafe sync res', res);
+                                            }
+                                        })
+                                    }
+
+                                    // 
+
+
+                                }
+                            })
+
 
 
                             /*
@@ -523,17 +1372,7 @@ if (require.main === module) {
 
                             // get_local_and_remote_models
 
-                            ls.diff_local_and_remote_models('data5', (err, res) => {
-                                if (err) {
-                                    throw err;
-                                } else {
-                                    console.log('res', res);
 
-                                    console.log('diff', JSON.stringify(res, null, 2));
-
-
-                                }
-                            })
 
                             // DB could create its own core model when it first starts.
                             //  Simpler to save the client from having to do it.

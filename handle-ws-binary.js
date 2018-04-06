@@ -2514,7 +2514,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         console.log('TABLE_EXISTS');
 
         let table_name = Binary_Encoding.decode_buffer(buf_the_rest)[0];
-        console.log('table_name', table_name);
+        //console.log('table_name', table_name);
 
         nextleveldb_server.table_exists(table_name, (err, exists) => {
             if (err) {
