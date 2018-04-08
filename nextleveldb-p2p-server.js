@@ -8,7 +8,6 @@ const Fns = lang.Fns;
 //const clone = jsgui.clone;
 
 
-
 const Evented_Class = lang.Evented_Class;
 
 const NextLevelDB_Server = require('./nextleveldb-server');
@@ -79,23 +78,6 @@ const path = require('path');
 //   (could use checksums / blockchain)
 
 // 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -374,7 +356,7 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
 
     // 
 
-    unsafe_sync(db_name, callback) {
+    unsafe_sync_core(db_name, callback) {
         // Does not do it by model, does it lower level by records.
 
         this.get_remote_buf_core(db_name, (err, remote_buf_core) => {
@@ -390,6 +372,13 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                         // load the model on the local client?
                         //  And use that model to index the incoming records.
                         //   Sync the records from the tables.
+
+
+
+
+
+
+
 
 
 
@@ -737,7 +726,141 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
     }
 
 
-    sync_db_table(db_name, table_name, remote_model) {
+    // It looks like syncing won't be too difficult in this case.
+
+    // Getting a cockroachdb up and running would be very useful too.
+    //  Would be interesting to sync to and from that.
+
+
+
+
+
+    sync_db_table_data(db_name, table_name) {
+
+        let res = new Evented_Class();
+        let client = this.clients[this.map_client_indexes[db_name]];
+
+        this.get_table_id_by_name(table_name, (err, table_id) => {
+            if (err) {
+                res.raise('error', err);
+            } else {
+
+                // Could have different syncing systems to handle large or small amounts of rows?
+
+                // Could avoid decoding the records too.
+                //  What about the index records?
+                //  Looks like they would be handled separately in ll downloads.
+                //  Before syncing, could carry out index verification on the target DB.
+
+                // Before getting the table records, we need to sync the table structure
+
+
+
+
+
+
+                // Decoding them this way.
+
+                //let obs_table_records = client.get_table_records(table_name, true);
+                let obs_table_records = client.get_table_records(table_name, false);
+
+                // Not decoded....
+
+
+
+                // obs_table_records.pause(), obs_table_records.resume();
+                //  could fit that into the client and server with some lower level instructions.
+
+                obs_table_records.on('next', data => {
+                    //console.log('obs_table_records data', data);
+                    console.log('obs_table_records data.length', data.length);
+
+
+                    if (data.length > 1) {
+
+                        // Batch put table records.
+                        //  Will insert the table kp itself.
+
+
+
+                        // this.batch_put_table_records
+
+                        // try decoding the data.
+
+                        //console.log('data', data);
+
+
+                        //var row_buffers = Binary_Encoding.get_row_buffers(data);
+                        //let decoded = database_encoding.decode_model_rows(row_buffers);
+
+                        //console.log('decoded', decoded);
+                        //throw 'stop';
+
+
+
+
+
+                        this.batch_put(data, (err, res_put) => {
+                            if (err) {
+                                res.raise('error', err);
+                            } else {
+                                console.log('have put record batch.');
+                                res.raise('next', 'Have put record batch.');
+                            }
+                        });
+
+
+
+                    }
+
+
+
+
+                    // Want to put this data into the db.
+
+                    // 
+
+
+
+
+
+                })
+                obs_table_records.on('complete', data => {
+                    console.log('obs_table_records complete', data);
+
+                    res.raise('complete');
+
+                });
+
+
+
+
+                // paged download of the table rows
+
+                // just sync by getting all of the records for the moment.
+
+
+                // Syncing by keys...
+
+
+            }
+        })
+
+        return res;
+    }
+
+
+
+    // For the moment, will just copy over the table data.
+    //  Think we can do things in a simpler way with some ll operations.
+
+    // May need to change some table ids if necessary.
+    //  make_local_compatable_with
+    //  make_local_table_compatable_with
+    //   that could then do some rearrangement if necessary.
+
+
+    __sync_db_table(db_name, table_name, remote_model) {
         let res = new Evented_Class();
 
 
@@ -783,6 +906,11 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
 
 
 
+                    // Doing this without decoding / with minimal decoding would be fastest.
+                    //  Could maybe send at 3* the speed.
+                    //  Could also explore worker threads for decoding?
+
+
 
                     let obs_table_records = client.get_table_records(table_name, true);
 
@@ -793,7 +921,7 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
 
 
                     obs_table_records.on('next', data => {
-                        console.log('obs_table_records data', data);
+                        //console.log('obs_table_records data', data);
                         console.log('obs_table_records data.length', data.length);
 
                         if (data.length > 1) {
@@ -968,14 +1096,11 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
 
         // Table ids should match in both DBs, because the core models have been compared and found to be the same.
 
-
-
-
         return res;
 
     }
 
-    sync_db_non_core_tables(db_name) {
+    sync_db_non_core_tables_data(db_name) {
         let res = new Evented_Class();
         // Assuming the models match.
 
@@ -1019,7 +1144,7 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
         // Queue up the observables fn calls.
         each(this.model.non_core_table_names, table_name => {
 
-            q_obs.push([this, this.sync_db_table, [db_name, table_name]]);
+            q_obs.push([this, this.sync_db_table_data, [db_name, table_name]]);
         });
 
 
@@ -1183,6 +1308,8 @@ if (require.main === module) {
         //env : process.env['NODE_ENV']
         //env : process.env
     });
+    let access_token = config.nextleveldb_access.root[0];
+    console.log('access_token', access_token);
 
     console.log('options', options);
 
@@ -1193,8 +1320,7 @@ if (require.main === module) {
     //var docs_dir =
     var path_dbs = user_dir + '/NextLevelDB/dbs';
 
-    let access_token = config.nextleveldb_access.root[0];
-    console.log('access_token', access_token);
+
 
     // Select all the listed dbs, then choose the selected source DBs.
 
@@ -1308,7 +1434,7 @@ if (require.main === module) {
                                 } else {
                                     console.log('diff', diff);
 
-                                    console.log('diff', JSON.stringify(diff, null, 2));
+                                    //console.log('diff', JSON.stringify(diff, null, 2));
 
 
                                     if (diff.count === 0) {
@@ -1321,7 +1447,7 @@ if (require.main === module) {
                                         // sync all tables data
                                         //  sync all non-core tables.
 
-
+                                        let model = diff.orig;
 
 
                                         // Could record syncing in a sync_progress table
@@ -1332,6 +1458,58 @@ if (require.main === module) {
                                         //  Best to do this on start I think, but if it changes the index then writes will be OK.
                                         //  Best to freeze the table ID until it is free.
 
+                                        // sync non-core data
+
+                                        //let model = Model_Database.load_buf_core(remote_buf_core);
+                                        // then we go over the non-core tables
+                                        //  sync the table data for each of them from the server.
+                                        //   sync index data directly?
+                                        //   probably better to re-index records.
+                                        //    (maybe slower and more complex)
+
+
+                                        //let fns = Fns();
+
+
+                                        // Could either do the low level syncing with the table data (and maybe index data), or with just the table data, and recreate the indexes.
+                                        //  Second option definitely seems better, as we avoid orphan indexes
+
+
+                                        /*
+
+                                        let fns = Fns();
+
+                                        //ls.sync_download_table_records(model.non_core_tables)
+
+                                        each(model.non_core_tables, table => {
+                                            // sync that table.
+                                            console.log('table.name', table.name);
+
+                                            fns.push([this, this.sync_download_table_records, [table.name]]);
+
+
+                                            // Then for all of them, we sync the table data.
+                                            //  May try using rocksdb before all that long to see if the performance improves.
+
+
+
+
+                                        });
+                                        fns.go((err, res_all) => {
+                                            if (err) {
+                                                throw err;
+                                            } else {
+                                                console.log('all table syncing done');
+                                            }
+                                        })
+                                        */
+
+                                        let obs_sync = ls.sync_db_non_core_tables_data('data5');
+                                        obs_sync.on('next', data => {
+                                            console.log('* data');
+                                        })
+
+
 
 
 
@@ -1341,7 +1519,7 @@ if (require.main === module) {
                                     } else {
 
                                         // Copies over the core
-                                        ls.unsafe_sync('data5', (err, res) => {
+                                        ls.unsafe_sync_core('data5', (err, res) => {
                                             if (err) {
                                                 throw err;
                                             } else {

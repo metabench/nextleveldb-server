@@ -1538,6 +1538,10 @@ class NextLevelDB_Server extends Evented_Class {
         })
     }
 
+
+    // This one splices the kp into it.
+    //  Decoding the records has removed the kp.
+
     batch_put_table_records(table_name, records, callback) {
         var ops = [],
             db = this.db,
@@ -1546,19 +1550,19 @@ class NextLevelDB_Server extends Evented_Class {
 
         // Maybe table does not exist locally
         let table = this.model.map_tables[table_name];
-        console.log('table', table);
+        //console.log('table', table);
         // Maybe it's OK when restarting anew because the local system has already copied the core model?
 
         //throw 'stop';
         if (table) {
             let kp = table.id * 2 + 2;
 
-            each(arr, row => {
+            each(records, row => {
                 row.splice(0, 0, kp);
 
                 if (this.using_prefix_put_alerts) {
                     //prefix_put_alerts_batch = [];
-                    var map_b64kp_subscription_put_alert_counts = this.map_b64kp_subscription_put_alert_counts;
+                    //var map_b64kp_subscription_put_alert_counts = this.map_b64kp_subscription_put_alert_counts;
                     b64_key = arr_row[0].toString('hex');
                     // Better to use a map and array.
                     //  Maybe the standard event based system would be fine.
@@ -1585,7 +1589,7 @@ class NextLevelDB_Server extends Evented_Class {
 
                     this.raise('db_action', {
                         'type': 'batch_put',
-                        'arr': arr
+                        'arr': records
                     });
 
                     each(map_key_batches, (map_key_batch, key) => {
@@ -1670,7 +1674,7 @@ class NextLevelDB_Server extends Evented_Class {
 
         // buf is an array by default? An array of buffers?
 
-        var ops = [],
+        var ops,
             db = this.db,
             b64_key, c, l, map_key_batches = {},
             key;
@@ -1700,14 +1704,21 @@ class NextLevelDB_Server extends Evented_Class {
         //console.log('buf', buf);
 
 
+        // Could have a faster version without function call events here.
+        //  
+
+        // Simpler split to array row buffers would be faster.
+
+        /*
 
         Binary_Encoding.evented_get_row_buffers(buf, (arr_row) => {
 
-            console.log('arr_row', arr_row);
+            //console.log('arr_row', arr_row);
 
             if (this.using_prefix_put_alerts) {
                 //prefix_put_alerts_batch = [];
                 var map_b64kp_subscription_put_alert_counts = this.map_b64kp_subscription_put_alert_counts;
+
                 b64_key = arr_row[0].toString('hex');
                 // Better to use a map and array.
                 //  Maybe the standard event based system would be fine.
@@ -1726,6 +1737,70 @@ class NextLevelDB_Server extends Evented_Class {
                 'value': arr_row[1]
             });
         });
+
+        */
+
+
+        let arr_pairs = Model.encoding.buffer_to_row_buffer_pairs(buf);
+
+
+        let put_using_prefix_alerts = () => {
+            ops = [];
+            each(arr_pairs, pair => {
+
+                //prefix_put_alerts_batch = [];
+                var map_b64kp_subscription_put_alert_counts = this.map_b64kp_subscription_put_alert_counts;
+
+                b64_key = pair[0].toString('hex');
+                // Better to use a map and array.
+                //  Maybe the standard event based system would be fine.
+                //  Do more work on subscription handling.
+
+                for (key in this.map_b64kp_subscription_put_alert_counts) {
+                    if (b64_key.indexOf(key) === 0) {
+                        map_key_batches[key] = map_key_batches[key] || [];
+                        map_key_batches[key].push(pair);
+                    }
+                }
+
+                ops.push({
+                    'type': 'put',
+                    'key': pair[0],
+                    'value': pair[1]
+                });
+            })
+        }
+
+        let put_without_prefix_alerts = () => {
+            let l = arr_pairs.length;
+            let c;
+            ops = new Array(arr_pairs.length);
+            for (c = 0; c < l; c++) {
+                ops[c] = ({
+                    'type': 'put',
+                    'key': arr_pairs[c][0],
+                    'value': arr_pairs[c][1]
+                });
+            }
+            /*
+            each(arr_pairs, pair => {
+                ops.push({
+                    'type': 'put',
+                    'key': pair[0],
+                    'value': pair[1]
+                });
+            })
+            */
+        }
+
+        if (this.using_prefix_put_alerts) {
+            put_using_prefix_alerts();
+        } else {
+            put_without_prefix_alerts();
+        }
+
+
+
 
         //console.log('ops', ops);
 
@@ -1883,26 +1958,17 @@ class NextLevelDB_Server extends Evented_Class {
                         // Added
                         // Deleted
 
-
-
-
-
-
                         let diff = Model_Database.diff_model_rows(old_model_rows, new_model_rows);
                         //console.log('diff ' + JSON.stringify(diff, null, 4));
 
                         //console.log('diff.changed.length', diff.changed.length);
                         //console.log('diff.added.length', diff.added.length);
                         //console.log('diff.deleted.length', diff.deleted.length);
-
                         // Then persist all of the changed rows to the database.
 
                         //throw 'stop';
 
                         this.persist_row_diffs(diff, cb);
-
-
-
 
                         // Then a diff of them both.
 
@@ -1913,9 +1979,6 @@ class NextLevelDB_Server extends Evented_Class {
 
             // Check to see if we already have the table.
             // Using await would be good for getting that value.
-
-
-
 
 
             // Use something in the model to parse the table...
