@@ -10,7 +10,7 @@ const Fns = lang.Fns;
 
 const Evented_Class = lang.Evented_Class;
 
-const NextLevelDB_Server = require('./nextleveldb-server');
+const NextLevelDB_Server = require('./nextleveldb-safer-server');
 const NextLevelDB_Client = require('nextleveldb-client');
 const Model = require('nextleveldb-model');
 const Model_Database = Model.Database;
@@ -39,6 +39,7 @@ const path = require('path');
 //  Reading through records by timestamp would help here too.
 
 // Are dealing with a large amount of records so don't expect operations to be immediate.
+//  Later on - improving the immediancy of it with feedback
 
 // Condensed record set files (like a blockchain) would help too.
 
@@ -80,6 +81,127 @@ const path = require('path');
 // 
 
 
+// Do a bit more to get it reading the field data from the live servers.
+
+
+
+
+// Carry out the same operation on all peers, then get all the results back.
+//  Try with callback function.
+//  Would get all records in some table.
+
+// Same operation on multiple clients.
+//  Could have a multi_client component.
+//  Would get separate responses from each client.
+//  May want to check that the responses are the same.
+
+// For the moment, want to receive the data into the local workstation / xeon server.
+//  Maintain a cache of local data
+//  See how big it is.
+//  Check for outlying data
+//  Use the Xeon server to build up a data cache. It could go in colocation sometime.
+
+//  Downloading partial data sets from the server will help with verification.
+//   May also wish to download other types of data, such as candlestick data.
+//    Then incoming data could be checked against the candlestick data for verification.
+
+// Definitely want ongoing data gathering. Need to do read validation on incoming records somehow from the servers which have had problems.
+//  Selecting some info from records would make for slightly faster retrieval too.
+
+// Do more work on the local syncing.
+//  Find out how up-to-date any of the data is, either locally or remotely.
+
+// Get first and last records within key ranges.
+//  Get the syncing to local working fine, then get sets of data from local
+//  Could just look within the past 12 hours for analysis, once the streaming data system is working fine.
+
+// Want it to be able to verify it has done the streaming relatively quickly.
+//  A 'streaming operations' table could help.
+
+
+// Individually downloading price histories based on their market id, then timestamp.
+// Individually downloading table subsections based on their foreign key's table's ids, then timestamp.
+//  Want to write this general case.
+//  Get key ranges for table subsections based on foreign key and timestamp.
+//   get_fk_timestamp_key_ranges
+//    from timestamp, to timestamp
+//    use max and min timestamp vals.
+//  Could do it individually by the market. That would go in assets_client, could use some expanded underlying functionality.
+
+// https://bittrex.com/Api/v2.0/pub/market/GetTicks?marketName=BTC-WAVES&tickInterval=thirtyMin&_=1499127220008
+//  gets data going back over 1 month, daily.
+
+// Want to store these records
+//  Look at the data itself, put it into the db.
+
+
+
+// 12/04/2018
+//  Have made some more supporting functionality for getting the sync done.
+//  Will make a generalised case that allows syncing of the bittrex assets
+//   will check tables it depends on
+//    will sync them
+//   will make key space splits
+//    will use those key space splits to determine what ranges to sync from the server.
+//  Syncing in a user-friendly way will take some more work.
+//  Will make it so that syncing and sync checking is very fast.
+//  A computer on the LAN staying in sync will help too.
+//   Syncing and sync checking will be vey fast in a veriety of cases.
+//  Next to do: syncing of structural changes
+//   Could have an ordered and timestamped structural changes log.
+//    May well exclude autoincrementor changes? Or could only write the autoincrementor changes once something else gets written, so it's not updated each time?
+//     Or include it and know there could be many 'structural' changes?
+//    More worth like its worth logging add-table etc.
+//     Then would need to work to get copies of the table using the right autoincrement values.
+//      With some comparisons will have exclusions for autoinc values.
+//   Will log major, repeatable, reversable changes. Generally / never will log a row being added. Will log row structure changing.
+//    Will leave incrementor changes because there could be very many.
+//   Want to be able to upload new structure and have it pushed to the clients immediately or on connection if they are not connected.
+
+// So prior to syncing, a fairly complex function to make gets multiple key prefixes (all possible ones) and then fo each of them gets the first and last keys
+//  get_all_possible_fk_key_values
+//   then with all those values it gets the first and last keys in the range
+//   it does this on both the local and remote, compares the results.
+// This will enable rapid syncing of a fairly simple type of timeline data.
+//  Will do more automated syncing, bugs fixed, more functionality etc until we are reliably getting historic and immediate data efficiently and performing analysis on it.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 class NextLevelDB_P2P_Server extends NextLevelDB_Server {
@@ -108,9 +230,9 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
     }
 
     get_client_by_db_name(source_db_name) {
-        console.log('this.map_client_indexes', this.map_client_indexes);
-        console.log('this.clients', this.clients);
-        console.log('source_db_name', source_db_name);
+        //console.log('this.map_client_indexes', this.map_client_indexes);
+        //console.log('this.clients', this.clients);
+        //console.log('source_db_name', source_db_name);
         return this.clients[this.map_client_indexes[source_db_name]];
     }
 
@@ -121,7 +243,7 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
     // The core models
     get_local_and_remote_models(remote_db_name, callback) {
         let client = this.get_client_by_db_name(remote_db_name);
-        console.log('client', client);
+        //console.log('!!client', !!client);
 
         // Maybe a copy of the local model?
 
@@ -142,6 +264,7 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
     }
 
     get_remote_buf_core(remote_db_name, callback) {
+        console.log('remote_db_name', remote_db_name);
         let client = this.get_client_by_db_name(remote_db_name);
         client.load_buf_core(callback);
     }
@@ -183,6 +306,73 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
 
 
         // Don't get given a remote DB name, then it's all of them.
+
+
+    }
+
+
+    // Will be used to check the bittrex currencies and markets are the same before syncing data.
+    //  If they are not the same, we could use some specific error recovery.
+
+
+    diff_local_and_remote_table(remote_db_name, table_name, callback) {
+
+        // get the local table records, get the remote table records.
+        let local_table_records, remote_table_records;
+
+
+        let proceed = () => {
+            //console.log('proceed');
+            //console.log('!!local_table_records', !!local_table_records);
+            //console.log('!!remote_table_records', !!remote_table_records);
+
+            if (local_table_records && remote_table_records) {
+                //console.log('local_table_records.length', local_table_records.length);
+                //console.log('remote_table_records.length', remote_table_records.length);
+
+
+                let diff = Model_Database.diff_model_rows(local_table_records, remote_table_records);
+                console.log('diff', diff);
+                //throw 'stop';
+
+                callback(null, diff);
+            }
+
+
+        }
+
+
+        // decode and remove the key prefixes
+
+        this.get_table_records(table_name, true, true, (err, _local_table_records) => {
+
+            // Should have kps removed.
+
+            if (err) {
+                callback(err);
+            } else {
+                local_table_records = _local_table_records;
+                //console.log('p1');
+                proceed();
+            }
+        });
+
+        let client = this.get_client_by_db_name(remote_db_name);
+
+        // option to remove kps.
+
+        client.get_table_records(table_name, true, true, (err, _remote_table_records) => {
+            if (err) {
+                callback(err);
+            } else {
+                remote_table_records = _remote_table_records;
+
+                //console.log('remote_table_records', remote_table_records);
+                //throw 'stop';
+                //console.log('p2');
+                proceed();
+            }
+        });
 
 
     }
@@ -327,6 +517,12 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                         callback(err);
                     } else {
                         console.log('connected to source DBs');
+
+                        // Automatic syncing on start looks useful
+                        //  So long as it's reliable and performant.
+
+                        // Download all data from remote. 
+
                         callback(null, true);
                     }
                 });
@@ -737,6 +933,12 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
 
     sync_db_table_data(db_name, table_name) {
 
+
+        // An inner observable function would make sense here.
+
+
+
+
         let res = new Evented_Class();
         let client = this.clients[this.map_client_indexes[db_name]];
 
@@ -744,6 +946,37 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
             if (err) {
                 res.raise('error', err);
             } else {
+
+
+
+                // 09/04/2018 - Want to introduce a system to sync only the latest records, and leave older records alone.
+                //  Will apply only to tables that have a timestamp field in the key.
+
+                // look at the model to see if any of the pk fields are timestamps
+                //  by name or type.
+                // Then if so (maybe) we can get all combinations of what can occur before the timestamp field.
+                //  better just to do one variable right now.
+
+                // Call them timestamped id keys.
+
+                // Timestamped id could mean one thing at one time. The id says what it is, timestamp when it is.
+                //  Timestamped fk id - that's more like it.
+                //  So because its fk we can retrieve all of the ids for the key
+                //   Then we use these ids, along with timestamp ranges to generate a whole bunch of key range values.
+                //   Can use get first, last key in ranges.
+                //    Can get counts.
+
+
+
+
+
+
+
+
+
+
+
+
 
                 // Could have different syncing systems to handle large or small amounts of rows?
 
@@ -757,80 +990,340 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
 
 
 
+                // let's get the count for the records.
+
+                //  [time] counting records... n so far
 
 
-                // Decoding them this way.
+                // Could use different table syncing based on ranges?
+                //  Having a private local DB to track syncing operations would be very useful.
+                //  It would recognise which sync operations it has already done, and resume syncing in that case.
+                //   Would also be good for table_structure_changes or db_structure_changes or structure_changes
+                //    what got changed, storing info that makes it reversable.
+                //     It's previous state, then the current state
+                //     Or every operation recorded with enough detail to make it reversable.
 
-                //let obs_table_records = client.get_table_records(table_name, true);
-                let obs_table_records = client.get_table_records(table_name, false);
+                // Just need to get this data syncing soon.
+                //  Want history as well as the very latest data being streamed.
 
-                // Not decoded....
+                // Want to try connecting to, and syncing from all servers.
+                //  Should be fine so long as the core structure is the same.
 
+                // Need to pay close attention to handling markets that have been deleted.
+                //  A 'deleted' field may be of use here.
+                //  May need to do some higher level syncing when there is a table mismatch.
+                //   Should be OK for markets, but less OK for currencies.
+                //    As the PKs are sequential and must match.
 
+                // Also, testing the import of time-range data through cross-referencing will be useful.
 
-                // obs_table_records.pause(), obs_table_records.resume();
-                //  could fit that into the client and server with some lower level instructions.
-
-                obs_table_records.on('next', data => {
-                    //console.log('obs_table_records data', data);
-                    console.log('obs_table_records data.length', data.length);
-
-
-                    if (data.length > 1) {
-
-                        // Batch put table records.
-                        //  Will insert the table kp itself.
-
-
-
-                        // this.batch_put_table_records
-
-                        // try decoding the data.
-
-                        //console.log('data', data);
+                // Import the data from the servers, run the db on the network, then re-sync from the client.
+                //  For the moment, full retrieval on each of them seems OK.
+                //   Tracking sync ops would be very useful indeed, would be quite a lot of work, requiring a separate local db.
+                //   Re-writing already existing records makes the DB grow in size I think. Maybe not very much.
 
 
-                        //var row_buffers = Binary_Encoding.get_row_buffers(data);
-                        //let decoded = database_encoding.decode_model_rows(row_buffers);
+                // Table characteristics
+                //  Is table relatively small?
+                //   Indication that it's not a dyncamically added data collection.
 
-                        //console.log('decoded', decoded);
+                // Is structural
+                //  Used for normalisation of other tables.
+
+                // If the table has got fks pointing to it, then get the checksum of the table to compare.
+                //  table_records_checksum
+                //   table_records_hash
+                //   Not so sure about directly hashing all the records. A hash chain could be used to verify they are the same.
+
+                // table_records_hash
+                //  Will hash the binary of all of the table records.
+
+                // multi-peer sync will be the next stage
+                //  will begin the syncing process with all of them at the same time.
+
+                // Want it so that it can be started reasonably quickly, where it gets the latest data, but is not sure to get the full data from all servers.
+
+                // table.split_key_ranges
+                //  all_referenced_key_possibilities
+                //   could calculate if it's a reasonable amount to start with.
+                //   for where there is just one key reference...
+                //   one primary key with a foreign key component and a timestamp.
+
+
+
+                // Handling of tables by characteristics:
+                //  Smaller table: get the hash of all records
+                //  Larger table: go into sub-ranges
+                //   do this if it has got a key that refers to another table, then has timestamps.
+                //   timestamped reference to an id on another table
+                //    there is no very concise way to put it.s
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                // Will 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                let model_table = this.model.map_tables[table_name];
+
+
+
+                let obs_count = client.count_table_records(table_name);
+                obs_count.on('next', data => {
+                    console.log('count data', data);
+                })
+                obs_count.on('complete', count => {
+                    console.log('complete count', count);
+
+
+                    let sync_all_records = () => {
+                        // Could be nice to have the number of table records here.
+                        //  Number of records could be returned by the server, but it's not.
+                        //  Could be a bit tricky to change this.
+                        //  Could more easily count the records provided in the put statement.
+
+                        let obs_table_records = client.get_table_records(table_name, false);
+
+                        // Not decoded....
+
+
+
+                        // obs_table_records.pause(), obs_table_records.resume();
+                        //  could fit that into the client and server with some lower level instructions.
+
+                        // How far through the count of records is a good stat
+
+
+                        let total_put = 0;
+                        let prop_put, pct_put;
+
+                        obs_table_records.on('next', data => {
+
+                            // A page of records, all encoded as binary.
+
+
+                            //console.log('obs_table_records data', data);
+                            //console.log('obs_table_records data.length', data.length);
+
+
+                            if (data.length > 1) {
+
+                                // Batch put table records.
+                                //  Will insert the table kp itself.
+
+
+
+                                // this.batch_put_table_records
+
+                                // try decoding the data.
+
+                                //console.log('data', data);
+
+
+                                //var row_buffers = Binary_Encoding.get_row_buffers(data);
+                                //let decoded = database_encoding.decode_model_rows(row_buffers);
+
+                                //console.log('decoded', decoded);
+                                //throw 'stop';
+
+
+
+
+
+                                this.batch_put(data, (err, put_count) => {
+
+                                    // Want to say how many records were put in the result.
+                                    //  Not sure we want other data?
+                                    //  res.count
+
+
+                                    if (err) {
+                                        res.raise('error', err);
+                                    } else {
+                                        // the batch put result could say the number of records.
+                                        //  That way we can work out the proportion complete.
+
+
+
+                                        //console.log('put_count', put_count);
+
+                                        total_put = total_put + put_count;
+
+                                        prop_put = total_put / count;
+
+                                        pct_put = (prop_put * 100).toFixed(1);
+
+                                        //console.log('pct_put ' + pct_put + '%');
+
+                                        let obj_res = {
+                                            'db_name': db_name,
+                                            'table_name': table_name,
+                                            'prop_complete': prop_put,
+                                            'pct_complete': pct_put
+                                        }
+
+                                        //console.log('have put record batch.');
+                                        res.raise('next', obj_res);
+                                    }
+                                });
+
+                            }
+                            // Want to put this data into the db.
+                            // 
+
+                        })
+                        obs_table_records.on('complete', data => {
+                            console.log('obs_table_records complete', data);
+
+                            res.raise('complete');
+
+                        });
+                    }
+
+                    // Could also have a sync_records_since(timestamp);
+
+                    // All sorts of ways of doing this, but they require care.
+                    //  
+
+
+
+                    if (count > 32000) {
+                        // check the model to see if the PKs refer to another table and then have / are a timestamp
+
+                        let pk = model_table.pk;
+                        console.log('pk', pk);
+
+                        if (pk.fields.length === 2) {
+                            if (pk.fields[0].fk_to_table && pk.fields[1].name === 'timestamp') {
+                                console.log('FK ref then timestamp in PK. Able to split into ranges.');
+
+
+                                // a callback is unambiguous that it gets them all at once.
+
+
+
+                                this.get_table_key_subdivisions(model_table.id, (err, subdivisions) => {
+                                    if (err) {
+                                        res.raise('error', err);
+                                    } else {
+                                        console.log('subdivisions', JSON.stringify(subdivisions, null, 2));
+                                        console.log('subdivisions', (subdivisions));
+                                        // Probably want to keep the KPs when dealing with subdivisions.
+
+                                        each(subdivisions, item => console.log('subdivisions item', item));
+                                        console.log('subdivisions.length ' + subdivisions.length);
+
+
+                                        // Get the remote table subdivisions.
+
+                                        client.get_table_key_subdivisions(model_table.id, (err, client_subdivisions) => {
+                                            if (err) {
+                                                res.raise('error', err);
+                                            } else {
+
+                                                console.log('client_subdivisions', client_subdivisions);
+                                                // These will be encoded as binary rather than keys.
+
+
+
+                                            }
+                                        });
+
+
+
+
+
+
+
+
+                                    }
+
+                                })
+
+
+
+                            }
+                        }
+
                         //throw 'stop';
 
 
+                    } else {
 
-
-
-                        this.batch_put(data, (err, res_put) => {
-                            if (err) {
-                                res.raise('error', err);
-                            } else {
-                                console.log('have put record batch.');
-                                res.raise('next', 'Have put record batch.');
-                            }
-                        });
-
-
+                        sync_all_records();
 
                     }
 
 
 
 
-                    // Want to put this data into the db.
+                    // Then if it's a large count, we could break down the values to retrieve.
+                    //  A table record retrieval sync could be broken down into sub-sections that only get data we don't already have in range.
+                    //  That becomes more difficult when there are overlapping records.
+                    //   Want it soon so the servers share data with each other?
+                    //    May well have sub 1s resolution now.
 
-                    // 
+                    // In this case, want to do the full sync.
+                    //  It may be possible to get big blocks of data back quicker, especially if the blocks have already been prepared.
+                    //   Want to do more with just the main current architecture, but having a local system db will prove useful.
+                    //    It will be especially useful for recording progress of syncing operations.
 
 
 
 
 
-                })
-                obs_table_records.on('complete', data => {
-                    console.log('obs_table_records complete', data);
 
-                    res.raise('complete');
+
+
+
+
+
+
+
 
                 });
+
+
+
+
+
+
+                // Decoding them this way.
+
+                //let obs_table_records = client.get_table_records(table_name, true);
+
 
 
 
@@ -922,7 +1415,7 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
 
                     obs_table_records.on('next', data => {
                         //console.log('obs_table_records data', data);
-                        console.log('obs_table_records data.length', data.length);
+                        //console.log('obs_table_records data.length', data.length);
 
                         if (data.length > 1) {
 
@@ -1166,13 +1659,14 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                             params: q_item[2],
                             'data': data
                         }
+                        //console.log('e', e);
                         res.raise('next', e);
                     });
                     obs_q_item.on('error', error => {
                         let e = {
                             n: c,
                             params: q_item[2],
-                            'data': data
+                            'data': error
                         }
                         res.raise('error', e);
                     });
@@ -1217,7 +1711,7 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
 
 
 
-        return res;
+        return obs_all;
 
     }
 
@@ -1404,6 +1898,8 @@ if (require.main === module) {
 
                     // There could be a web admin interface too.
 
+                    let remote_server_name = 'data8';
+
                     ls.start((err, res_started) => {
                         if (err) {
                             console.trace();
@@ -1411,105 +1907,105 @@ if (require.main === module) {
                         } else {
                             console.log('NextLevelDB_P2P_Server Started');
 
-                            /*
-
-                            let obs_sync = ls.start_db_sync('data5');
-
-                            obs_sync.on('next', message => {
-                                console.log('message', message);
-                            });
-                            obs_sync.on('error', err => {
-                                console.log('err', err);
-                                throw err;
-                            });
-                            */
 
 
 
 
 
-                            ls.diff_local_and_remote_models('data5', (err, diff) => {
+
+                            // Get the diff to handle mal-formed rows?
+                            //  Or log such rows, and drop them.
+
+                            ls.diff_local_and_remote_models(remote_server_name, (err, diff) => {
                                 if (err) {
                                     throw err;
                                 } else {
-                                    console.log('diff', diff);
-
-                                    //console.log('diff', JSON.stringify(diff, null, 2));
-
-
                                     if (diff.count === 0) {
+
                                         // Should be able to do the sync so far...
                                         console.log('no need to sync core');
-
-                                        // Copy over the table data.
-                                        //  Sync all table data
-
-                                        // sync all tables data
-                                        //  sync all non-core tables.
-
                                         let model = diff.orig;
 
 
-                                        // Could record syncing in a sync_progress table
-                                        //  Harder to do now that we are not changing the core
-                                        //  Expanding system tables will be useful in the future.
-
-                                        // May make a change_table_id procedure, it would take quite a while.
-                                        //  Best to do this on start I think, but if it changes the index then writes will be OK.
-                                        //  Best to freeze the table ID until it is free.
-
-                                        // sync non-core data
-
-                                        //let model = Model_Database.load_buf_core(remote_buf_core);
-                                        // then we go over the non-core tables
-                                        //  sync the table data for each of them from the server.
-                                        //   sync index data directly?
-                                        //   probably better to re-index records.
-                                        //    (maybe slower and more complex)
 
 
-                                        //let fns = Fns();
-
-
-                                        // Could either do the low level syncing with the table data (and maybe index data), or with just the table data, and recreate the indexes.
-                                        //  Second option definitely seems better, as we avoid orphan indexes
-
-
-                                        /*
-
-                                        let fns = Fns();
-
-                                        //ls.sync_download_table_records(model.non_core_tables)
-
-                                        each(model.non_core_tables, table => {
-                                            // sync that table.
-                                            console.log('table.name', table.name);
-
-                                            fns.push([this, this.sync_download_table_records, [table.name]]);
-
-
-                                            // Then for all of them, we sync the table data.
-                                            //  May try using rocksdb before all that long to see if the performance improves.
-
-
-
-
-                                        });
-                                        fns.go((err, res_all) => {
+                                        ls.diff_local_and_remote_table(remote_server_name, 'bittrex currencies', (err, res_diff_currencies) => {
                                             if (err) {
                                                 throw err;
                                             } else {
-                                                console.log('all table syncing done');
+                                                //console.log('res_diff_currencies', JSON.stringify(res_diff_currencies));
+                                                console.log('res_diff_currencies.added', JSON.stringify(res_diff_currencies.added));
+                                                console.log('res_diff_currencies.deleted', JSON.stringify(res_diff_currencies.deleted));
+
+
+
+                                                setTimeout(() => {
+                                                    ls.diff_local_and_remote_table(remote_server_name, 'bittrex markets', (err, res_diff_markets) => {
+                                                        if (err) {
+                                                            throw err;
+                                                        } else {
+                                                            //console.log('res_diff_markets', res_diff_markets);
+
+                                                            console.log('res_diff_markets.added', JSON.stringify(res_diff_markets.added));
+                                                            console.log('res_diff_markets.deleted', JSON.stringify(res_diff_markets.deleted));
+
+                                                            // Probably market never existed on the server anyway.
+                                                            //  At least existing markets are the same
+
+                                                            if (res_diff_markets.added.length === 0 && res_diff_markets.changed.length === 0) {
+
+                                                                let obs = ls.sync_db_non_core_tables_data(remote_server_name);
+                                                                obs.on('next', data => {
+                                                                    //console.log('sync_db_non_core_tables_data obs data', data);
+                                                                    let pct_complete = data.data.pct_complete;
+                                                                    let table_name = data.data.table_name;
+                                                                    console.log(table_name + ' ' + pct_complete + '% complete');
+                                                                });
+                                                                obs.on('complete', () => {
+                                                                    console.log('sync_db_non_core_tables_data obs complete');
+                                                                })
+                                                            }
+
+                                                            // So locally we have a larger set of records, I think.
+                                                            //  Really do need to keep the deleted currency or market records locally.
+
+
+
+
+                                                            // Found Bittrex has deleted a market.
+                                                            //  May be worth attaching a 'deleted' annotation to it?
+                                                            //   Deleted by external source, keeping track of it means we know it's been deleted and existed there to begin with.
+                                                            //    Don't want to lost the price data either.
+
+                                                            // So if any have been deleted either locally or remotely, we need to act accordingly.
+                                                            //  A lower level 'record deleted' tag?
+                                                            //   Don't really want to sync over the deletions.
+
+
+
+
+                                                            //throw 'stop';
+
+
+                                                            // sync_db_non_core_tables_data
+
+                                                            // This info may not be quite so important once we have better syncing.
+                                                            //  Table that logs all db operations carried out, separate to the main db could be quite useful.
+                                                            //   There would be an id for each operation, and syncing clients could download all operations since x.
+                                                            //    
+
+
+
+
+
+
+
+                                                        }
+                                                    })
+                                                }, 0);
+
                                             }
                                         })
-                                        */
-
-                                        let obs_sync = ls.sync_db_non_core_tables_data('data5');
-                                        obs_sync.on('next', data => {
-                                            console.log('* data');
-                                        })
-
-
 
 
 
@@ -1518,14 +2014,37 @@ if (require.main === module) {
 
                                     } else {
 
+
+                                        // No, not sure we want this.
+                                        //  Don't just replace the core, that is haphazard.
+
+                                        // May well start some new DB instances, possibly only instance 8 is working OK.
+                                        //  Would like very much to retrieve data from existing DBs.
+                                        //  May need to make the safer version of it fix various bugs on startup, such as incrementor values being out of sync with existing record ids.
+
+
+
+                                        //throw 'stop';
+
                                         // Copies over the core
-                                        ls.unsafe_sync_core('data5', (err, res) => {
+
+                                        /*
+                                        ls.unsafe_sync_core(remote_server_name, (err, res) => {
                                             if (err) {
                                                 throw err;
                                             } else {
                                                 console.log('unsafe sync res', res);
                                             }
                                         })
+
+                                        */
+
+                                        console.log('diff', diff);
+
+                                        console.log('diff.count', diff.count);
+                                        console.log('diff.changed', diff.changed[0]);
+
+                                        // If there is a difference, it could be a bug in one db.
                                     }
 
                                     // 
@@ -1535,67 +2054,6 @@ if (require.main === module) {
                             })
 
 
-
-                            /*
-
-                            ls.compare_remote_table_to_local('data4', 'bittrex currencies', (err, res) => {
-                                if (err) {
-                                    throw err;
-                                } else {
-                                    console.log('res', res);
-                                }
-                            })
-
-                            */
-
-                            // get_local_and_remote_models
-
-
-
-                            // DB could create its own core model when it first starts.
-                            //  Simpler to save the client from having to do it.
-
-                            // The server component itself will start with its model loaded.
-
-                            //callback(null, true);
-
-
-                            /*
-
-                            var start_with_core_model = (callback) => {
-                                // Could do an initial db setup...
-
-                                ls.count_core((err, count) => {
-                                    if (err) {
-                                        throw err;
-                                    }
-                                    if (count === 0) {
-                                        callback(null, true);
-                                    } else {
-
-                                        ls.load_model((err, model) => {
-                                            if (err) {
-                                                throw err;
-                                            } else {
-                                                ls.model = model;
-
-                                                callback(null, true);
-
-
-                                            }
-                                        })
-                                    }
-                                });
-                            }
-
-
-
-                            start_with_core_model(() => {
-                                console.log('DB started');
-
-
-                            });
-                            */
                         }
                     });
                 }

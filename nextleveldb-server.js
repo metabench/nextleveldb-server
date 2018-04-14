@@ -12,6 +12,8 @@ const def = jsgui.is_defined;
 
 const Evented_Class = jsgui.Evented_Class;
 
+const crypto = require('crypto');
+
 const http = require('http');
 const url = require('url');
 const os = require('os');
@@ -46,9 +48,19 @@ const levelup = require('level');
 
 const Model = require('nextleveldb-model');
 const Model_Database = Model.Database;
+const encoding = Model.encoding;
 
 const CORE_MIN_PREFIX = 0;
 const CORE_MAX_PREFIX = 9;
+
+
+// Private system DBs could be useful - they could best be used by subclasses of this.
+//  Could provide auth.
+//  Could keep log data on what maintenance / some other operations such as syncing have taken place
+//  Could keep a table of the sync processes that are going on at present. This table could then be queried to give sync updates.
+
+
+
 
 
 // Authentication is the next core feature of the server.
@@ -168,6 +180,180 @@ const CORE_MAX_PREFIX = 9;
 // Then there will be other sync modes, where a server will automatically sync from another server.
 
 // May be good to use a single Amazon server for that, or another cloud provider.
+
+
+
+// A table of completed syncing operations would help.
+//  Also, syncing operations in progress.
+//  Could contain data about estimates.
+
+
+// May need to address changing table numbers / updating all the relevant records for that.
+//  Introduce more flexibility about core / system tables?
+
+// DB migration of table IDs seems necessary in order to have increased core table space.
+//  As an earlier work-around, could have it as non-core.
+//   That makes sense because it's specific to that system.
+
+// Core records will be distributed over the system. It's the structure of the DB.
+//  All core records are system records I think.
+
+// Then there will be node-level non-distributed records.
+//  Prime example being the current idea of sync tracking records. That is similar to server-level logs. Server-level info about what data other clients hold. Data about other peers on the network.
+//   Useful to keep it in the DB so that it can get resumed on start-up.
+//  Want to make this without breaking the current system.
+//   Adding the syncing table itself will change the core.
+//  Be able to add a syncing table to the remote dbs as part of maintenance
+//   But they don't need it.
+
+// Rather than checking for identical models, could check for relevant values being the same for each table.
+//  Specific table IDs being the same.
+
+// Could load up the servers so that they create the sync tables.
+//  Could work around the models being different by not doing such low level syncing, or doing further tests first.
+
+// Could keep it out of the core.
+//  That way the core comparisons stay the same. That's the distributed core.
+//  The trouble is that it would be referenced within the core because it exists in the DB.
+//   Could check for those specific differences and OK them. We really don't want differences in the tables that are about to be synced on a low level.
+//    That seems like a decent way of doing it. Still ll_sync when there are some core differences, so long as the differences won't cause problems.
+
+// Though, an identical distributed core makes sense.
+//  That would mean the same tables on all machines. Would mean we could not use incrementors there, or not the core kind.
+//   Local_Incrementor?
+
+// Separating out the distributed parts from non-distributed parts.
+
+// Making another db could work.
+//  a new sub-db called local. Keep things very separate.
+
+// Possibly globally shared core tables would work OK.
+//  Incrementors would not be such an issue.
+
+// Changing table ids would be cool.
+//  Shifting all table IDs up by one. Would need to know which field is ever a table id.
+//  That seems like it would be a decent way to have a new table added at a lower ID, or for syncing when the table id changed.
+
+// Go through every single ll record, including indexes and incrementors, and update (+1 or +n) every table id that is at or above a certain number.
+//  Think this would need to suspend db writes, and then inform all clients that its model has changed.
+// Notification to clients of db model changes would be useful.
+//  Only send it when the changes have been completed.
+//   model_change_update_subscribing_clients();
+//    clients would need to specifically open the subscription to db model changes.
+//     then the issue of changing the db records in correspondance to the model changes.
+
+// A new version that has got more table space for system tables would be useful.
+//  The separate db could handle records such as syncing records, and per-server security.
+
+// Handling DB upgrades would be nice.
+//  All DBs would get this syncing table.
+
+// Have another field within the table record saying if it is a dist-core table, if it is a node-core table.
+//  An unconnected sub-database would be useful for recording local logs. Wont be available through the normal API.
+//  The p2p version would have the local database. Would list which ranges which have been downloaded.
+
+
+// Local_System.
+//  That would be a part of the p2p server.
+//  Sync operations table
+//  Could log read frequencies to arrange caching - though I think Level handles that anyway.
+//  Could store blocks which are put into the local db / have been put into the local db.
+//   Soring row range blocks in a separate local db would definitely be cool.
+//  A task queue, including completed tasks and task status would definitely be of use.
+//   Having it in a separate but accessible DB would be very useful.
+//    It would have its own OO interface, it would not be synced with other DBs.
+
+// Tasks
+//  Completed already - timestamp completed
+//  Running - timestamp started
+//  Yet to run / queued. Definitely have the queued items going in sequence.
+//   Not so sure about different priorities for the queue. Priorities mean some tasks could jump ahead of others.
+//   The queue could be more about monitoring the tasks that are set. May want various different sequences, with blocks of tasks to have in the queue.
+//   Probably just stick with an order of addition queue, and keep track of it.
+//    That should be enough.
+
+// Tasks would cover the sync operations.
+//  If it has another sync operation to do, it could note the ranges of records synced in previous sync operations.
+//  Could do more work on the partial syncing without this, checking the latest key values.
+
+// Definitely will do more syncing of tables.
+//  Will change the way bittrex data is added to make it more general.
+
+// Generalising the bittrex case to other cases.
+//  Probably worth re-doing some code, specifically the tables.
+//  Maybe retire crypto-data-model, as we now use declarations that are loaded into the normal model.
+
+// Returning hashes of data could be an output transformation / encoding.
+//  That way we could get hashes as output for any query, or one hash that covers all results given.
+
+// Daily record blocks could be of a lot of use.
+//  Would log that it has downloaded all of the records for a given day.
+
+// Client connection status, depending on how syncing is going?
+
+// nextleveldb-sync-client
+//  would keep track of the sync status to some extent.
+
+// Getting inter-table ranges would definitely be of use for syncing.
+
+
+
+
+
+
+
+// Binance, Bitfinex, HitBTC.
+
+// exchange_id, exchange_trade_id, currency_id, value, volume, was_buy
+
+// market snapshot data
+// trade data
+// candlestick data
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -404,11 +590,6 @@ class NextLevelDB_Server extends Evented_Class {
 
 
 
-
-
-
-
-
                 //that.fns_ws.initial_db_setup(callback);
                 // rest of the init
                 //
@@ -421,16 +602,16 @@ class NextLevelDB_Server extends Evented_Class {
             wsServer.on('request', function (request) {
 
                 //console.log('request', request);
-                console.log('request.origin', request.origin);
+                //console.log('request.origin', request.origin);
 
-                console.log('Object.keys(request)', Object.keys(request));
-                console.log('Object.keys(request.socket)', Object.keys(request.socket));
+                //console.log('Object.keys(request)', Object.keys(request));
+                //console.log('Object.keys(request.socket)', Object.keys(request.socket));
                 // console.log('(request.socket)', (request.socket));
-                console.log('Object.keys(request.socket.server)', Object.keys(request.socket.server));
-                console.log('Object.keys(request.socket._peername)', Object.keys(request.socket._peername));
-                console.log('(request.socket._peername)', (request.socket._peername));
+                //console.log('Object.keys(request.socket.server)', Object.keys(request.socket.server));
+                //console.log('Object.keys(request.socket._peername)', Object.keys(request.socket._peername));
+                //console.log('(request.socket._peername)', (request.socket._peername));
 
-                console.log('request.cookies', request.cookies);
+                //console.log('request.cookies', request.cookies);
 
                 let map_cookies = get_map_cookies(request.cookies);
                 console.log('map_cookies', map_cookies);
@@ -730,6 +911,36 @@ class NextLevelDB_Server extends Evented_Class {
         var [bl, bu] = this.core_lu_buffers;
         this.ll_count_keys_in_range(bl, bu, callback);
         //this.
+    }
+
+
+
+    // Records with incomplete keys...
+    //  Could be a fine format for when we know the record will be assigned an id by the table.
+
+    // Model will have some details about that.
+    //  want to be able to create records (for testing) without changing the incrementor or adding them to the model.
+    //  Then after passing tests the record could be added.
+
+    // Will also have ensure_record check against indexes.
+
+
+
+
+
+    ensure_record(arr_record, callback) {
+
+        // an inner promise / observable
+
+        // will work differently when the key is automatically generated.
+
+        let table_pk = arr_record[0][0];
+
+        let table_id = (table_pk - 2) / 2;
+
+
+
+
     }
 
 
@@ -1827,7 +2038,7 @@ class NextLevelDB_Server extends Evented_Class {
                         'buffer': buf_encoded_batch
                     });
                 });
-                callback(null, true);
+                callback(null, ops.length);
             }
         })
     }
@@ -2181,6 +2392,280 @@ class NextLevelDB_Server extends Evented_Class {
 
     }
 
+    // Will be useful for partial syncing.
+
+    // And a decode option going into this function.
+    //  This will enable retrieval of this data (could be plenty of it) without needing to be decoded server-side.
+    //   This will hopefully boost performance a decent amount.
+    //    Or just be part of an efficient system.
+    // Overhead of sig parsing and more polymorphism?
+
+
+
+
+    get_first_and_last_keys_in_buf_range(buf_l, buf_u, remove_kp, decode, callback) {
+
+
+
+        let a = arguments,
+            sig = get_a_sig(a);
+
+        console.log('get_first_and_last_keys_in_buf_range sig', sig);
+        console.log('[buf_l, buf_u, remove_kp, decode]', buf_l, buf_u, remove_kp, decode);
+        // more flexible params to handle removal of KPs from the results.
+
+        if (sig === '[B,B,f]') {
+
+        } else if (sig === '[B,B]') {
+
+        } else if (sig === '[B,B,b]') {
+            remove_kp = a[2];
+            callback = null;
+        } else if (sig === '[B,B,b,b]') {
+            //remove_kp = a[2];
+            //callback = null;
+        } else {
+            throw 'get_first_and_last_keys_in_buf_range unexpected signature ' + sig;
+        }
+
+        // An inner promise would be better than inner callback.
+        let res = new Promise((resolve, reject) => {
+            let fns = Fns();
+            fns.push([this, this.get_first_key_in_range, [
+                [buf_l, buf_u], remove_kp, decode
+            ]]);
+            fns.push([this, this.get_last_key_in_range, [
+                [buf_l, buf_u], remove_kp, decode
+            ]]);
+            fns.go(2, (err, res_all) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    //console.log('res_all', res_all);
+
+                    resolve(res_all);
+
+                    //throw 'stop';
+                }
+
+            })
+        });
+
+        if (callback) {
+            res.then(res => callback(null, res), err => callback(err));
+        } else {
+            return res;
+        }
+
+    }
+
+
+
+    get_first_and_last_keys_beginning(key_beginning, remove_pks = false, decode = false, callback) {
+        let a = arguments;
+        let sig = get_a_sig(a);
+        let buf_key_beginning;
+
+        // Yet more arguments... will have decode (or not) option
+
+        console.log('get_first_and_last_keys_beginning sig', sig);
+
+        if (sig === '[B,b]') {
+            buf_key_beginning = key_beginning;
+        } else if (sig === '[a,b]') {
+            buf_key_beginning = Model.encoding.encode_key(key_beginning);
+        } else if (sig === '[B,f]') {
+            buf_key_beginning = key_beginning;
+            callback = a[1];
+            remove_pks = false;
+
+        } else if (sig === '[a,f]') {
+            buf_key_beginning = Model.encoding.encode_key(key_beginning);
+            callback = a[1];
+            remove_pks = false;
+        } else if (sig === '[a,b,f]') {
+            buf_key_beginning = Model.encoding.encode_key(key_beginning);
+            callback = a[2];
+            decode = false;
+        } else if (sig === '[B,b,f]') {
+            buf_key_beginning = key_beginning;
+            callback = a[2];
+            decode = false;
+        } else if (sig === '[B,b,b,f]') {
+            buf_key_beginning = key_beginning;
+        } else {
+            throw 'get_first_and_last_keys_beginning unexpected signature:', sig;
+        }
+        // An inner promise would probably work best.
+
+
+
+
+
+
+        // Then first and last keys based on that.
+
+        // Already have something in the binary handler that does this.
+        //  Will do first and last keys by range
+
+        let buf_0 = Buffer.alloc(1);
+        buf_0.writeUInt8(0, 0);
+        let buf_255 = Buffer.alloc(1);
+        buf_255.writeUInt8(255, 0);
+        //console.log('kp', kp);
+
+        let buf_l = Buffer.concat([buf_key_beginning, buf_0]);
+        let buf_u = Buffer.concat([buf_key_beginning, buf_255]);
+
+
+        // This will also need a decode option.
+
+        let pr_res = this.get_first_and_last_keys_in_buf_range(buf_l, buf_u, remove_pks, decode);
+
+        if (callback) {
+            pr_res.then(res => callback(null, res), err => callback(err)).catch(err => {
+                callback(err);
+            });
+        } else {
+            return pr_res;
+        }
+
+
+
+
+
+
+
+    }
+
+
+    // Assumes decoding
+
+    // These two functions below could do with decoding options.
+    //  Decoding should be optional
+
+    get_first_key_in_range(arr_range, remove_kp, decode, callback) {
+
+        let a = arguments;
+
+        if (a.length === 3) {
+            callback = a[2];
+            decode = true;
+        }
+        if (a.length === 4) {
+
+        } else {
+            throw 'NYI';
+        }
+
+        //console.log('buf_l', buf_l);
+        //console.log('buf_u', buf_u);
+
+        let res;
+
+        this.db.createKeyStream({
+                'gte': arr_range[0],
+                'lte': arr_range[1],
+                'limit': 1
+            }).on('data', function (key) {
+                //console.log('key', key);
+                res = key;
+
+            })
+            .on('error', function (err) {
+                //console.log('Oh my!', err);
+            })
+            .on('close', function () {
+                //console.log('Stream closed');
+            })
+            .on('end', function () {
+                // decode
+                if (res) {
+                    //console.log('get_first_key_in_range res', res);
+
+                    if (decode) {
+                        let decoded = Model_Database.decode_key(res);
+                        if (remove_kp) {
+                            decoded.shift();
+                        }
+                        callback(null, decoded);
+                    } else {
+                        // Can still remove the kp from the encoded buffer.
+                        if (remove_kp) {
+                            callback(null, Binary_Encoding.remove_kp(res));
+                        } else {
+                            callback(null, res);
+                        }
+
+                    }
+
+
+                } else {
+                    callback(null, undefined);
+                }
+            });
+    }
+
+    get_last_key_in_range(arr_range, remove_kp, decode, callback) {
+        //console.log('buf_l', buf_l);
+        //console.log('buf_u', buf_u);
+
+        let a = arguments;
+
+        if (a.length === 3) {
+            callback = a[2];
+            decode = true;
+        }
+        if (a.length === 4) {
+
+        } else {
+            throw 'NYI';
+        }
+
+
+        let res;
+
+        this.db.createKeyStream({
+                'gte': arr_range[0],
+                'lte': arr_range[1],
+                'limit': 1,
+                'reverse': true
+            }).on('data', function (key) {
+                //console.log('key', key);
+                res = key;
+
+            })
+            .on('error', function (err) {
+                //console.log('Oh my!', err);
+            })
+            .on('close', function () {
+                //console.log('Stream closed');
+            })
+            .on('end', function () {
+                // decode
+                if (res) {
+                    //console.log('get_last_key_in_range res', res);
+                    if (decode) {
+                        let decoded = Model_Database.decode_key(res);
+                        if (remove_kp) {
+                            decoded.shift();
+                        }
+                        callback(null, decoded);
+                    } else {
+                        // Can still remove the kp from the encoded buffer.
+                        if (remove_kp) {
+                            callback(null, Binary_Encoding.remove_kp(res));
+                        } else {
+                            callback(null, res);
+                        }
+
+                    }
+                } else {
+                    callback(null, undefined);
+                }
+            });
+    }
+
     get_last_key_in_table(table, callback) {
         let table_id, table_name;
         let t_table = tof(table);
@@ -2255,6 +2740,460 @@ class NextLevelDB_Server extends Evented_Class {
                 }
             })
         }
+
+    }
+
+    arr_fields_to_arr_field_ids(table_id, arr_fields, callback) {
+        // May well be able to do this by consulting the model.
+        console.log('arr_fields', arr_fields);
+        let res = [];
+        each(arr_fields, field => {
+            let t_field = tof(field);
+            console.log('t_field', t_field);
+            if (t_field === 'number') {
+                res.push(field);
+            } else if (t_field === 'string') {
+                let field_id = this.model.map_tables_by_id[table_id].map_fields[field].id;
+                console.log('field_id', field_id);
+                res.push(field_id);
+
+            }
+        })
+        return res;
+
+
+    }
+
+    get_records_in_range(buf_l, buf_u, decoding = false, remove_kp = true, callback) {
+
+        let inner = () => {
+            let res = new Evented_Class();
+
+            // but with decoding option
+
+            if (!decoding) {
+                this.db.createReadStream({
+                        'gt': buf_l,
+                        'lt': buf_u
+                    }).on('data', function (data) {
+                        let buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
+                        res.raise('next', buf_combined);
+                    })
+                    .on('error', function (err) {
+                        //callback(err);
+                        res.raise('next', err);
+                    })
+                    .on('close', function () {
+                        //console.log('1) Stream closed')
+                    })
+                    .on('end', function () {
+                        //callback(null, res);
+                        //console.log('arr_res', arr_res);
+                        //buf_res = Buffer.concat(arr_res);
+                        //connection.sendBytes(buf_res);
+                        res.raise('complete', {});
+                    })
+            } else {
+                this.db.createReadStream({
+                        'gt': buf_l,
+                        'lt': buf_u
+                    }).on('data', function (data) {
+                        //console.log('data', data);
+
+                        let decoded = encoding.decode_model_row([data.key, data.value]);
+                        if (remove_kp) decoded[0].shift();
+                        //console.log('decoded', decoded);
+                        res.raise('next', decoded);
+                    })
+                    .on('error', function (err) {
+                        //callback(err);
+                        res.raise('error', err);
+                    })
+                    .on('close', function () {
+                        //console.log('2) Stream closed')
+                    })
+                    .on('end', function () {
+                        //callback(null, res);
+                        //console.log('arr_res', arr_res);
+                        //buf_res = Buffer.concat(arr_res);
+                        //connection.sendBytes(buf_res);
+
+                        //console.log('completed');
+                        res.raise('complete', {});
+                    })
+            }
+            return res;
+        }
+
+        if (callback) {
+            let obs = inner();
+            let res = [];
+            obs.on('next', data => res.push(data));
+            obs.on('error', err => callback(err));
+            obs.on('complete', () => callback(null, res));
+        } else {
+            return inner();
+        }
+    }
+
+    get_keys_in_range(buf_l, buf_u, decoding = false, remove_kp = true, callback) {
+
+        // Will be possible to remove the key prefixes while not decoding them.
+
+        let inner = () => {
+            let res = new Evented_Class();
+
+            // but with decoding option
+
+            if (!decoding) {
+                this.db.createKeyStream({
+                        'gt': buf_l,
+                        'lt': buf_u
+                    }).on('data', key => {
+                        if (remove_kp) {
+                            res.raise('next', Binary_Encoding.remove_kp(key));
+                        } else {
+                            res.raise('next', key)
+                        }
+
+
+                    })
+                    .on('error', function (err) {
+                        //callback(err);
+                        res.raise('next', err);
+                    })
+                    .on('close', function () {
+                        //console.log('1) Stream closed')
+                    })
+                    .on('end', function () {
+                        //callback(null, res);
+                        //console.log('arr_res', arr_res);
+                        //buf_res = Buffer.concat(arr_res);
+                        //connection.sendBytes(buf_res);
+                        res.raise('complete', {});
+                    })
+            } else {
+                this.db.createKeyStream({
+                        'gt': buf_l,
+                        'lt': buf_u
+                    }).on('data', function (key) {
+                        //console.log('data', data);
+                        let decoded = encoding.decode_key(key);
+                        //console.log('decoded', decoded);
+                        if (remove_kp) decoded.shift();
+                        res.raise('next', decoded);
+                    })
+                    .on('error', function (err) {
+                        //callback(err);
+                        res.raise('error', err);
+                    })
+                    .on('close', function () {
+                        //console.log('2) Stream closed')
+                    })
+                    .on('end', function () {
+                        //callback(null, res);
+                        //console.log('arr_res', arr_res);
+                        //buf_res = Buffer.concat(arr_res);
+                        //connection.sendBytes(buf_res);
+
+                        //console.log('completed');
+                        res.raise('complete', {});
+                    })
+            }
+            return res;
+        }
+
+
+        if (callback) {
+            let obs = inner();
+            let res = [];
+            obs.on('next', data => res.push(data));
+            obs.on('error', err => callback(err));
+            obs.on('complete', () => callback(null, res));
+        } else {
+            return inner();
+        }
+    }
+
+
+    // Decoding while removing the key prefix could be useful... but we don't have it right now
+    get_table_records(table, decode = false, remove_kp = false, callback) {
+
+
+        // Should have option to remove the kps.
+        //  That would be the default when decoding.
+
+        let inner = () => {
+            let buf_key_prefix = xas2(this.model.table_id(table) * 2 + 2).buffer;
+
+            let buf_0 = Buffer.alloc(1);
+            buf_0.writeUInt8(0, 0);
+            let buf_1 = Buffer.alloc(1);
+            buf_1.writeUInt8(255, 0);
+            // and another 0 byte...?
+
+            let buf_l = Buffer.concat([buf_key_prefix, buf_0]);
+            let buf_u = Buffer.concat([buf_key_prefix, buf_1]);
+
+            // While removing the key prefixes?
+            //  That would be expected when it's specific to the table
+            //  Would be nice (but extra work) to hava as an option
+
+            // With remove kp
+
+            //let remove_kp = true;
+
+            let res = this.get_records_in_range(buf_l, buf_u, decode, remove_kp);
+            return res;
+        }
+
+
+        if (callback) {
+            let obs = inner();
+            let res = [];
+            obs.on('next', data => res.push(data));
+            obs.on('error', err => callback(err));
+            obs.on('complete', () => callback(null, res));
+        } else {
+            return inner();
+        }
+        // could have a callback
+        //let res = new Evented_Class();
+    }
+
+
+    get_table_keys(table, decode = false, remove_kp = false, callback) {
+
+        let inner = () => {
+            console.log('this.model.table_id(table)', this.model.table_id(table));
+
+
+            let buf_key_prefix = xas2(this.model.table_id(table) * 2 + 2).buffer;
+            //console.log('buf_key_prefix', buf_key_prefix);
+            let buf_0 = Buffer.alloc(1);
+            buf_0.writeUInt8(0, 0);
+            let buf_1 = Buffer.alloc(1);
+            buf_1.writeUInt8(255, 0);
+            // and another 0 byte...?
+
+            let buf_l = Buffer.concat([buf_key_prefix, buf_0]);
+            let buf_u = Buffer.concat([buf_key_prefix, buf_1]);
+
+            // While removing the key prefixes?
+            //  That would be expected when it's specific to the table
+            //  Would be nice (but extra work) to hava as an option
+
+            // With remove kp
+
+            //let remove_kp = true;
+
+            let res = this.get_keys_in_range(buf_l, buf_u, decode, remove_kp);
+            return res;
+        }
+
+
+        if (callback) {
+            let obs = inner();
+            let res = [];
+            obs.on('next', data => res.push(data));
+            obs.on('error', err => callback(err));
+            obs.on('complete', () => callback(null, res));
+        } else {
+            return inner();
+        }
+    }
+
+
+
+    // Would be nice to get this working from the client.
+    //  When syncing smaller tables can look for that hash value to compare.
+
+
+    // Get records_in_range_hash
+    //  Though we could have items in the API that operate on tables, it's a bit higher level.
+    //  Don't have get_table_records though.
+
+    // Maybe hashes of records should be similar. Expose that through the API, then the client can get table record hashes that way
+    //  As well as hashes of other key selections of records.
+
+
+
+
+
+
+    get_table_records_hash(table, callback) {
+        let pr_inner = () => {
+            let res = new Promise((resolve, reject) => {
+                let obs_records = this.get_table_records(table, false, false);
+                let hash = crypto.createHash('sha256');
+                obs_records.on('next', record => hash.update(record));
+                obs_records.on('complete', () => resolve(hash.digest('hex')));
+            });
+            return res;
+        }
+
+        if (callback) {
+            throw 'NYI';
+        } else {
+            return pr_inner();
+        }
+    }
+
+
+    // select from records in range
+    //  again may need a remove_kp option
+
+    select_from_records_in_range(arr_pair_buf_range, arr_i_fields, callback) {
+        // probably need to decode?
+        //  or we get the decoded selections, then re-encode them.
+
+        // A select encoded would help too, as it would be faster. Not needing decoding server-side for this selection.
+
+        //  And the number of key prefixes
+        //  Whether to include the key prefixes in the fields, and how many of them to skup
+        // Binary_Encoding.buffer_select_from_buffer(buf, selection_indexes)
+
+        // read_buffer
+
+        // What to do with the record key prefixes.
+
+        //  This does not consult indexes
+        //   That would be used with a 'where' condition.
+
+        // go through the range, and would need to do selections on both the keys and the values.
+
+
+        let skip_table_kp = true;
+        // means we need to process the table kp while reading.
+
+        let fields_from_kv = (buf_key, buf_value) => {
+            // 
+            let res = new Array(arr_i_fields.length);
+            // extract the fields from the key.
+
+            // let buffer_select_from_buffer = (buf, arr_int_indexes, num_kps_encoded, num_kps_to_skip) => {
+
+
+            // Want to select from the key while counting the number in the key
+
+            let [selected_from_key, num_key_fields] = Binary_Encoding.buffer_select_from_buffer(buf_key, arr_i_fields, 1, 1);
+            console.log('selected_from_key', selected_from_key);
+
+
+            console.log('num_key_fields', num_key_fields);
+
+            // buffer_starting_index
+
+            // number of fields in the key.
+
+            //let buffer_starting_index = 
+
+            let selected_from_value = Binary_Encoding.buffer_select_from_buffer(buf_value, arr_i_fields, 1, 1, num_key_fields);
+            console.log('selected_from_value', selected_from_value);
+
+
+
+        }
+
+
+        // go through that key range.
+
+
+
+
+
+
+
+    }
+
+
+    // Having decoding options would be useful here.
+
+    //  The seelction of data when it's encoded could be a bit more efficient.
+    //   Decoding would take place at the last step.
+
+    select_from_table(table, arr_fields, decode = true, callback) {
+
+        let a = arguments,
+            sig = get_a_sig(a);
+        console.log('sig', sig);
+
+        let table_id;
+        if (sig === '[s,a,b]') {
+            table_id = this.model.table_id(table, true);
+        } else if (sig === '[n,a,b]') {
+            table_id = table;
+        } else {
+            throw 'Unexpected select_from_table signature ' + sig;
+        }
+        //throw 'stop';
+
+        // Will use inner observable, but put them in a callback if it's been called with one.
+
+
+
+
+        let inner = () => {
+
+            console.log('arr_fields', arr_fields);
+
+            // need to ensure we have the fields as ids.
+            let arr_field_ids = this.arr_fields_to_arr_field_ids(table_id, arr_fields);
+            console.log('arr_field_ids', arr_field_ids);
+
+            // then go through all of the records.
+
+            // What a about an observable get_table_records?
+            //  Would need to decode the records server-side.
+
+
+
+            // Don't decode, as we use the skipping decode to get the indexes we want.
+
+            // The get table records without decoding - that could join the results into kv pairs.
+            //  Not sure of the point apart from consistency though.
+
+
+            let obs_tr = this.get_table_records(table, false);
+            // Encode each as a kvp buffer?
+
+
+            let res = new Evented_Class();
+            let selected_fields;
+            let num_fields = arr_fields.length;
+
+
+            if (decode) {
+                obs_tr.on('next', data => res.raise('next', Binary_Encoding.decode(encoding.select_indexes_buffer_from_kv_pair_buffer(data, 1, arr_field_ids))));
+            } else {
+                obs_tr.on('next', data => res.raise('next', encoding.select_indexes_buffer_from_kv_pair_buffer(data, 1, arr_field_ids)));
+            }
+
+
+
+            obs_tr.on('complete', () => res.raise('complete'));
+
+            return res;
+
+        }
+
+        if (callback) {
+            let obs = inner();
+            let res = [];
+            obs.on('next', data => res.push(data));
+            obs.on('error', err => callback(err));
+            obs.on('complete', () => callback(null, res));
+        } else {
+            return inner();
+        }
+
+
+        // Maybe a where condition too? 
+
+
+
+
+
 
     }
 
@@ -2450,6 +3389,202 @@ class NextLevelDB_Server extends Evented_Class {
                 callback(null, res);
             }
         });
+    }
+
+
+    // This is a rather niche function that will be used to help syncing more efficiently.
+    //  Will be used to get the latest records throughout the different sub-keys of a table.
+
+    // Callbackify / promisify for resolve all?
+
+    // Removing key prefixes from results may be worthwhile.
+
+    // remove_kp could be irrelevant?
+    get_table_key_subdivisions(table_id, remove_kp, decode, callback) {
+
+        let a = arguments,
+            sig = get_a_sig(a);
+
+        if (sig === '[n,b,b,f]') {
+
+        } else if (sig === '[n,b,b]') {
+
+        } else if (sig === '[n,f]') {
+            callback = a[1];
+            decode = true;
+            remove_kp = true;
+        } else {
+            console.trace();
+            throw 'get_table_key_subdivisions unexpected signature ' + sig;
+        }
+
+        // This should be extended for server-side use so that it does minimal decoding, and returns the encoded results.
+        //  It will be of 'array' response type. That somewhat determines how the messages are sent back to the client.
+
+        // Getting this working without / with minimal decoding of records will be useful.
+
+
+
+        let res = new Evented_Class();
+
+        if (decode) {
+            res.response_type = 'array';
+        } else {
+            res.response_type = 'binary';
+        }
+
+
+        // look at the pk fields.
+        //  if there is just one pk field that references another table...
+        //   or do it for the first.
+
+        // Generate keys with all the values for what is referred to.
+
+
+
+
+
+        let pk_fk_count = 0;
+        let pk_fks = [];
+
+        console.log('table_id', table_id);
+        console.log('!!this.model.map_tables_by_id[table_id]', !!this.model.map_tables_by_id[table_id]);
+
+        let model_table = this.model.map_tables_by_id[table_id];
+        each(model_table.pk.fields, pk_field => {
+            if (pk_field.fk_to_table) {
+                pk_fk_count++;
+                pk_fks.push(pk_field);
+            }
+        })
+
+        //console.log('pk_fk_count', pk_fk_count);
+        if (pk_fk_count > 0) {
+            // If the very first pk field is the fk...
+            let first_pk_fk_field_id = pk_fks[0].id;
+            //console.log('first_pk_fk_field_id', first_pk_fk_field_id);
+
+            if (first_pk_fk_field_id === 0) {
+                // can do this.
+                //  get all of the ids (pks) of that table.
+
+                // get table keys
+                //  and could do this as an observable - that way we can give back the results quickly
+
+
+                // The full table keys.
+                //  Probably is best to remove KPs from this?
+
+                // Want to create key prefixes / ranges to search for records under.
+                /// Could get the counts of each of them.
+
+
+
+
+                // Can we remove the KPs without decoding?
+                //  Binary_Encoding.remove_kp
+                //  
+
+                let obs_tks = this.get_table_keys(pk_fks[0].fk_to_table, decode, true);
+
+                // Need to avoid finishing this too soon.
+                //  Can't call complete until all the results are in.
+
+                let count_in_progress = 0;
+                let obs_complete = false;
+
+
+                if (decode) {
+                    obs_tks.on('next', key => {
+                        //console.log('obs_tks key', key);
+                        let search_key;
+                        if (key.length > 1) {
+                            search_key = [model_table.id * 2 + 2].concat([key]);
+                        } else {
+                            search_key = [model_table.id * 2 + 2].concat(key);
+                        }
+                        count_in_progress++;
+
+                        this.get_first_and_last_keys_beginning(search_key, remove_kp, (err, keys) => {
+                            if (err) {
+                                count_in_progress--;
+                                res.raise('error', err);
+                            } else {
+                                count_in_progress--;
+                                res.raise('next', keys);
+                                if (obs_complete && count_in_progress === 0) {
+                                    res.raise('complete');
+                                }
+                            }
+                        })
+                    })
+                } else {
+
+                    // need to encode those within an array possibly.
+                    //  Seems like more simple Binary_Encoding functions will help.
+                    //   Then need to encode these xas2 numbers, as a buffer, into an array that contains them.
+
+
+                    obs_tks.on('next', key => {
+                        console.log('obs_tks key', key);
+                        let search_key = Buffer.concat([xas2(table_id * 2 + 2).buffer, Binary_Encoding.xas2_sequence_to_array_buffer(key)]);
+                        //console.log('search_key', search_key);
+                        count_in_progress++;
+
+                        // and decode option to this function...
+
+                        this.get_first_and_last_keys_beginning(search_key, remove_kp, false, (err, keys) => {
+                            if (err) {
+                                console.trace(err);
+
+                                // raise complete after error?
+                                count_in_progress--;
+                                res.raise('error', err);
+                            } else {
+                                console.log('keys', keys);
+                                console.log('count_in_progress', count_in_progress);
+                                count_in_progress--;
+                                res.raise('next', keys);
+                                if (obs_complete && count_in_progress === 0) {
+                                    console.log('all get_first_and_last_keys_beginning complete');
+                                    res.raise('complete');
+                                }
+                            }
+                        })
+                    })
+
+
+
+
+
+                    //throw 'NYI'
+                }
+
+
+
+                obs_tks.on('complete', () => {
+                    console.log('obs_tks complete');
+                    //throw 'stop';
+                    //res.raise('complete');
+                    obs_complete = true;
+                })
+
+
+
+            }
+        }
+
+        //throw 'stop';
+
+        if (callback) {
+            let res_all = [];
+            res.on('next', data => res_all.push(data));
+            res.on('error', err => callback(err));
+            res.on('complete', () => callback(null, res_all));
+        } else {
+            return res;
+        }
+
 
 
 
@@ -2550,6 +3685,65 @@ if (require.main === module) {
                             // The server component itself will start with its model loaded.
 
                             //callback(null, true);
+
+
+                            // select_from_table_by_field_ids
+                            //  or just select_from_table
+                            //  call it over the API.
+
+                            // Will be useful for comparing data from different DBs.
+
+
+                            // Then select from could be made to work on the binary protocol.
+                            //  Where clause could definitely be useful.
+                            //  Could encode a SELECT query as an object within the Model.
+                            //   Could do this via encoding / decoding an array, and move to OO select if it becomes more complex.
+                            //    The advantage is having the same code on both the server and the client, an object which handles decoding.
+
+
+                            // Could select from a key range.
+                            //  The table gets converted to a key range.
+
+
+
+
+                            // Need decoding option.
+                            //  By default it will be decoded.
+
+                            let decode = true;
+
+                            /*
+
+                            let obs = ls.select_from_table('bittrex currencies', [0, 1], decode);
+                            obs.on('next', data => {
+
+
+
+                                console.log('obs data', data);
+                            })
+                            obs.on('complete', () => {
+                                console.log('obs complete');
+                            })
+
+                            */
+
+
+                            /*
+                            let obs_trh = ls.get_table_records_hash('bittrex currencies');
+                            obs_trh.on('next', data => {
+                                console.log('obs_trh data', data);
+                            })
+                            obs_trh.on('complete', () => {
+                                console.log('obs_trh complete');
+                            })
+                            */
+
+                            let pr_trh = ls.get_table_records_hash('bittrex currencies');
+                            pr_trh.then(res => {
+                                console.log('pr res', res);
+                            }, err => {
+                                console.log('pr err', err);
+                            });
 
 
                             /*
