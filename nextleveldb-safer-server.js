@@ -358,6 +358,40 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
     // check, fix, maintain (check and fix)
 
 
+
+    // core check
+    //  malformed records in the core
+    //  incrementors wrong
+    //  
+
+    // comprehensive check
+    //  check to see all records are encoded properly
+    //  check for any index records that don't refer to data
+    //  check for data records that should be indexed (fully with all indexes) but are not
+    //   create / suggest the index records.
+    //  When a problem is found, that part could make a suggested fix.
+
+
+
+    // Data recovery will attempt to download various data serieses.
+    //  Apply some analysis to see that it's corect enough.
+    //   Put that data in place in a working DB.
+
+    // Should look at doing some data copy operations on a higher level.
+    //  Not assuming various IDs are consistent between databases.
+
+    // Want to get the syncing working tightly, but need to come up with some ways to fix it should there be a problem.
+    //  Need to get the core operations and API very reliable.
+
+    // Spotting the missing currency codes will be useful to do elsewhere, this is more base level db reliability and recovery features.
+
+
+
+
+
+
+
+
     start(callback) {
         super.start((err, res) => {
             if (err) {

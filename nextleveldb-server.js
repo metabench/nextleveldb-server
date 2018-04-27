@@ -357,7 +357,68 @@ const CORE_MAX_PREFIX = 9;
 
 
 
+let obs_arrayified_call = (caller, fn, arr_params) => {
+    // Just execure one at a time.
+    let res = new Evented_Class();
 
+    let c = 0,
+        l = arr_params.length,
+        ctu = true;
+
+    let process = () => {
+
+        if (ctu) {
+            if (c < l) {
+                let arr_call_params = arr_params[c];
+                c++;
+
+                console.log('arr_call_params', arr_call_params);
+                //throw 'stop';
+
+                let process_obs = fn.call(caller, arr_call_params);
+                process_obs.on('next', data => {
+                    //console.log('data', data);
+                    //console.trace();
+
+                    res.raise('next', data);
+                });
+                process_obs.on('error', err => {
+                    res.raise('error', err);
+                    ctu = false;
+
+                    // And stop processing?
+                    //  Raising 'complete'?
+
+
+
+
+
+                });
+                process_obs.on('complete', () => {
+                    //res.raise('complete')
+
+                    process();
+
+
+
+                });
+            } else {
+                // All are complete.
+
+                res.raise('complete');
+
+            };
+        } else {
+            // Been an error.
+        }
+
+    }
+    process();
+
+    return res;
+
+
+}
 
 
 
@@ -947,7 +1008,15 @@ class NextLevelDB_Server extends Evented_Class {
 
     // A variety of ll functions will have a lot more complexity involving observable results, flexible calling, polymorphism, calling of optimised inner functions.
 
-    ll_get_records_in_range(arr_buf_range, callback) {
+
+
+    // Then get records by prefix limit....
+
+
+    // Maybe we would want to specify limit = 0 meaning it's -1 in level terms.
+    //  We just won't use limit of actually 0 records... just don't do the query.
+
+    ll_get_records_in_range(arr_buf_range, limit = -1, callback) {
 
 
         // Optional decoding here would be useful.
@@ -956,7 +1025,7 @@ class NextLevelDB_Server extends Evented_Class {
         //  For this, as well as other reasons, record decoding will be moved further down the stack.
         //   The client will be able to get the server to decode records on the server, process them, and send encoded results to the client.
 
-
+        limit = limit || -1;
 
 
 
@@ -1010,67 +1079,82 @@ class NextLevelDB_Server extends Evented_Class {
 
 
 
-            let res = new Evented_Class();
-
-            /*
-            let res_records = [];
-
-            this.db.createReadStream({
-                    'gte': arr_buf_range[0],
-                    'lte': arr_buf_range[1]
-                }).on('data', function (record) {
-                    //console.log('key', key);
-                    //console.log('key.toString()', key.toString());
-                    res_records.push([record.key, record.value]);
-                })
-                .on('error', function (err) {
-                    //console.log('Oh my!', err)
-                    //callback(err);
-                    res.raise('error', err);
-                })
-                .on('close', function () {
-                    //console.log('Stream closed')
-                })
-                .on('end', function () {
-                    //callback(null, res_records);
-                    res.raise('complete', res_records);
-                });
-                */
-
-            this.db.createReadStream({
-                    'gte': arr_buf_range[0],
-                    'lte': arr_buf_range[1]
-                }).on('data', function (record) {
-                    //console.log('key', key);
-                    //console.log('key.toString()', key.toString());
-                    //res_records.push([record.key, record.value]);
-                    //console.log('record', record);
-                    res.raise('next', [record.key, record.value]);
 
 
-                    // Should return every single record as this type of kv array.
+        } else if (sig === '[a,n]') {
+            // Return an observable, which will also function much like a promise.
+            //  No paging option has been specified here.
+
+            // Some kind of Paging_Observer would be quite useful.
+            //  Gets given results one at a time (maybe with observer / events), and then it buffers them up into a fixed size.
+            //  Would be a useful thing to apply to a function call or an existing Observer to turn into a Paged_Observer.
+
+            // For the moment though, return an Observer with no paging.
 
 
-                })
-                .on('error', function (err) {
-                    //console.log('Oh my!', err)
-                    //callback(err);
-                    res.raise('error', err);
-                })
-                .on('close', function () {
-                    //console.log('Stream closed')
-                })
-                .on('end', function () {
-                    //callback(null, res_records);
-                    //console.log('end');
-                    res.raise('complete');
-                });
-
-            return res;
 
         } else {
             throw 'NYI stop';
         }
+
+
+        let res = new Evented_Class();
+
+        let read_stream = this.db.createReadStream({
+                'gte': arr_buf_range[0],
+                'lte': arr_buf_range[1],
+                'limit': limit
+            }).on('data', function (record) {
+                //console.log('key', key);
+                //console.log('key.toString()', key.toString());
+                //res_records.push([record.key, record.value]);
+                //console.log('record', record);
+                res.raise('next', [record.key, record.value]);
+
+
+                // Should return every single record as this type of kv array.
+
+
+            })
+            .on('error', function (err) {
+                console.log('Oh my!', err)
+                //callback(err);
+
+                // but could have just destroyed the stream. ?? Not sure there will be an error if none is given.
+                res.raise('error', err);
+            })
+            .on('close', function () {
+                //console.log('Stream closed')
+            })
+            .on('end', function () {
+                //callback(null, res_records);
+                //console.log('end');
+                res.raise('complete');
+            });
+
+
+        res.pause = () => {
+            if (!read_stream.isPaused()) {
+                read_stream.pause();
+                return res.resume;
+            }
+        }
+        res.resume = () => {
+            if (read_stream.isPaused()) {
+                read_stream.resume();
+            }
+
+        }
+        res.stop = () => {
+            read_stream.destroy();
+            res.raise('complete');
+        }
+
+        res.on('complete', () => {
+            res.pause = res.resume = res.stop = null;
+        })
+
+        return res;
 
 
     }
@@ -1606,7 +1690,7 @@ class NextLevelDB_Server extends Evented_Class {
         var res_records = [];
 
         this.db.createReadStream({}).on('data', function (record) {
-                console.log('record', record);
+                //console.log('record', record);
                 res_records.push([record.key, record.value]);
             })
             .on('error', function (err) {
@@ -1880,80 +1964,14 @@ class NextLevelDB_Server extends Evented_Class {
 
     }
 
+    batch_put_kvpbs(arr_pairs, callback) {
 
-    batch_put(buf, callback) {
-
-        // buf is an array by default? An array of buffers?
-
-        var ops,
+        let ops,
             db = this.db,
             b64_key, c, l, map_key_batches = {},
             key;
 
-
-
-        // Operating with an observable (this seems better than promise) would be a nice option here.
-        //  Maybe using Async would be possible if it has both the Observable and Promise APIs.
-
-        // A ll version of this that does not do any checking / event raising would be faster.
-        //  Thing is, it's important to have events be able to listen to the data that gets added.
-
-        // Will use callback for the moment.
-
-
-        // Maybe this should have a maximum size.
-
-
-        // Seems like a problem here with buffer encoding and decoding for the put records.
-        //  Next problem that needs to be solved.
-        //  Maybe the client has skipped the keys when making the buffers of the records including their indexes.
-
-
-
-
-
-        //console.log('buf', buf);
-
-
-        // Could have a faster version without function call events here.
-        //  
-
-        // Simpler split to array row buffers would be faster.
-
-        /*
-
-        Binary_Encoding.evented_get_row_buffers(buf, (arr_row) => {
-
-            //console.log('arr_row', arr_row);
-
-            if (this.using_prefix_put_alerts) {
-                //prefix_put_alerts_batch = [];
-                var map_b64kp_subscription_put_alert_counts = this.map_b64kp_subscription_put_alert_counts;
-
-                b64_key = arr_row[0].toString('hex');
-                // Better to use a map and array.
-                //  Maybe the standard event based system would be fine.
-                //  Do more work on subscription handling.
-
-                for (key in this.map_b64kp_subscription_put_alert_counts) {
-                    if (b64_key.indexOf(key) === 0) {
-                        map_key_batches[key] = map_key_batches[key] || [];
-                        map_key_batches[key].push(arr_row);
-                    }
-                }
-            }
-            ops.push({
-                'type': 'put',
-                'key': arr_row[0],
-                'value': arr_row[1]
-            });
-        });
-
-        */
-
-
-        let arr_pairs = Model.encoding.buffer_to_row_buffer_pairs(buf);
-
+        // Unable to raise the buffer batch put event.
 
         let put_using_prefix_alerts = () => {
             ops = [];
@@ -1993,15 +2011,6 @@ class NextLevelDB_Server extends Evented_Class {
                     'value': arr_pairs[c][1]
                 });
             }
-            /*
-            each(arr_pairs, pair => {
-                ops.push({
-                    'type': 'put',
-                    'key': pair[0],
-                    'value': pair[1]
-                });
-            })
-            */
         }
 
         if (this.using_prefix_put_alerts) {
@@ -2010,22 +2019,17 @@ class NextLevelDB_Server extends Evented_Class {
             put_without_prefix_alerts();
         }
 
-
-
-
-        //console.log('ops', ops);
-
-        //throw 'stop';
-
         var that = this;
         db.batch(ops, function (err) {
             if (err) {
                 callback(err);
             } else {
 
+
+
                 that.raise('db_action', {
                     'type': 'batch_put',
-                    'buffer': buf
+                    'items': arr_pairs
                 });
 
                 each(map_key_batches, (map_key_batch, key) => {
@@ -2040,7 +2044,14 @@ class NextLevelDB_Server extends Evented_Class {
                 });
                 callback(null, ops.length);
             }
-        })
+        });
+    }
+
+
+    batch_put(buf, callback) {
+
+        // buf is an array by default? An array of buffers?
+        this.batch_put_kvpbs(Model.encoding.buffer_to_row_buffer_pairs(buf), callback);
     }
 
 
@@ -2410,8 +2421,9 @@ class NextLevelDB_Server extends Evented_Class {
         let a = arguments,
             sig = get_a_sig(a);
 
-        console.log('get_first_and_last_keys_in_buf_range sig', sig);
-        console.log('[buf_l, buf_u, remove_kp, decode]', buf_l, buf_u, remove_kp, decode);
+        //console.log('get_first_and_last_keys_in_buf_range sig', sig);
+        //console.log('[buf_l, buf_u, remove_kp, decode]', buf_l, buf_u, remove_kp, decode);
+        //console.log('');
         // more flexible params to handle removal of KPs from the results.
 
         if (sig === '[B,B,f]') {
@@ -2428,6 +2440,8 @@ class NextLevelDB_Server extends Evented_Class {
             throw 'get_first_and_last_keys_in_buf_range unexpected signature ' + sig;
         }
 
+        // Probably don't want to decode in many cases
+
         // An inner promise would be better than inner callback.
         let res = new Promise((resolve, reject) => {
             let fns = Fns();
@@ -2441,13 +2455,10 @@ class NextLevelDB_Server extends Evented_Class {
                 if (err) {
                     reject(err);
                 } else {
-                    //console.log('res_all', res_all);
-
+                    //console.log('* res_all', res_all);
                     resolve(res_all);
-
                     //throw 'stop';
                 }
-
             })
         });
 
@@ -2465,11 +2476,8 @@ class NextLevelDB_Server extends Evented_Class {
         let a = arguments;
         let sig = get_a_sig(a);
         let buf_key_beginning;
-
         // Yet more arguments... will have decode (or not) option
-
-        console.log('get_first_and_last_keys_beginning sig', sig);
-
+        //console.log('get_first_and_last_keys_beginning sig', sig);
         if (sig === '[B,b]') {
             buf_key_beginning = key_beginning;
         } else if (sig === '[a,b]') {
@@ -2496,12 +2504,7 @@ class NextLevelDB_Server extends Evented_Class {
         } else {
             throw 'get_first_and_last_keys_beginning unexpected signature:', sig;
         }
-        // An inner promise would probably work best.
-
-
-
-
-
+        // An inner promise would probably work best.=
 
         // Then first and last keys based on that.
 
@@ -2513,13 +2516,10 @@ class NextLevelDB_Server extends Evented_Class {
         let buf_255 = Buffer.alloc(1);
         buf_255.writeUInt8(255, 0);
         //console.log('kp', kp);
-
+        //console.log('buf_key_beginning', buf_key_beginning);
         let buf_l = Buffer.concat([buf_key_beginning, buf_0]);
         let buf_u = Buffer.concat([buf_key_beginning, buf_255]);
-
-
         // This will also need a decode option.
-
         let pr_res = this.get_first_and_last_keys_in_buf_range(buf_l, buf_u, remove_pks, decode);
 
         if (callback) {
@@ -2529,14 +2529,23 @@ class NextLevelDB_Server extends Evented_Class {
         } else {
             return pr_res;
         }
-
-
-
-
-
-
-
     }
+
+
+
+    // key_beginning_to_range = kp_to_range
+
+    get_first_key_beginning(buf_beginning, callback) {
+        let range = kp_to_range(buf_beginning);
+        this.get_first_key_in_range(range, callback);
+    }
+
+    get_last_key_beginning(buf_beginning, callback) {
+        let range = kp_to_range(buf_beginning);
+        this.get_last_key_in_range(range, callback);
+    }
+
+
 
 
     // Assumes decoding
@@ -2555,8 +2564,14 @@ class NextLevelDB_Server extends Evented_Class {
         if (a.length === 4) {
 
         } else {
-            throw 'NYI';
+
+            console.log('a.length', a.length);
+            console.trace();
+
+            throw 'get_first_key_in_range NYI';
         }
+
+        //console.log('get_first_key_in_range [remove_kp, decode]', remove_kp, decode);
 
         //console.log('buf_l', buf_l);
         //console.log('buf_u', buf_u);
@@ -2592,19 +2607,26 @@ class NextLevelDB_Server extends Evented_Class {
                     } else {
                         // Can still remove the kp from the encoded buffer.
                         if (remove_kp) {
-                            callback(null, Binary_Encoding.remove_kp(res));
+                            //console.log('remove_kp', remove_kp);
+                            //console.log('!* res', res);
+
+                            let decoded_res = Model_Database.decode_key(res);
+                            //console.log('decoded_res', decoded_res);
+
+                            let rkpr = Binary_Encoding.remove_kp(res);
+                            //console.log('rkpr', rkpr);
+                            callback(null, rkpr);
                         } else {
                             callback(null, res);
                         }
-
                     }
-
-
                 } else {
                     callback(null, undefined);
                 }
             });
     }
+
+    // Should make decoding faslse by default in various places.
 
     get_last_key_in_range(arr_range, remove_kp, decode, callback) {
         //console.log('buf_l', buf_l);
@@ -2612,16 +2634,19 @@ class NextLevelDB_Server extends Evented_Class {
 
         let a = arguments;
 
-        if (a.length === 3) {
+        if (a.length === 2) {
+            callback = a[1];
+            decode = false;
+            remove_kp = false;
+        } else if (a.length === 3) {
             callback = a[2];
             decode = true;
-        }
-        if (a.length === 4) {
+        } else if (a.length === 4) {
 
         } else {
-            throw 'NYI';
+            console.log('a.length', a.length);
+            throw 'get_last_key_in_range NYI';
         }
-
 
         let res;
 
@@ -2633,7 +2658,6 @@ class NextLevelDB_Server extends Evented_Class {
             }).on('data', function (key) {
                 //console.log('key', key);
                 res = key;
-
             })
             .on('error', function (err) {
                 //console.log('Oh my!', err);
@@ -2743,40 +2767,78 @@ class NextLevelDB_Server extends Evented_Class {
 
     }
 
+    // Looks more like it's a job for the model.
+    //  Deprecate?
     arr_fields_to_arr_field_ids(table_id, arr_fields, callback) {
         // May well be able to do this by consulting the model.
-        console.log('arr_fields', arr_fields);
+        //console.log('arr_fields', arr_fields);
         let res = [];
         each(arr_fields, field => {
             let t_field = tof(field);
-            console.log('t_field', t_field);
+            //console.log('t_field', t_field);
             if (t_field === 'number') {
                 res.push(field);
             } else if (t_field === 'string') {
                 let field_id = this.model.map_tables_by_id[table_id].map_fields[field].id;
-                console.log('field_id', field_id);
+                //console.log('field_id', field_id);
                 res.push(field_id);
-
             }
         })
         return res;
-
-
     }
 
-    get_records_in_range(buf_l, buf_u, decoding = false, remove_kp = true, callback) {
+    // Setting removal of kp to false here may help.
+    //  It could be done in a later processing stage. May be less efficient that way.
+
+
+
+    get_records_in_range(buf_l, buf_u, decoding = false, remove_kp = true, limit = -1, callback) {
+
+        // may want to call this using a single arr to hold the ranges.
+
+
+
+        let a = arguments,
+            l = a.length,
+            sig = get_a_sig(a);
+
+        console.log('get_records_in_range sig', sig);
+
+        if (sig === '[a]') {
+            [buf_l, buf_u] = a[0];
+            decoding = a[1] || false;
+            remove_kp = a[2] || false;
+            limit = -1;
+        }
+
+
+
+
 
         let inner = () => {
             let res = new Evented_Class();
+            res.response_type = 'records';
+            res.decoded = decoding;
+
+            // a record decoding wrapper could work, not sure about speed.
 
             // but with decoding option
 
             if (!decoding) {
                 this.db.createReadStream({
                         'gt': buf_l,
-                        'lt': buf_u
+                        'lt': buf_u,
+                        'limit': limit
                     }).on('data', function (data) {
-                        let buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
+
+
+                        // maybe remove the pk from the field.
+
+                        //if (remove_kp) {
+
+                        //}
+
+                        let buf_combined = Binary_Encoding.join_buffer_pair([(remove_kp) ? Binary_Encoding.remove_kp(data.key) : data.key, data.value]);
                         res.raise('next', buf_combined);
                     })
                     .on('error', function (err) {
@@ -2798,9 +2860,10 @@ class NextLevelDB_Server extends Evented_Class {
                         'gt': buf_l,
                         'lt': buf_u
                     }).on('data', function (data) {
-                        //console.log('data', data);
+                        console.log('data', data);
 
-                        let decoded = encoding.decode_model_row([data.key, data.value]);
+                        let decoded = Model_Database.decode_model_row([data.key, data.value]);
+                        //console.log('decoded', decoded);
                         if (remove_kp) decoded[0].shift();
                         //console.log('decoded', decoded);
                         res.raise('next', decoded);
@@ -2836,27 +2899,65 @@ class NextLevelDB_Server extends Evented_Class {
         }
     }
 
-    get_keys_in_range(buf_l, buf_u, decoding = false, remove_kp = true, callback) {
+    get_records_in_ranges(arr_ranges) {
+        // No decoding or kp removal here.
+        //  That would be an option / obs transformer for when the results 
+
+
+        // probably just an observable producing the results is best.
+        //  while faster results could be available by batching the responses here, it's messier code, and I'm going for simpler code where possible.
+
+        console.log('get_records_in_ranges', arr_ranges);
+
+        // multiple observables, carry them out in sequence.
+        //  unlikely that making parallel calls here will give much of an advantage, could mess up ordering.
+
+
+        // get records in range, called as a sequence of observables.
+        // obs_arrayified_call(this, this.get_records_in_range, arr_ranges);
+        //  just pass through all of the results.
+
+        let res = obs_arrayified_call(this, this.ll_get_records_in_range, arr_ranges);
+        res.response_type = res.response_type || 'records';
+        return res;
+    }
+
+
+
+
+
+    // An options object may be the right way
+    //  Could make a decoding 
+    get_keys_in_range(buf_l, buf_u, decoding = false, remove_kp = true, limit = -1, callback) {
+
+        let a = arguments,
+            l = a.length;
+        if (l === 5) {
+            callback = a[4];
+            limit = -1;
+        }
+
 
         // Will be possible to remove the key prefixes while not decoding them.
 
         let inner = () => {
             let res = new Evented_Class();
+            res.response_type = 'keys';
+            res.decoded = decoding;
 
             // but with decoding option
 
             if (!decoding) {
                 this.db.createKeyStream({
                         'gt': buf_l,
-                        'lt': buf_u
+                        'lt': buf_u,
+                        'limit': limit
                     }).on('data', key => {
                         if (remove_kp) {
                             res.raise('next', Binary_Encoding.remove_kp(key));
                         } else {
                             res.raise('next', key)
                         }
-
-
                     })
                     .on('error', function (err) {
                         //callback(err);
@@ -2875,7 +2976,8 @@ class NextLevelDB_Server extends Evented_Class {
             } else {
                 this.db.createKeyStream({
                         'gt': buf_l,
-                        'lt': buf_u
+                        'lt': buf_u,
+                        'limit': limit
                     }).on('data', function (key) {
                         //console.log('data', data);
                         let decoded = encoding.decode_key(key);
@@ -2903,7 +3005,6 @@ class NextLevelDB_Server extends Evented_Class {
             return res;
         }
 
-
         if (callback) {
             let obs = inner();
             let res = [];
@@ -2916,10 +3017,13 @@ class NextLevelDB_Server extends Evented_Class {
     }
 
 
+    // a limit property would be cool too.
+    //  but then would need to work on param parsing more.
+
     // Decoding while removing the key prefix could be useful... but we don't have it right now
     get_table_records(table, decode = false, remove_kp = false, callback) {
 
-
+        //console.log('get_table_records');
         // Should have option to remove the kps.
         //  That would be the default when decoding.
 
@@ -2942,7 +3046,7 @@ class NextLevelDB_Server extends Evented_Class {
             // With remove kp
 
             //let remove_kp = true;
-
+            //console.log('buf_l, buf_u', buf_l, buf_u);
             let res = this.get_records_in_range(buf_l, buf_u, decode, remove_kp);
             return res;
         }
@@ -2965,7 +3069,7 @@ class NextLevelDB_Server extends Evented_Class {
     get_table_keys(table, decode = false, remove_kp = false, callback) {
 
         let inner = () => {
-            console.log('this.model.table_id(table)', this.model.table_id(table));
+            //console.log('this.model.table_id(table)', this.model.table_id(table));
 
 
             let buf_key_prefix = xas2(this.model.table_id(table) * 2 + 2).buffer;
@@ -3048,21 +3152,17 @@ class NextLevelDB_Server extends Evented_Class {
         //  or we get the decoded selections, then re-encode them.
 
         // A select encoded would help too, as it would be faster. Not needing decoding server-side for this selection.
-
         //  And the number of key prefixes
         //  Whether to include the key prefixes in the fields, and how many of them to skup
         // Binary_Encoding.buffer_select_from_buffer(buf, selection_indexes)
 
         // read_buffer
-
         // What to do with the record key prefixes.
 
         //  This does not consult indexes
         //   That would be used with a 'where' condition.
 
         // go through the range, and would need to do selections on both the keys and the values.
-
-
         let skip_table_kp = true;
         // means we need to process the table kp while reading.
 
@@ -3077,10 +3177,10 @@ class NextLevelDB_Server extends Evented_Class {
             // Want to select from the key while counting the number in the key
 
             let [selected_from_key, num_key_fields] = Binary_Encoding.buffer_select_from_buffer(buf_key, arr_i_fields, 1, 1);
-            console.log('selected_from_key', selected_from_key);
+            //console.log('selected_from_key', selected_from_key);
 
 
-            console.log('num_key_fields', num_key_fields);
+            //console.log('num_key_fields', num_key_fields);
 
             // buffer_starting_index
 
@@ -3089,21 +3189,11 @@ class NextLevelDB_Server extends Evented_Class {
             //let buffer_starting_index = 
 
             let selected_from_value = Binary_Encoding.buffer_select_from_buffer(buf_value, arr_i_fields, 1, 1, num_key_fields);
-            console.log('selected_from_value', selected_from_value);
-
-
+            //console.log('selected_from_value', selected_from_value);
 
         }
 
-
         // go through that key range.
-
-
-
-
-
-
-
     }
 
 
@@ -3116,7 +3206,7 @@ class NextLevelDB_Server extends Evented_Class {
 
         let a = arguments,
             sig = get_a_sig(a);
-        console.log('sig', sig);
+        //console.log('sig', sig);
 
         let table_id;
         if (sig === '[s,a,b]') {
@@ -3127,37 +3217,20 @@ class NextLevelDB_Server extends Evented_Class {
             throw 'Unexpected select_from_table signature ' + sig;
         }
         //throw 'stop';
-
         // Will use inner observable, but put them in a callback if it's been called with one.
-
-
-
-
         let inner = () => {
-
-            console.log('arr_fields', arr_fields);
-
+            //console.log('arr_fields', arr_fields);
             // need to ensure we have the fields as ids.
             let arr_field_ids = this.arr_fields_to_arr_field_ids(table_id, arr_fields);
-            console.log('arr_field_ids', arr_field_ids);
-
+            //console.log('arr_field_ids', arr_field_ids);
             // then go through all of the records.
-
             // What a about an observable get_table_records?
             //  Would need to decode the records server-side.
-
-
-
             // Don't decode, as we use the skipping decode to get the indexes we want.
-
             // The get table records without decoding - that could join the results into kv pairs.
             //  Not sure of the point apart from consistency though.
-
-
             let obs_tr = this.get_table_records(table, false);
             // Encode each as a kvp buffer?
-
-
             let res = new Evented_Class();
             let selected_fields;
             let num_fields = arr_fields.length;
@@ -3168,13 +3241,8 @@ class NextLevelDB_Server extends Evented_Class {
             } else {
                 obs_tr.on('next', data => res.raise('next', encoding.select_indexes_buffer_from_kv_pair_buffer(data, 1, arr_field_ids)));
             }
-
-
-
             obs_tr.on('complete', () => res.raise('complete'));
-
             return res;
-
         }
 
         if (callback) {
@@ -3186,15 +3254,7 @@ class NextLevelDB_Server extends Evented_Class {
         } else {
             return inner();
         }
-
-
-        // Maybe a where condition too? 
-
-
-
-
-
-
+        // Maybe a where condition too?
     }
 
 
@@ -3202,9 +3262,7 @@ class NextLevelDB_Server extends Evented_Class {
     // WIP
     //  Reads from the server-side model db.
     get_table_fields_info(table, callback) {
-
         // May be better by far to use the model here, not interpreting DB rows.
-
 
         let inner = (callback) => {
             let table_id, table_name;
@@ -3215,7 +3273,6 @@ class NextLevelDB_Server extends Evented_Class {
             if (t_table === 'string') {
                 table_name = table;
             }
-
 
             let proceed = () => {
 
@@ -3348,16 +3405,12 @@ class NextLevelDB_Server extends Evented_Class {
                 //console.log('res', res);
 
                 callback(null, res);
-
-
                 // Then encode that result as an object in a buffer
 
                 // Think binary encoding needs to be improved to hold objects.
                 //let encoded_res = Binary_Encoding.flexi_encode_item(res);
                 //console.log('encoded_res', encoded_res);
             }
-
-
 
             if (table_id === undefined && table_name) {
                 // look up the table id
@@ -3369,16 +3422,11 @@ class NextLevelDB_Server extends Evented_Class {
                         proceed();
                     }
                 });
-
             } else {
                 if (table_id !== undefined) {
                     proceed();
-
                 }
             }
-
-
-
         }
 
         inner((err, res) => {
@@ -3400,10 +3448,63 @@ class NextLevelDB_Server extends Evented_Class {
     // Removing key prefixes from results may be worthwhile.
 
     // remove_kp could be irrelevant?
-    get_table_key_subdivisions(table_id, remove_kp, decode, callback) {
+
+    // Another arg, as result pairs
+
+    // in p2p? get_table_key_subdivisions_sync_ranges
+    //  gets the ranges on the server after the ranges on the client.
+
+    // But it's decode false by default on the server
+    //  Client api should have same api as here.
+
+    // Parameter order
+    //  remove_kp always before decode?
+    //  seems right because some calling in some places will never decode.
+
+    // Worth setting up the subdivisions without decoding.
+    //  Maybe worth having a .decode function returned as part of the observable.
+
+
+    // Will (maybe) move away from building decoding into these functions.
+    //  Better to return the data in a standard encoded format and have convenient ways to decode it.
+
+    // Decoding here should fully decode.
+    //  In other places, there may be 2 levels of decoding:
+    //  Decoding the message / page structure
+    //   Decoding encoded data enclosed in the recently decoded envelope.
+
+    // Removing the decoding parameter may make sense.
+    //  It makes the code more complex.
+    //  It may be easier to make an observable wrapper that carries out the decoding.
+    //   Could return a function to decode the data.
+
+
+    // Because of the different layers of decoding, and the ambiguity in specifing what gets decoded and where, as well as wishing for the same decoding interface to also be available from
+    // client-server calls.
+
+    // Not sure that removing the KPs is that useful or appropriate.
+    //  Setting them as options on the results object may be a good way.
+    //  Using an observable wrapper.
+    //   Not sure that will be the most performant, but it makes for quite clear code.
+
+
+    // May be worth keeping this lower level without kp removal or decoding.
+    //  That's about how the results get processed, and we can process the results later on.
+    //  
+
+
+    // not having the callback option herre could help.
+
+    // 
+
+    get_table_key_subdivisions(table_id, remove_kp = true, decode = true, callback) {
+
+        // 17/04/2018 - Processing the keys using encoded data. Much less processing using JS objects with encoding and decoding, we carry out operations using encoded data where possible and reasonably practical.
 
         let a = arguments,
             sig = get_a_sig(a);
+
+        //console.log('get_table_key_subdivisions sig', sig);
 
         if (sig === '[n,b,b,f]') {
 
@@ -3413,10 +3514,12 @@ class NextLevelDB_Server extends Evented_Class {
             callback = a[1];
             decode = true;
             remove_kp = true;
-        } else {
+        } else if (sig === '[n]') {} else {
             console.trace();
             throw 'get_table_key_subdivisions unexpected signature ' + sig;
         }
+
+        let as_result_pairs = true;
 
         // This should be extended for server-side use so that it does minimal decoding, and returns the encoded results.
         //  It will be of 'array' response type. That somewhat determines how the messages are sent back to the client.
@@ -3426,6 +3529,8 @@ class NextLevelDB_Server extends Evented_Class {
 
 
         let res = new Evented_Class();
+        // Tell the result if it's encoded or not.
+
 
         if (decode) {
             res.response_type = 'array';
@@ -3441,14 +3546,11 @@ class NextLevelDB_Server extends Evented_Class {
         // Generate keys with all the values for what is referred to.
 
 
-
-
-
         let pk_fk_count = 0;
         let pk_fks = [];
 
-        console.log('table_id', table_id);
-        console.log('!!this.model.map_tables_by_id[table_id]', !!this.model.map_tables_by_id[table_id]);
+        //console.log('table_id', table_id);
+        //console.log('!!this.model.map_tables_by_id[table_id]', !!this.model.map_tables_by_id[table_id]);
 
         let model_table = this.model.map_tables_by_id[table_id];
         each(model_table.pk.fields, pk_field => {
@@ -3471,50 +3573,244 @@ class NextLevelDB_Server extends Evented_Class {
                 // get table keys
                 //  and could do this as an observable - that way we can give back the results quickly
 
-
                 // The full table keys.
                 //  Probably is best to remove KPs from this?
 
                 // Want to create key prefixes / ranges to search for records under.
                 /// Could get the counts of each of them.
 
-
-
-
                 // Can we remove the KPs without decoding?
                 //  Binary_Encoding.remove_kp
                 //  
 
-                let obs_tks = this.get_table_keys(pk_fks[0].fk_to_table, decode, true);
+
+                // Keeping the keys encoded here...
+                //  That way we join together the encoded keys and key parts.
+
+
+
+                // Get the table keys, then join the encoded key beginning and the encoded table keys.
+                //  Doing operations in encoded mode should produce some performance improvements, though it's not clear quite how much.
+
+                let obs_tks = this.get_table_keys(pk_fks[0].fk_to_table, false, true);
 
                 // Need to avoid finishing this too soon.
                 //  Can't call complete until all the results are in.
-
                 let count_in_progress = 0;
                 let obs_complete = false;
+                //console.log('decode', decode);
+                // encode the table kp as a buffer.
+                //  model_table.buf_kp
+                // 
+
+                // Does this have a race condition where one lookup could get ahead of another?
+                //  Will need to compare different reading of these (depends on how though.)
 
 
+                // Does seem simplest to get rid of decoding here.
+                //  Label the result object with how it was encoded, perhaps.
+
+                obs_tks.on('next', key => {
+                    //console.log('obs_tks key', key);
+                    let search_key = Buffer.concat([xas2(table_id * 2 + 2).buffer, Binary_Encoding.xas2_sequence_to_array_buffer(key)]);
+                    //console.log('search_key', search_key);
+                    count_in_progress++;
+
+                    // and decode option to this function...
+
+                    // Don't remove the KPs here.
+                    //  Could do so later on.
+
+                    this.get_first_and_last_keys_beginning(search_key, false, false, (err, keys) => {
+                        if (err) {
+                            //console.trace(err);
+                            // raise complete after error?
+                            count_in_progress--;
+                            // I think calls should always stop after the err
+                            res.raise('error', err);
+                        } else {
+                            //console.log('keys', keys);
+                            //console.log('count_in_progress', count_in_progress);
+                            count_in_progress--;
+                            //console.log('as_result_pairs', as_result_pairs);
+
+                            if (as_result_pairs) {
+                                //throw 'NYI'
+
+                                // get versions of pair with search_key.length characters removed from beginning.
+                                //  Binary_Encoding.remove_bytes_from_start_of_buffers
+
+
+                                // kp has already been removed from results, meaning don't remove the search key's beginning.
+
+
+                                let key_parts = Binary_Encoding.remove_bytes_from_start_of_buffers(keys, search_key.length);
+
+
+                                // then remove the key prefix from the search key?
+
+
+
+                                // Then add bytes to them identifying them as buffers.
+
+                                // then key parts with buffer encoding.
+                                //  encode_buffers_as_buffers
+
+
+
+                                //console.log('key_parts', key_parts);
+                                // And have the encoded buffers encoded as buffers.
+                                //  They should be registered that they are buffers.
+
+                                // 
+
+
+                                //let buf_key_parts = Binary_Encoding.array_join_encoded_buffers(Binary_Encoding.array_join_encoded_buffers[key_parts]);
+
+                                // Joins buffers that are already encoded
+                                //  
+
+                                let buf_key_parts = Binary_Encoding.encode_buffers_as_array_buffer(key_parts);
+
+                                //console.log('buf_key_parts', buf_key_parts);
+                                //throw 'stop';
+
+
+
+                                // then just the search key by itself.
+                                //  Need that and then buf_key_parts
+                                //  Join them as an array
+
+                                // Need to encode the search key.
+                                //  Encode it as a buffer.
+                                //   Currently it's unencoded.
+
+                                //console.log('1) search_key', search_key);
+                                //console.log('search_key.length', search_key.length);
+
+                                // Encoding the data server-side so it can be read by current client-side processing.
+                                //  encode_arr_to_buffer_items (but not an array in that buffer)
+
+
+                                // Encode to marked_buffer
+                                //  It will treat the data as an encoded buffer.
+                                let enc_search_key = Binary_Encoding.encode_to_buffer([search_key]);
+                                //let enc_search_key = Binary_Encoding.encode_to_buffer([search_key]);
+                                //console.log('enc_search_key', enc_search_key);
+
+                                //let buf_res = Buffer.concat([enc_search_key, buf_key_parts]);
+                                let buf_res = Binary_Encoding.array_join_encoded_buffers([enc_search_key, buf_key_parts]);
+
+                                //let buf_res = Binary_Encoding.array_join_encoded_buffers([Binary_Encoding.array_join_encoded_buffers([Binary_Encoding.encode_to_buffer(search_key)]), buf_key_parts]);
+
+                                //let buf_res = Binary_Encoding.array_join_encoded_buffers([search_key, ]);
+
+                                //console.log('server buf_res', buf_res);
+                                //console.log('server buf_res.length', buf_res.length);
+
+                                //console.log('');
+                                res.raise('next', buf_res);
+                                //console.log('* count_in_progress', count_in_progress);
+                                if (obs_complete && count_in_progress === 0) {
+                                    //console.log('all get_first_and_last_keys_beginning complete');
+                                    res.raise('complete');
+                                }
+                            } else {
+                                res.raise('next', keys);
+                                if (obs_complete && count_in_progress === 0) {
+                                    //console.log('all get_first_and_last_keys_beginning complete');
+                                    res.raise('complete');
+                                }
+                            }
+
+                        }
+                    });
+                });
+
+
+                /*
                 if (decode) {
                     obs_tks.on('next', key => {
+
                         //console.log('obs_tks key', key);
+
+                        // need to encode this key into an array if it's more than one item...?
+                        //  Binary_Encoding.count_encoded_items
+                        //   A PK may have multiple fields in it.
+                        //    If another field refers to that PK as though it's a single field, it gets wrapped in an array.
+
+                        let key_fields_count = Binary_Encoding.count_encoded_items(key);
+                        //console.log('key_fields_count', key_fields_count);
+
                         let search_key;
+                        if (key_fields_count > 1) {
+                            // wrap the search key as an array
+                            search_key = Buffer.concat([model_table.buf_kp, Binary_Encoding.encode_buffer_as_array_buffer(key)]);
+                        } else {
+                            throw 'NYI'
+
+                            search_key = Buffer.concat([model_table.buf_kp, (key)]);
+                        }
+
+                        // 
+                        / *
+
                         if (key.length > 1) {
                             search_key = [model_table.id * 2 + 2].concat([key]);
                         } else {
                             search_key = [model_table.id * 2 + 2].concat(key);
                         }
-                        count_in_progress++;
+                        * /
 
+                        //console.log('model_table.buf_kp', model_table.buf_kp);
+
+                        count_in_progress++;
+                        console.log('search_key', search_key);
+
+                        //
+
+                        // Does not decode this.
                         this.get_first_and_last_keys_beginning(search_key, remove_kp, (err, keys) => {
                             if (err) {
                                 count_in_progress--;
+                                console.trace(err);
                                 res.raise('error', err);
                             } else {
                                 count_in_progress--;
-                                res.raise('next', keys);
-                                if (obs_complete && count_in_progress === 0) {
-                                    res.raise('complete');
+
+                                console.log('keys', keys);
+                                console.log('as_result_pairs', as_result_pairs);
+
+                                if (as_result_pairs) {
+
+                                    // OK, need to handle this in the case where results have been decoded.
+                                    //console.log('keys', keys);
+                                    let arr_res = [search_key, keys];
+
+                                    console.log('arr_res', arr_res);
+
+                                    res.raise('next', arr_res);
+
+
+                                    if (obs_complete && count_in_progress === 0) {
+                                        res.raise('complete');
+                                    }
+                                    //let decoded_keys = Binary_Encoding.decode(keys);
+                                    //console.log('decoded_keys', decoded_keys);
+                                    //throw 'NYI'
+                                } else {
+
+                                    console.log('8) keys', keys);
+                                    res.raise('next', keys);
+                                    if (obs_complete && count_in_progress === 0) {
+                                        res.raise('complete');
+                                    }
                                 }
+                                // [search_key, [low_extent, high_extent]]
+                                //  could remove the search key from the results.
+
+                                // prefix and bounds results.
+
                             }
                         })
                     })
@@ -3522,48 +3818,14 @@ class NextLevelDB_Server extends Evented_Class {
 
                     // need to encode those within an array possibly.
                     //  Seems like more simple Binary_Encoding functions will help.
-                    //   Then need to encode these xas2 numbers, as a buffer, into an array that contains them.
-
-
-                    obs_tks.on('next', key => {
-                        console.log('obs_tks key', key);
-                        let search_key = Buffer.concat([xas2(table_id * 2 + 2).buffer, Binary_Encoding.xas2_sequence_to_array_buffer(key)]);
-                        //console.log('search_key', search_key);
-                        count_in_progress++;
-
-                        // and decode option to this function...
-
-                        this.get_first_and_last_keys_beginning(search_key, remove_kp, false, (err, keys) => {
-                            if (err) {
-                                console.trace(err);
-
-                                // raise complete after error?
-                                count_in_progress--;
-                                res.raise('error', err);
-                            } else {
-                                console.log('keys', keys);
-                                console.log('count_in_progress', count_in_progress);
-                                count_in_progress--;
-                                res.raise('next', keys);
-                                if (obs_complete && count_in_progress === 0) {
-                                    console.log('all get_first_and_last_keys_beginning complete');
-                                    res.raise('complete');
-                                }
-                            }
-                        })
-                    })
-
-
-
-
+                    //   Then need to encode these xas2 numbers, as a buffer, into an array that contains them.  
 
                     //throw 'NYI'
                 }
-
-
+                */
 
                 obs_tks.on('complete', () => {
-                    console.log('obs_tks complete');
+                    //console.log('obs_tks complete');
                     //throw 'stop';
                     //res.raise('complete');
                     obs_complete = true;
@@ -3574,8 +3836,14 @@ class NextLevelDB_Server extends Evented_Class {
             }
         }
 
+        res.decode_envelope = () => {
+            let d_res = new Evented_Class();
+            res.on('next', data => d_res.raise('next', Binary_Encoding.decode_buffer(data)[0]));
+            res.on('error', err => d_res.raise('error', err));
+            res.on('complete', () => d_res.raise('complete'));
+            return d_res;
+        }
         //throw 'stop';
-
         if (callback) {
             let res_all = [];
             res.on('next', data => res_all.push(data));
@@ -3584,14 +3852,8 @@ class NextLevelDB_Server extends Evented_Class {
         } else {
             return res;
         }
-
-
-
-
     }
 }
-
-
 
 // Run it from the command line with a path?
 
@@ -3600,14 +3862,17 @@ let custom_path;
 // Custom path will be within local app config.
 //  That way it will work better on Linux too.
 
-
-
 // Have a look in the config to find the db path.
-
-
 //custom_path = 'D:\\NextlevelDB\\DB1';
-
 // Loading it from local config would be best.
+
+
+// may get back to creating 'll' functions, could put them in the ll server part.
+//  Then the higher level functions can wrap the ll versions in observables that decode or remove kps according to params/
+
+// May also be worth having ll client calls that don't handle client-side decoding.
+//  Then the appropriate wrappers can be used to 
+
 
 
 
@@ -3738,12 +4003,48 @@ if (require.main === module) {
                             })
                             */
 
+
+
                             let pr_trh = ls.get_table_records_hash('bittrex currencies');
                             pr_trh.then(res => {
                                 console.log('pr res', res);
                             }, err => {
                                 console.log('pr err', err);
                             });
+
+
+                            let buf_0 = Buffer.alloc(1);
+                            buf_0.writeUInt8(0, 0);
+                            let buf_255 = Buffer.alloc(1);
+                            buf_255.writeUInt8(255, 0);
+
+
+
+
+
+
+                            let range_1 = [Buffer.concat([xas2(0).buffer, buf_0]), Buffer.concat([xas2(0).buffer, buf_255])];
+                            let range_2 = [Buffer.concat([xas2(2).buffer, buf_0]), Buffer.concat([xas2(2).buffer, buf_255])];
+
+
+                            console.log('range_1', range_1);
+
+
+                            let obs_get_records_in_ranges = ls.get_records_in_ranges([range_1, range_2]);
+
+
+                            // This will be used to greatly improve the sync speed, when syncing record ranges.
+                            //  Want to test this over the client too, with the same API.
+
+
+                            obs_get_records_in_ranges.on('next', data => {
+                                console.log('data', data);
+                            });
+
+                            // testing get_records_in_ranges
+
+                            // could test getting the incrementors (kp 0) and the kp3
+
 
 
                             /*
