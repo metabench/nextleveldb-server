@@ -701,19 +701,19 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
 
         //let message_type_id = BINARY_PAGING_NONE;
-        console.log('cb_send message_id', message_id);
+        //console.log('cb_send message_id', message_id);
 
-        console.log('*** res', res);
+        //console.log('*** res', res);
 
         // The result could already be a buffer.
         //  It won't always be.
 
-        console.log('Binary_Encoding.encode_to_buffer(res)', Binary_Encoding.encode_to_buffer([res]));
+        //console.log('Binary_Encoding.encode_to_buffer(res)', Binary_Encoding.encode_to_buffer([res]));
 
 
         //let message = new Command_Response_Message(message_id, BINARY_PAGING_NONE, Binary_Encoding.encode_to_buffer(res));
         let message = new Command_Response_Message(message_id, BINARY_PAGING_NONE, Binary_Encoding.encode_to_buffer([res]));
-        console.log('message', message);
+        //console.log('message', message);
         connection.sendBytes(message.buffer);
 
         //let encoded = Binary_Encoding.encode_to_buffer(res);
@@ -797,7 +797,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
                 // Send the incomplete page as flow last
 
-                console.log('obs_call complete');
+                //console.log('obs_call complete');
 
                 if (c > 0) {
 
@@ -847,13 +847,13 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
 
 
-        console.log('send communication_options', communication_options);
+        //console.log('send communication_options', communication_options);
         let paging_option = communication_options.paging_type;
 
         let limit = communication_options.limit || -1;
-        console.log('limit', limit);
+        //console.log('limit', limit);
 
-        console.log('paging_option', paging_option);
+        //console.log('paging_option', paging_option);
 
         if (paging_option === PAGING_COUNT) {
             let c = 0;
