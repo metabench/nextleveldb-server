@@ -344,7 +344,7 @@ const INSERT_RECORDS = 13;
 
 //  Worth using the model for this.
 
-
+const DELETE_RECORDS_BY_KEYS = 18;
 
 
 const ENSURE_TABLE = 20;
@@ -1207,7 +1207,8 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
         // Not sure if server batch_put needs more upgrades.
 
-
+        // batch_put is quite low level.
+        //  Splits up the buffer itself.
 
         if (buf_the_rest.length > 0) {
             nextleveldb_server.batch_put(buf_the_rest, (err, res_batch_put) => {
@@ -2502,6 +2503,15 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     }
 
     // also will have select from table?
+
+    if (i_query_type === DELETE_RECORDS_BY_KEYS) {
+        console.log('DELETE_RECORDS_BY_KEYS');
+        let command_message = new Command_Message(message_binary);
+        console.log('command_message', command_message);
+        let msg_params = command_message.inner;
+        console.log('msg_params', msg_params);
+        nldb.ll_delete_records_by_keys(msg_params, cb_send);
+    }
 
 
     if (i_query_type === LL_GET_RECORDS_IN_RANGES) {

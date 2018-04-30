@@ -214,18 +214,16 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
                     if (err) {
                         callback(err);
                     } else {
-                        console.log('last_key', last_key);
-
+                        //console.log('last_key', last_key);
                         if (typeof last_key === 'undefined') {
                             // Incrementor should be 0.
-
                             callback(null, true);
 
                         } else {
                             // Then look up the incrementor value in the model.
                             let table = this.model.tables[table_id];
                             let inc_value = table.pk_incrementor.value;
-                            console.log('inc_value', inc_value);
+                            //console.log('inc_value', inc_value);
                             //console.log('last_key', last_key);
 
                             if (inc_value !== last_key[1] + 1) {

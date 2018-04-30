@@ -1159,6 +1159,37 @@ class NextLevelDB_Server extends Evented_Class {
 
     }
 
+    // The keys are each a buffer.
+
+    ll_delete_records_by_keys(arr_keys, callback) {
+        let ops = [];
+        // encode these keys...
+
+        // If the keys are not already encoded.
+
+
+        //let encoded_keys = encoding.encode_keys(arr_keys);
+
+        each(arr_keys, key => {
+            ops.push({
+                type: 'del',
+                key: key
+            });
+        });
+        this.db.batch(ops, (err) => {
+            if (err) {
+                callback(err);
+            } else {
+                this.raise('db_action', {
+                    'type': 'arr_batch_delete',
+                    'value': arr_keys
+                });
+
+                callback(null, true);
+            }
+        })
+    }
+
 
     // optional paging as well.
     //  paging would require an observable.

@@ -1950,12 +1950,6 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                                         // Also, subscribing to the DB puts would better enable syncing.
                                         //  Want to get the latest records while downloading the older ones.
 
-
-
-
-
-
-
                                         // use a DB function to get them all
 
 
@@ -1984,10 +1978,6 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                                             console.log('copy_key_ranges_to_local obs complete');
 
                                         });
-
-
-
-
 
 
                                         let individually = () => {
@@ -2020,24 +2010,8 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                                                     done();
                                                 }
                                             }
-
                                             process();
                                         }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
                                         //throw 'stop';
                                     })
