@@ -3287,7 +3287,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     let msg_response = [buf_msg_id, xas2(ERROR_MESSAGE).buffer];
                     connection.sendBytes(Buffer.concat(msg_response));
                     //console.log('1) sent simple error message to the client');
-                    console.trace();
+                    //console.trace();
 
                     // Table not found.
 

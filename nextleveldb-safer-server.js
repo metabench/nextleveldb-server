@@ -18,6 +18,11 @@ const fs2 = lang.fs2;
 
 const os = require('os');
 const path = require('path');
+
+
+const Model = require('nextleveldb-model');
+const Index_Record_Key = Model.Index_Record_Key;
+const database_encoding = Model.encoding;
 // Best to read the data out of the config before initialising.
 //  Will use local config for these p2p servers.
 //  Each server will have basic modes it operates under.
@@ -190,19 +195,12 @@ const path = require('path');
 class NextLevelDB_Safer_Server extends NextLevelDB_Server {
     constructor(spec) {
         super(spec);
-
         // use some servers as full sources.
-
-
-
-
-
     }
-
 
     check_autoincrementing_table_pk(table_name, callback) {
 
-        //console.log('table_name', table_name);
+        console.log('check_autoincrementing_table_pk table_name', table_name);
         this.get_table_id_by_name(table_name, (err, table_id) => {
             if (err) {
                 callback(err);
@@ -223,8 +221,8 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
                             // Then look up the incrementor value in the model.
                             let table = this.model.tables[table_id];
                             let inc_value = table.pk_incrementor.value;
-                            //console.log('inc_value', inc_value);
-                            //console.log('last_key', last_key);
+                            console.log('inc_value', inc_value);
+                            console.log('last_key', last_key);
 
                             if (inc_value !== last_key[1] + 1) {
                                 // need to update it in the DB
@@ -247,23 +245,404 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
                                 callback(null, true);
                             }
                         }
+                    }
+                })
+            }
+        })
+    }
+
+    safety_check_indexes(callback) {
 
 
+        // Looks like there need to be 2 functions called.
+
+
+        // check_index_to_record_validity
+        // check_record_to_index_validity
+
+        // Seems like a significant extra function to write, in order to check that all the indexes are OK.
+        //  It's possible that there are some records which do not have their index records in place properly.
+        //  In that case, we need to create and put the relevant index records.
+
+
+
+
+
+
+        // Looking from the indexes to the values, checking it matches.
+        // Looking from all the values, checking that the records are indexes.
+
+
+
+
+
+
+
+        let obs_all_indexes = this.get_all_index_records();
+
+        // Can we pause and unpause this observable?
+        //  Unpause it whenever we work out a result and want the next.
+
+        obs_all_indexes.on('next', data => {
+            //console.log('');
+            //console.log('data', data);
+
+            // The data could be full records, not just the index keys.
+            //  Seems fine so far.
+
+
+            // Some indexes are malformed...
+            //  When doing the safety check, need to be able to spot malformed index records...?
+            //  If we can't decode the index, we should delete it.
+
+
+
+
+
+
+            let irk = new Index_Record_Key(data);
+
+            // irk.validate();
+            //  will check the spacing, following an alg like decode, but without actual decoding.
+            //  in future, improve validation functions.
+            //  for the moment, validate will try catch attempt decoding.
+
+            // Seems we have dealt with malformed table records as well as index records.
+
+            if (irk.validate()) {
+
+
+                let decoded = irk.decoded;
+
+
+                //console.log('irk.decoded', irk.decoded);
+
+                // be able to get other data from the Index_Record_Key
+                //  index pk, table pk, table id
+                //  index id
+                //  index fields
+                //   
+
+                //console.log('irk.table_id', irk.table_id);
+                //console.log('irk.index_id', irk.index_id);
+
+                //console.log('irk.fields', irk.fields);
+
+                // numker of pk fields?
+
+
+
+                // fields
+
+                // Then want to be able to get specific fields, by id, from the index key.
+
+                // Each field gets encoded with its type.
+                //  Binary_Encoding will have some selection and skipping capabilities.
+
+                // We will also need to connect index fields with value fields.
+
+                // then to check the index against the records.
+
+                // for that table, should be able to refer to the model to look at what the indexes should be.
+                //  and what the fields should be.
+
+                let table = this.model.map_tables_by_id[irk.table_id];
+                //console.log('table.field_names', table.field_names);
+
+                let field_names = table.field_names;
+                let num_pk_fields = table.pk.fields.length;
+
+                //console.log('num_pk_fields', num_pk_fields);
+
+
+
+                // and look into the table indexes.
+
+                // generator functions would be better for program flow here.
+                //  not sure exactly how they would work though.
+                //  could have a generator that buffers results from a pausable observable.
+                //  could try reading 1 row per second even.
+
+
+                // could sequence getting the records / doing the index lookup.
+
+
+                //console.log('table.indexes.length', table.indexes.length);
+
+                // oh.. some tables have 2 indexes to check.
+                //  It's OK. They both come back at the same time.
+                //  No big problem.
+
+
+
+                each(table.indexes, (index, idx_index) => {
+
+                    if (irk.index_id === idx_index) {
+
+
+                        let def = index.to_arr_record_def();
+
+
+
+                        //console.log('index.id', index.id);
+                        //console.log('def', def);
+
+                        //console.log('index.key_fields.length', index.key_fields.length);
+
+
+                        //console.log('index.value_fields.length', index.value_fields.length);
+
+                        // kv_field_ids
+                        //console.log('index.kv_field_ids', index.kv_field_ids);
+
+
+                        // slice out the key fields in the index kv_field_ids
+                        let kv_key_part = index.kv_field_ids[0];
+                        //console.log('kv_key_part', kv_key_part);
+
+                        // after part 2, is the real key part
+                        let real_key_part = kv_key_part.slice(2);
+                        //console.log('real_key_part', real_key_part);
+                        let key_field_name_0 = field_names[real_key_part[0]];
+                        //console.log('key_field_name_0', key_field_name_0);
+
+
+
+
+                        // key field ids contains a bit more than just that, and other parts of the system rely on it.
+                        let key_field_ids_with_table_id_and_index_id = index.kv_field_ids[0];
+
+
+                        // [ [ 6, 0, 3 ], [ 0, 1 ] ]
+                        //  table id 6, index id 0, indexed field 3, points to key (with field ids) [0, 1]
+
+                        // just a single field in the index.
+                        //  maybe should look for ways to get more field IDs.
+
+
+                        let indexed_field_id = index.kv_field_ids[0][2];
+                        //console.log('indexed_field_id', indexed_field_id);
+                        let indexed_field_name = field_names[indexed_field_id];
+
+                        //console.log('indexed_field_name', indexed_field_name);
+
+
+                        let indexed_ref_key = index.kv_field_ids[1];
+                        //console.log('indexed_ref_key', indexed_ref_key);
+                        // Would likely refer to the primary key.
+
+                        // Then we can get the pk value / values out of the index indexed_ref_key
+                        let found_key;
+                        if (indexed_ref_key.length === 1) {
+                            let single_pk_field_id = indexed_ref_key[0];
+                            //console.log('single_pk_field_id', single_pk_field_id);
+
+                            // Then find the position of that field within the index.
+
+                            // Would be nice to have functionality to get a field by its normal id, but from within an index.
+                            // 
+
+                            // Get the last out of irk.decoded
+
+                            found_key = decoded[decoded.length - 1];
+                            //console.log('found_key', found_key);
+
+
+
+
+                        } else {
+
+                            // Multiple fields in a primary key.
+                            //console.log('indexed_ref_key.length', indexed_ref_key.length);
+
+                            found_key = decoded.slice(decoded.length - indexed_ref_key.length);
+                            //console.log('found_key', found_key);
+
+
+                            //throw 'NYI';
+                        }
+
+
+
+
+
+
+                        // then we need to refer to one or more fields.
+
+
+                        // Pause and resume is working fine here.
+
+                        // pause even to return the resume function?
+
+                        obs_all_indexes.pause();
+
+                        // Before its resumed, do the lookup of the record referred to in the index.
+                        //  Then could even generate a new index record from the looked up one.
+                        //   Then compare against the index.
+                        //  Should be able to detect mismatches, it indexes that refer to the wrong record.
+
+                        // look up the record by key
+
+                        //console.log('pre this.get_table_record_by_key found_key', found_key);
+                        this.get_table_record_by_key(irk.table_id, found_key, (err, found_record) => {
+                            if (err) {
+                                callback(err);
+                            } else {
+
+                                //console.log('\n*found_record', found_record);
+
+                                // 
+
+
+                                if (found_record) {
+                                    // Decode the record, check it against 
+                                    let decoded = database_encoding.decode_model_row(found_record);
+                                    //console.log('decoded', decoded);
+
+                                    decoded[0].shift();
+                                    //console.log('2) decoded', decoded);
+                                    let r = table.new_record(decoded);
+                                    //console.log('r', r);
+
+                                    let record_index_records = r.get_arr_index_records();
+                                    //console.log('record_index_records', record_index_records);
+                                    //console.log('idx_index', idx_index);
+                                    let rsri = record_index_records[idx_index];
+
+                                    //console.log('rsri', rsri);
+                                    //console.log('irk.decoded', irk.decoded);
+
+                                    let matches = rsri + '' == irk.decoded + '';
+                                    //console.log('matches', matches);
+                                    // Then if it does not match, delete the index by key.
+
+                                    if (matches) {
+                                        setTimeout(() => {
+                                            //console.log('\n\n\n');
+                                            obs_all_indexes.resume();
+                                        }, 0);
+                                    } else {
+
+
+                                        console.log('index key not valid, record has different data, deleting index', irk.decoded);
+
+                                        // Should probably put this aside, or even delete it here.
+                                        //  Doing this sequentially, record by record, helps to delete it here.
+
+                                        //console.log('pre delete');
+
+                                        this.delete_by_key(irk.buffer, (err, res_delete) => {
+                                            if (err) {
+                                                throw err;
+                                            } else {
+                                                //console.log('delete complete res_delete', res_delete);
+                                                setTimeout(() => {
+                                                    // If the index record does not match the record's generated index, delete it.
+                                                    //console.log('\n\n\n');
+                                                    obs_all_indexes.resume();
+                                                }, 0);
+                                            }
+                                        })
+                                    }
+
+
+
+                                    // check the found record against what the index expects.
+
+                                    // could even create a new Record object, using the Model.
+
+                                    //table.
+
+
+
+
+
+                                } else {
+                                    console.log('record not found, deleting index', irk.decoded);
+                                    //console.log('----------------');
+                                    //console.log('\n\n\n');
+
+                                    // then delete the index record.
+
+                                    // can delete by key.
+
+                                    //throw 'stop';
+                                    this.delete_by_key(irk.buffer, (err, res_delete) => {
+                                        if (err) {
+                                            throw err;
+                                        } else {
+                                            //console.log('delete complete res_delete', res_delete);
+                                            setTimeout(() => {
+                                                // If the index record does not match the record's generated index, delete it.
+                                                //console.log('\n\n\n');
+                                                obs_all_indexes.resume();
+                                            }, 0);
+                                        }
+                                    });
+
+
+
+
+
+
+
+                                    // Will need to delete the index record.
+
+                                }
+
+                            }
+
+
+
+                        })
+
+
+                    } else {
 
 
 
                     }
+                    // 
+
+                    // meaning we look up the value, using the key, then we check field 3 of that value to see that it matches the indexed value.
+
+                    // could maybe have convenience function in table?
+
+                    // need to be able to do an index lookup - should not be so difficult.
                 })
+            } else {
+                console.log('index key not valid, deleting index', irk.buffer);
 
+                // Should probably put this aside, or even delete it here.
+                //  Doing this sequentially, record by record, helps to delete it here.
+                //console.log('pre delete');
 
+                this.delete_by_key(irk.buffer, (err, res_delete) => {
+                    if (err) {
+                        throw err;
+                    } else {
+                        //console.log('delete complete res_delete', res_delete);
+
+                        setTimeout(() => {
+
+                            // 
+
+                            obs_all_indexes.resume();
+                        }, 0);
+                    }
+                })
+                //throw 'stop';
             }
+            //throw 'stop';
+        });
+        obs_all_indexes.on('complete', () => {
+            console.log('obs_all_indexes complete');
+            callback(null, true);
         })
-
     }
 
-    safety_check(fix_errors = false, callback) {
-        // Check all tables which have got autoincrementing keys
 
+    safety_check_autoincrementing_pk_tables(callback) {
         let autoincrementing_pk_tables = [];
         each(this.model.tables, table => {
             if (table.pk_incrementor) {
@@ -273,10 +652,6 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
         })
 
         console.log('autoincrementing_pk_tables.length', autoincrementing_pk_tables.length);
-
-        // Then with these tables, find the last key in those tables.
-
-
         let fns = Fns();
         each(autoincrementing_pk_tables, table => {
             fns.push([this, this.check_autoincrementing_table_pk, [table.name]])
@@ -287,7 +662,248 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
             } else {
                 callback(null, res_all);
             }
+        });
+
+    }
+
+
+
+    safety_check(fix_errors = true, callback) {
+
+
+        let fns = Fns();
+        fns.push([this, this.safety_check_autoincrementing_pk_tables, []]);
+        fns.push([this, this.safety_check_indexes, []]);
+        fns.go((err, res_all) => {
+            if (err) {
+                callback(err);
+            } else {
+                console.log('fns all cb');
+                callback(null, res_all);
+            }
         })
+
+
+
+        // Check all tables which have got autoincrementing keys
+
+
+
+        // Then with these tables, find the last key in those tables.
+
+        // May as well fix all these (right now)
+
+        /*
+
+        
+
+        */
+
+
+
+
+        // for each record, check that it is indexed properly.
+        //  Need to retrieve the record itself by key.
+
+
+
+
+
+        // 
+
+
+        // Sorting out the index records right now seems like the most important task.
+        //  Erroneous index records can make it look like data is there when it is not, and mean that the wrong data gets loaded.
+
+        // lower level all_index_records generator seems like a good way of going about things.
+        //  Could be another day's work to get this in operation successfully.
+
+        // Then worth seeing about saving full trading data.
+        //  Could possibly send the trades few at a time.
+        //  Would be nice to have the server doing real-time trade event processing.
+
+        // Clustering on a lower-level would be better in the future.
+        //  Could have a few operations in a client that are the low level operations, and they work on the cluster.
+        //  Then the higher level operations use these lower level ones.
+
+        // Basically, need to soon draw a line under coding the database itself, and make good use of the data that it provides.
+        //  However, weeks more coding on this would result in a fairly well-rounded database application.
+
+        // Having a server be able to look at a record list, and then redirect records to the appropriate server would be powerful.
+        //  Client could do that too.
+        //   That looks like functionality should be in the model to split up key / record lists according to which server they should go to.
+        //    Index records would always go alongside the records they refer to.
+        //    Hashes / checksums / digests would be easier because the records / data items themselves always have the buffer backing them.
+
+        // May even be a few more months of work, but we can get reliability by writing to separate data collector instances and amalgamating the data from them much sooner than that.
+        //  Is not actually an infinite number of problems to solve. A few more things until we have the data being collected and amalgamated.
+
+        // Then should not be too hard to generate a bunch of indicators / trading signals.
+
+
+
+        // 30/04/2018
+        //  Fixing the indexes is the main problem I now face.
+        //   While there are other issues, such as malformed rows, the indexes prevent accurate lookups.
+        //   Indexes can be regenerated too.
+        //   Iterate / generate iterate all indexes.
+
+        // Now / soon should be possble to download data serieses.
+
+        // Generators / iterators def look useful in doing what's needed.
+
+        // Seems like a few more days of hammering away at this problem will get it solved.
+        //  Would not take long to write code to download a (full) data series, and put it into a 1s resolution high performance typed array structure.
+        //  Maybe just the last prices in the typed array.
+        //   Then could make moving average typed arrays to go alongside it.
+
+        // Though not efficient, could repeat this moving typed array generation / analysis to see if / when there are crossing points.
+        //  Moving average crossover being one effective measure.
+
+        // Signals going back a few weeks seem most appropriate to look into.
+
+        // Just really need to get the data serieses in.
+        //  Correct some indexes / structures where possible (7, 8)
+
+        // Save previous data.
+        //  Want to get nice views of the data showing ranges in (small) graphs.
+
+        // Very soon, want to use this to power trading.
+        //  Setting moving stop losses and such. Could catch it falling 0.1% even.
+
+        // Sort out the indxing, then the malformed rows, then get the data.
+
+        // To do soon:
+        // Lower resolution candlestick data (any exchange)
+        // Snapshot data (any exchange)
+        // Full market data (any exchange)
+
+        // Daily block backups
+        //  Checksummed, could make a simple blockchain.
+        //  For the moment, need to press on with the DB. Have come so far already, have plenty of valid data to fish out.
+
+        // Index consistency checking.
+        //  Could maybe be done by reading specific items out of records.
+
+        // record.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        // A table record generator / iterator would be quite useful.
+        //  Especially when we may need to carry out async functions with the records.
+
+        // Soon want to be able to get the working / valid data from it.
+        //  May try some kinds of sync developed to get and test data sets.
+        //   Have lots of records in the system now, and definitly want to be able to get them back.
+
+        // Applying a full fix on data8 makes sense, data7 too.
+        //  Could see about the other ones too.
+        //  Data1 seems out of action for some reason.
+
+        // Maybe we don't have data going quite so far back.
+        //  May need to write off some of the data gathered, but still need to get the data from data8.
+
+
+
+        // Reliably saving into CockroachDB does seem like a good course of action from now.
+        //  Maybe it could complement NextLevelDB.
+
+
+
+        // Maybe get data from data8 and data7, and then work to ensure and monitor consistency of ongoing data.
+        //  Can't spend too long trying to salvage some old data, need to write it off as its restoration seems too complex, and it's likely incomplete data anyway.
+        //   Unless the different servers have their data all tracing back far enough.
+        // Best to download the old data, see about local read-through type restore.
+        //  May need to apply logic to each record.
+
+        // For the moment, best plan is to get the cluster up and running on a series of machines, say data2 to data5.
+        //  Have them all downloading and adding data. See about amalgamating data from all of them.
+        //  
+
+        // However, still does not allow for proper clustering / sharding / accessing them all as one.
+        //  That would require quite a lot more code.
+
+        // For the moment, getting the data from remote machines onto local makes the most sense.
+        //  Then should be able to read through the data, giving the last price every second, quite quickly.
+        //   Could get the key just at (lte) than the given timestamp, do that for a series of times.
+        //    Would not be very fast to query, but will be OK.
+
+        // Checking and fixing invalid index records on startup would be nice.
+
+        // Some work with generators / iterators could help process index records while doing async operations to validate them.
+
+
+
+        // find_orphan_index_records
+        //  does not point to a record, or points to the wrong record.
+
+        // find_records_missing_indexes
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        // Check the indexes on all tables
+        //  (all tables that have index records)
+
+        // 
 
 
 
@@ -398,6 +1014,15 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
                 console.log('cb super NextLevelDB_Safer_Server start');
 
                 let fix_errors = true;
+
+
+                // Could have diagnose, fix, diagnose_fix
+
+                //  May also make client-side remote diagnosis and fixing.
+                //   Server-side on start-up seems a bit safer and easier too.
+
+
+
                 this.safety_check(fix_errors, callback);
 
                 //callback(null, true);

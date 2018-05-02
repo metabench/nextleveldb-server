@@ -49,6 +49,7 @@ const levelup = require('level');
 const Model = require('nextleveldb-model');
 const Model_Database = Model.Database;
 const encoding = Model.encoding;
+const Index_Record_Key = Model.Index_Record_Key;
 
 const CORE_MIN_PREFIX = 0;
 const CORE_MAX_PREFIX = 9;
@@ -994,7 +995,7 @@ class NextLevelDB_Server extends Evented_Class {
         // an inner promise / observable
 
         // will work differently when the key is automatically generated.
-
+        throw 'NYI';
         let table_pk = arr_record[0][0];
 
         let table_id = (table_pk - 2) / 2;
@@ -1082,7 +1083,7 @@ class NextLevelDB_Server extends Evented_Class {
 
 
         } else if (sig === '[a,n]') {
-            // Return an observable, which will also function much like a promise.
+            // Return an observable, which will also, function much like a promise.
             //  No paging option has been specified here.
 
             // Some kind of Paging_Observer would be quite useful.
@@ -1131,6 +1132,10 @@ class NextLevelDB_Server extends Evented_Class {
                 //console.log('end');
                 res.raise('complete');
             });
+
+
+        // Pausing and resuming causing callbacks to occurr too many times?
+        //  Just not sure right now.
 
 
         res.pause = () => {
@@ -1562,6 +1567,11 @@ class NextLevelDB_Server extends Evented_Class {
 
 
 
+    // May be a good usage of js iterators or generators.
+    //
+
+
+
 
     ll_get_table_index_records(table_id, opt_cb) {
 
@@ -1570,7 +1580,7 @@ class NextLevelDB_Server extends Evented_Class {
 
 
         let decode = false;
-        //console.log('sig', sig);
+        //console.log('ll_get_table_index_records sig', sig);
 
 
         if (sig === '[n,b]') {
@@ -1617,6 +1627,139 @@ class NextLevelDB_Server extends Evented_Class {
         }
         //throw 'stop';
         // Observe them, having got the kp right for the indexes
+
+    }
+
+    get all_table_ids() {
+        let res = [];
+        each(this.model.tables, table => res.push(table.id));
+        return res;
+    }
+
+    get_all_index_records() {
+        // just observable for the moment.
+        //  want this to be pausable.
+
+
+
+        //get all table ids
+
+        let all_table_ids = this.all_table_ids;
+
+        // then get the table index records for each of them
+
+        let q_obs = [];
+
+        // But this won't execute the observables in sequence.
+
+        // Queue up the observables fn calls.
+        each(all_table_ids, table_id => {
+            q_obs.push([this, this.ll_get_table_index_records, [table_id]]);
+        });
+
+        // but with simplest return style...
+
+        // Then can load these up into Index_Key objects.
+        //  will make new buffer-backed class to handle index keys.
+
+        // xas2 table index pk, xas2 index id, index fields all available through decode_buffer
+
+        // ll_get_table_index_records - is that pausable?
+
+
+
+        let execute_q_obs = (q_obs) => {
+            let res = new Evented_Class();
+
+            let c = 0;
+            let process = () => {
+
+                if (c < q_obs.length) {
+                    let q_item = q_obs[c];
+
+                    let obs_q_item = q_item[1].apply(q_item[0], q_item[2]);
+
+                    obs_q_item.on('next', data => {
+
+                        /*
+                        let e = {
+                            n: c,
+                            params: q_item[2],
+                            'data': data
+                        }
+                        */
+                        //console.log('e', e);
+                        res.raise('next', data);
+                    });
+                    obs_q_item.on('error', error => {
+                        /*
+                        let e = {
+                            n: c,
+                            params: q_item[2],
+                            'data': error
+                        }
+                        */
+                        res.raise('error', error);
+                    });
+                    obs_q_item.on('complete', data => {
+
+                        /*
+                        let e = {
+                            n: c,
+                            params: q_item[2],
+                            'data': data
+                        }
+                        */
+                        //console.log('pre raise item complete');
+                        // Only want complete to be raised when all are complete.
+                        //res.raise('complete');
+                        c++;
+                        process();
+                    });
+
+                    // Pausing and resuming causing multiples to pop up?
+                    //  
+
+                    res.pause = () => {
+                        obs_q_item.pause();
+                    }
+                    res.resume = () => {
+                        if (obs_q_item.resume) obs_q_item.resume();
+                    }
+
+                } else {
+                    // raise an all complete?
+                    res.raise('complete');
+                }
+
+            }
+            process();
+
+
+            // functions in res to pause, unpause, stop
+
+
+            return res;
+        }
+
+
+        let obs_all = execute_q_obs(q_obs);
+
+        /*
+        obs_all.on('next', data => {
+            console.log('obs_all data', data);
+        });
+        obs_all.on('complete', () => {
+            console.log('obs_all complete');
+        });
+        */
+
+
+        return obs_all;
+
+
+
+
 
     }
 
@@ -1991,8 +2134,6 @@ class NextLevelDB_Server extends Evented_Class {
                 callback(null, true);
             }
         })
-
-
     }
 
     batch_put_kvpbs(arr_pairs, callback) {
@@ -3048,6 +3189,50 @@ class NextLevelDB_Server extends Evented_Class {
     }
 
 
+    get_table_record_by_key(table, key, callback) {
+        let table_id = this.model.table_id(table);
+        let table_kp = table_id * 2 + 2;
+
+        // get single record in range?
+
+        // 
+
+        let arr_record_key = [table_kp].concat(key);
+
+        // seems we don't have a simple get call in use
+
+        let buf_key = Binary_Encoding.encode_to_buffer_use_kps(arr_record_key, 1);
+        //console.log('buf_key', buf_key);
+
+        //console.log('pre db.get');
+
+        //let c = 0;
+        this.db.get(buf_key, (err, res) => {
+            //c++;
+            //console.log('c', c);
+            if (err) {
+                if (err.notFound) {
+                    // handle a 'NotFoundError' here
+                    callback(null, undefined);
+                } else {
+                    callback(err);
+                }
+            } else {
+                //console.log('db.get res', res);
+
+
+
+                callback(null, [buf_key, res]);
+            }
+        })
+
+    }
+
+    delete_by_key(buf_key, callback) {
+        this.db.del(buf_key, callback);
+    }
+
+
     // a limit property would be cool too.
     //  but then would need to work on param parsing more.
 
@@ -3157,6 +3342,7 @@ class NextLevelDB_Server extends Evented_Class {
 
 
     get_table_records_hash(table, callback) {
+        console.log('table', table);
         let pr_inner = () => {
             let res = new Promise((resolve, reject) => {
                 let obs_records = this.get_table_records(table, false, false);
@@ -3223,9 +3409,53 @@ class NextLevelDB_Server extends Evented_Class {
             //console.log('selected_from_value', selected_from_value);
 
         }
-
         // go through that key range.
     }
+
+
+    // validate index records against records
+    // validate records against index records.
+
+    // get all index records
+
+
+    // A generator to yield records definitely looks like a nice way of doing it.
+    //  However, pausing and resuming the db getting could be a bit tricky.
+    //  Could write something, but not worth it right now.
+
+    // An observable that gets all index rows (could be in specified tables) seems like the way.
+
+    // Get all index rows for all tables.
+    //  Would get the index row for each table.
+
+    // Will be better moving to more async code.
+
+    // get_all_index_records
+
+    // use an observable sequencer to read all index records.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     // Having decoding options would be useful here.
@@ -4049,11 +4279,6 @@ if (require.main === module) {
                             let buf_255 = Buffer.alloc(1);
                             buf_255.writeUInt8(255, 0);
 
-
-
-
-
-
                             let range_1 = [Buffer.concat([xas2(0).buffer, buf_0]), Buffer.concat([xas2(0).buffer, buf_255])];
                             let range_2 = [Buffer.concat([xas2(2).buffer, buf_0]), Buffer.concat([xas2(2).buffer, buf_255])];
 
@@ -4068,9 +4293,7 @@ if (require.main === module) {
                             //  Want to test this over the client too, with the same API.
 
 
-                            obs_get_records_in_ranges.on('next', data => {
-                                console.log('data', data);
-                            });
+
 
                             // testing get_records_in_ranges
 

@@ -11,13 +11,13 @@
         "lang-mini": "^0.0.5",
         "level": "^3.0.0",
         "my-config": "^2.0.0",
-        "nextleveldb-client": "^0.0.49",
-        "nextleveldb-model": "^0.0.43",
+        "nextleveldb-client": "^0.0.50",
+        "nextleveldb-model": "^0.0.44",
         "recursive-readdir": "^2.2.2",
         "rimraf": "^2.6.2",
         "single-line-log": "^1.1.2",
         "websocket": "^1.0.25",
-        "xas2": "^0.0.16"
+        "xas2": "^0.0.17"
     },
     "engines": {
         "node": ">=8.5.0"
@@ -28,5 +28,5 @@
         "type": "git",
         "url": "https://github.com/metabench/nextleveldb-server.git"
     },
-    "version": "0.0.37"
+    "version": "0.0.38"
 }
