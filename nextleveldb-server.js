@@ -54,6 +54,38 @@ const Index_Record_Key = Model.Index_Record_Key;
 const CORE_MIN_PREFIX = 0;
 const CORE_MAX_PREFIX = 9;
 
+const execute_q_obs = (q_obs) => {
+    let res = new Evented_Class();
+    let c = 0;
+    let process = () => {
+        if (c < q_obs.length) {
+            let q_item = q_obs[c];
+            let obs_q_item = q_item[1].apply(q_item[0], q_item[2]);
+            obs_q_item.on('next', data => {
+                res.raise('next', data);
+            });
+            obs_q_item.on('error', error => {
+                res.raise('error', error);
+            });
+            obs_q_item.on('complete', data => {
+                c++;
+                process();
+            });
+            res.pause = () => {
+                obs_q_item.pause();
+            }
+            res.resume = () => {
+                if (obs_q_item.resume) obs_q_item.resume();
+            }
+        } else {
+            // raise an all complete?
+            res.raise('complete');
+        }
+    }
+    process();
+    return res;
+}
+
 
 // Private system DBs could be useful - they could best be used by subclasses of this.
 //  Could provide auth.
@@ -1570,6 +1602,36 @@ class NextLevelDB_Server extends Evented_Class {
     // May be a good usage of js iterators or generators.
     //
 
+    ll_get_table_records(table_id, opt_cb) {
+        let a = arguments,
+            sig = get_a_sig(a);
+
+        let decode = false;
+        if (sig === '[n,b]') {
+            decode = a[1];
+            opt_cb = null;
+        }
+
+        let kp = table_id * 2 + 2;
+        let obs = this.ll_get_records_with_kp(xas2(kp).buffer);
+        if (decode) {
+            let res = new Evented_Class();
+            obs.on('next', data => {
+                let decoded = Model_Database.decode_model_row(data);
+                //console.log('decoded', decoded);
+
+                res.raise('next', decoded);
+            })
+            obs.on('complete', () => {
+                //console.log('ll_get_table_index_records obs complete');
+                res.raise('complete');
+            })
+            return res;
+        } else {
+            return obs;
+        }
+    }
+
 
 
 
@@ -1636,47 +1698,47 @@ class NextLevelDB_Server extends Evented_Class {
         return res;
     }
 
-    get_all_index_records() {
-        // just observable for the moment.
-        //  want this to be pausable.
+    get table_ids_with_indexes() {
+        let res = [];
+        each(this.model.tables, table => {
+            if (table.indexes.length > 0) {
+                res.push(table.id);
+            }
 
+        });
+        return res;
+    }
 
+    // get table records of tables with indexes
 
-        //get all table ids
+    // get_table_records_by_table_ids
 
-        let all_table_ids = this.all_table_ids;
+    // Then will have some functions to shift some records around if something is not where it should be / misplaced.
+    //  Maybe use a bit of reasoning to work out the way to shift things.
 
-        // then get the table index records for each of them
+    // Soon will be able to provide valid, up-to-date datasets.
+
+    // May well be (have been) worth setting up a 9th server just in case.
+    // Then will be worth setting up a DB structure that links together the same coin on different exchanges,
+
+    get_table_index_records_by_arr_table_ids(arr_table_ids) {
 
         let q_obs = [];
-
-        // But this won't execute the observables in sequence.
-
-        // Queue up the observables fn calls.
-        each(all_table_ids, table_id => {
+        each(arr_table_ids, table_id => {
             q_obs.push([this, this.ll_get_table_index_records, [table_id]]);
         });
-
         // but with simplest return style...
-
         // Then can load these up into Index_Key objects.
         //  will make new buffer-backed class to handle index keys.
-
         // xas2 table index pk, xas2 index id, index fields all available through decode_buffer
-
         // ll_get_table_index_records - is that pausable?
-
-
 
         let execute_q_obs = (q_obs) => {
             let res = new Evented_Class();
-
             let c = 0;
             let process = () => {
-
                 if (c < q_obs.length) {
                     let q_item = q_obs[c];
-
                     let obs_q_item = q_item[1].apply(q_item[0], q_item[2]);
 
                     obs_q_item.on('next', data => {
@@ -1716,35 +1778,25 @@ class NextLevelDB_Server extends Evented_Class {
                         c++;
                         process();
                     });
-
                     // Pausing and resuming causing multiples to pop up?
                     //  
-
                     res.pause = () => {
                         obs_q_item.pause();
                     }
                     res.resume = () => {
                         if (obs_q_item.resume) obs_q_item.resume();
                     }
-
                 } else {
                     // raise an all complete?
                     res.raise('complete');
                 }
-
             }
             process();
-
-
             // functions in res to pause, unpause, stop
-
-
             return res;
         }
 
-
         let obs_all = execute_q_obs(q_obs);
-
         /*
         obs_all.on('next', data => {
             console.log('obs_all data', data);
@@ -1753,14 +1805,75 @@ class NextLevelDB_Server extends Evented_Class {
             console.log('obs_all complete');
         });
         */
-
-
         return obs_all;
+    }
 
 
+    get_table_records_by_arr_table_ids(arr_table_ids) {
+        let q_obs = [];
+        each(arr_table_ids, table_id => {
+            q_obs.push([this, this.ll_get_table_records, [table_id]]);
+        });
 
+        // but with simplest return style...
+        // Then can load these up into Index_Key objects.
+        //  will make new buffer-backed class to handle index keys.
 
+        // xas2 table index pk, xas2 index id, index fields all available through decode_buffer
+        // ll_get_table_index_records - is that pausable?
 
+        /*
+        let execute_q_obs = (q_obs) => {
+            let res = new Evented_Class();
+            let c = 0;
+            let process = () => {
+                console.log('c', c);
+                console.trace();
+                if (c < q_obs.length) {
+                    let q_item = q_obs[c];
+                    let obs_q_item = q_item[1].apply(q_item[0], q_item[2]);
+                    obs_q_item.on('next', data => {
+                        res.raise('next', data);
+                    });
+                    obs_q_item.on('error', error => {
+                        res.raise('error', error);
+                    });
+                    obs_q_item.on('complete', data => {
+                        process();
+                    });
+                    res.pause = () => {
+                        obs_q_item.pause();
+                    }
+                    res.resume = () => {
+                        if (obs_q_item.resume) obs_q_item.resume();
+                    }
+                } else {
+                    // raise an all complete?
+                    res.raise('complete');
+                }
+            }
+            process();
+            // functions in res to pause, unpause, stop
+            return res;
+        }
+        */
+        let obs_all = execute_q_obs(q_obs);
+        return obs_all;
+    }
+
+    // get table_id_table_records
+
+    get_all_table_records_where_tables_are_indexed() {
+
+        return this.get_table_records_by_arr_table_ids(this.table_ids_with_indexes);
+    }
+
+    get_all_table_records() {
+        return this.get_table_records_by_arr_table_ids(this.all_table_ids);
+    }
+
+    get_all_index_records() {
+        return this.get_table_index_records_by_arr_table_ids(this.all_table_ids);
     }
 
 

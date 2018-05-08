@@ -21,6 +21,9 @@ const path = require('path');
 
 
 const Model = require('nextleveldb-model');
+
+const BB_Record = Model.BB_Record;
+
 const Index_Record_Key = Model.Index_Record_Key;
 const database_encoding = Model.encoding;
 // Best to read the data out of the config before initialising.
@@ -251,22 +254,131 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
         })
     }
 
-    safety_check_indexes(callback) {
+    // check_record_to_index_validity
+
+    // Iterates through every record in the DB.
+    //  creates the record object using the Model.
+    //  checks that the index record keys are there.
+    //   if they are not, puts them in place.
+    //   want it to log / send to its observer (after more coding) that it has found a record that has not been indexed properly.
+    //    then it will index that record.
+
+    // Looks like before all that long it will be possible to draw a line under the safety features.
+    //  Then hopefully we can get the data connected objects back.
+    //  Will be nice to get a live ethereum price object.
+    //   One web server could give access to them as shared resources for different components to use.
+    //   Then client-side components would use client-side resources.
 
 
+    // This historic and live data object could run on a phone or tablet within a web page.
+    //  View objects would then display the live data.
+    //   Initial rendering still (most likely) server-side.
+
+
+    // check_table_records first
+
+    // would go through all records checking for malformed records.
+
+
+    check_record_to_index_validity(callback) {
+
+        // Should have done check on records first.
+        //  Invalid records deleted makes sense.
+
+        console.log('check_record_to_index_validity');
+
+        let model = this.model;
+        // go through all table records.
+
+        // do we have invalid table records here?
+
+        // this.get_all_table_records_where_tables_are_indexed // get_all_table_records_where_tables_are_indexed get_all_table_records
+
+        let obs_all_table_records = this.get_all_table_records_where_tables_are_indexed();
+
+        obs_all_table_records.on('next', data => {
+            console.log('obs_all_table_records data', data);
+            obs_all_table_records.pause();
+            // see about constructing the index from these
+
+            //  A rapid server-side way of assembling indexes would be nice.
+            //   Looking up fields by number from the record data
+            //    Reading the key / knowing how many items in the key
+            //     Reading from the records, getting the individual encoded buffers.
+            //     Then comparing these to what is in the records.
+            //      Decoding will be easier for the moment.
+            // Using an OO record would definitely help, could use it for index lookups
+            let kv = new BB_Record(data);
+            // bpair = buffer pair
+            // kvp = key value pair
+            console.log('kv.bpair', kv.bpair);
+            console.log('kv', kv);
+            // then from the record we should be able to get the kp, and therefore the table_id
+            console.log('kv.kp', kv.kp);
+            console.log('kv.table_id', kv.table_id);
+            let table = model.map_tables_by_id[kv.table_id];
+            console.log('table.name', table.name);
+            // then create the index records for that record.
+            //  
+
+
+            // could we use a Record_List instead?
+
+            let bbris = table.get_record_bb_index_records(kv);
+
+            // array of such records, not a buffered record-list
+            console.log('bbris', bbris);
+
+            each(bbris, bbri => {
+                console.log('bbri', bbri);
+                console.log('Object.keys(bbri)', Object.keys(bbri));
+
+                console.log('bbri.key.decoded', bbri.key.decoded);
+            })
+
+
+
+
+
+
+
+
+
+
+
+            // table_id
+
+            // Then want to get the index records from it.
+
+
+
+
+
+
+            setTimeout(() => {
+                obs_all_table_records.resume();
+            }, 0);
+
+        })
+        //console.trace();
+        //throw 'stop';
+    }
+
+
+
+
+
+
+
+    check_index_to_record_validity(callback) {
         // Looks like there need to be 2 functions called.
 
 
-        // check_index_to_record_validity
-        // check_record_to_index_validity
+
 
         // Seems like a significant extra function to write, in order to check that all the indexes are OK.
         //  It's possible that there are some records which do not have their index records in place properly.
         //  In that case, we need to create and put the relevant index records.
-
-
-
-
 
 
         // Looking from the indexes to the values, checking it matches.
@@ -641,6 +753,27 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
         })
     }
 
+    safety_check_indexes(callback) {
+
+
+        // check_index_to_record_validity
+        // check_record_to_index_validity
+
+        this.check_index_to_record_validity((err, res) => {
+            if (err) {
+                callback(err);
+            } else {
+                this.check_record_to_index_validity((err, res) => {
+                    if (err) {
+                        callback(err);
+                    } else {
+                        callback(null, true);
+                    }
+                })
+            }
+        })
+    }
+
 
     safety_check_autoincrementing_pk_tables(callback) {
         let autoincrementing_pk_tables = [];
@@ -663,17 +796,243 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
                 callback(null, res_all);
             }
         });
+    }
 
+    // this.log seems like the best way to record the invalid table records.
+    //  A log to disk function looks like the best way.
+
+    // this.log_to_disk(data)
+    //  daily log?
+    //   opens a new log file when the server starts?
+    //  A new logfile for each operation that logs it would be cool.
+
+    // this.open_file_log_write(operation_name)
+    //  callback or promise.
+
+
+
+
+    //  puts in a timestamp too
+    //   May log binary records, if so, will do so in hex.
+    //   Will need to store encoded data, but should store the data itself in a very easy to understand way.
+
+
+
+
+
+
+    get_all_invalid_table_records() {
+
+        // Could be done through observable_filter, when it exists.
+
+        //let res_problem_records = [];
+        let obs_all_table_records = this.get_all_table_records();
+
+
+        let res = new Evented_Class();
+
+        // get_all_encoding_error_table_records
+
+
+
+        // load them all to bbrecord objects, and then call its validate_format function
+        //  Have a whole load or records been written wrong?
+        //   Types not given within the encoding?
+
+
+        obs_all_table_records.on('next', data => {
+            //console.log('data', data);
+            let bbr = new BB_Record(data);
+            //console.log('bbr.validate_encoding()', bbr.validate_encoding());
+            //console.log('bbr.decoded', bbr.decoded);
+
+
+            // but how does the validation fail?
+
+            if (!bbr.validate_encoding()) {
+                //console.log('problem record', bbr);
+                res.raise('next', bbr);
+            }
+        });
+
+        obs_all_table_records.on('complete', () => {
+            //callback(null, res_problem_records);
+            res.raise('complete');
+        });
+
+        obs_all_table_records.on('error', err => res.raise('error', err));
+
+        res.pause = obs_all_table_records.pause;
+        res.resume = obs_all_table_records.resume;
+        res.stop = obs_all_table_records.stop;
+
+        return res;
+    }
+
+    // log_all_invalid_table_records
+
+    log_all_invalid_table_records() {
+        let obs = this.get_all_invalid_table_records();
+        obs.on('next', data => {
+            //console.log('get_all_invalid_table_records data', data);
+            console.log('get_all_invalid_table_records data.kvp_bufs', data.kvp_bufs);
+
+        });
     }
 
 
+    //  save it in the db path 
+
+    // A specific separate DB may make sense, or a system part of the DB that stores the invalid records.
+
+    // Put the invalid records fully into their own encoded buffers, then the can be stored within valid records.
+    //  Could these records refer to invlid index keys elsewhere?
+
+
+
+    // It definitely seems worth to log these to another file / sub-db.
+    //  Making a decent logging system, or error containment zone makes sense.
+    //  Keeping it in the same DB makes difficulties with much larger system or other parts.
+    //   Making another leveldb dir for the errored rows makes sense.
+    //   That brings up a general sub-dbs question. Maybe they would be useful for some things, like completed blocks of records (that would have very slow random access times, but are compressed and many records in one file)
+    //   Also, sub-dbs would be possible within the key prefix, same db
+    //   These would be separate to any data in the cluster, not shared.
+
+
+    //  Would just be one table.
+    //   Could have a database with just one table.
+    //   Adding /moving all of the malformed records to another db for later reading would definitely help.
+    //   Single separate databases would be simpler themselves, less to go wrong in them.
+    // .private_storage('malformed records').put()
+    // Does make the architecture more complex.
+    // For the moment, just putting removed invalid records into a text log will be fine.
+    //  Will also help to log records that get moved / removed.
+    //   Could analyse invalid records, because some invalid records will point to other ones. Perhaps the key can't be normally decoded, but it still does point to the data in a record with an invalid key.
+
+    // definitely worth logging all invalid records to file, leaving it at that right now.
+
+
+
+
+
+
+
+
+
+
+
+    // But we may be able to identify invalid keys, and then be able to return them at a later point.
+    //  Even move them to a 'recovery' part of the DB, system table even.
+
+    // May need to think about separate local DBs.
+    //  Or separate parts within that one DB.
+
+    // A 'recovered records' system table would bq quite useful.
+    //  However, don't have more space for system tables right now.
+
+    // Getting closer to successful row remapping now though.
+    //  when we make some kinds of changes, eg deleting invalid records / index records, they could give us a clue about where corrupt records have gone.
+
+    // A quarantine / containment zone for invalid records would be useful.
+
+
+    // Secondary / subdbs would definitely be useful.
+    // Subdbs would help with client session management
+    //  Syncing to servers
+    //  Knowing where ranges of synced records have been stored.
+
+    // Defining syncing / placement of records in the network by range makes a lot of sense.
+    //  Separate DB parts may need more work to test.
+    //  Would also be worth reserving some more space for system tables.
+
+    // Logging to a file of invalid records would be OK.
+    //  Could have a Logfile system.
+    //  Could even be records, with timestamps.
+
+    // A containment field for invalid records would make sense.
+    //  Deleting them for the moment would be OK? Or just would not later recover them from backup files.
+
+    // Containing them would make sense as then we can identify which of them match indexes or records that were changed.
+    //  But that does add more complexity to the project right now.
+    //   Just deleting them for the moment would work, can later look into them.
+
+    // A decoded log of deleted records could be useful.
+
+
+    // maybe fix them too.
+    check_records_validity(callback) {
+
+
+        let obs_log = this.log_all_invalid_table_records();
+
+
+        // What about loads of problem records?
+
+        // Deleting all invalid records would make sense.
+        //  Could later identify gaps in the valid data.
+
+        // Could have a system to download / sync only the valid records.
+        //  Could validate on server-side.
+
+        // Starting data9 and data10 would be useful too.
+
+        // Then data11 and data12 would be the new version running on more exchanges.
+
+        // Deleting invalid records would make sense.
+
+        // This function would better be an observable that returns the invalid table records
+
+        // this.get_all_table_records_with_encoding_errors
+
+        //  then can delete these by key.
+
+
+        // Continuing to do analysis just with Bittrex records will be fine for the moment.
+        //  Want to get and explore complete data sets.
+
+
+
+
+
+
+
+
+
+        //let res_problem_records = [];
+
+    }
+
+    safety_check_table_records(callback) {
+
+
+        this.check_records_validity(callback);
+    }
 
     safety_check(fix_errors = true, callback) {
 
 
         let fns = Fns();
-        fns.push([this, this.safety_check_autoincrementing_pk_tables, []]);
-        fns.push([this, this.safety_check_indexes, []]);
+
+        fns.push([this, this.safety_check_table_records, []]);
+
+
+        //fns.push([this, this.safety_check_autoincrementing_pk_tables, []]);
+
+        // safety check records.
+        //  find the malformed records, delete them.
+        //   could log this in a file.
+
+        // safety_check_table_records
+        //  checks the records are valid. Any records which are not valid get reported.
+
+
+        // get_all_invalid_table_records
+
+
+
+
+
+        //fns.push([this, this.safety_check_indexes, []]);
         fns.go((err, res_all) => {
             if (err) {
                 callback(err);
