@@ -163,35 +163,33 @@ const database_encoding = Model.encoding;
 
 
 
+let obs_map = (obs, fn_data) => {
+    let res = new Evented_Class();
+    fn_data.on('next', data => {
+        res.raise('next', fn_data(data));
+    })
+    fn_data.on('complete', () => res.raise('complete'));
+    fn_data.on('error', err => res.raise('error', err));
+    if (obs.stop) res.stop = obs.stop;
+    if (obs.pause) res.pause = obs.pause;
+    if (obs.resume) res.resume = obs.resume;
+    return res;
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+let obs_filter = (obs, fn_select) => {
+    let res = new Evented_Class();
+    fn_data.on('next', data => {
+        if (fn_select(data)) {
+            res.raise('next', data);
+        }
+    })
+    fn_data.on('complete', () => res.raise('complete'));
+    fn_data.on('error', err => res.raise('error', err));
+    if (obs.stop) res.stop = obs.stop;
+    if (obs.pause) res.pause = obs.pause;
+    if (obs.resume) res.resume = obs.resume;
+    return res;
+}
 
 
 
@@ -201,6 +199,11 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
         // use some servers as full sources.
     }
 
+
+    // Promises would be better overall.
+    //  Would take some work but make for a nicer overall API.
+
+    // With a Promise as well?
     check_autoincrementing_table_pk(table_name, callback) {
 
         console.log('check_autoincrementing_table_pk table_name', table_name);
@@ -280,6 +283,31 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
     // would go through all records checking for malformed records.
 
 
+    // obs_missing_index_records
+    //  add them
+    // obs_wrong_index_records
+    //  delete them
+
+    // can have add and delete function wrappers (and they can pause and resume)
+
+
+
+
+
+
+    // check and fix
+    //  easier to separate the two when using observables.
+
+
+
+    // for a single record...?
+
+
+    // and fixes it too?
+
+
+
+
     check_record_to_index_validity(callback) {
 
         // Should have done check on records first.
@@ -297,7 +325,7 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
         let obs_all_table_records = this.get_all_table_records_where_tables_are_indexed();
 
         obs_all_table_records.on('next', data => {
-            console.log('obs_all_table_records data', data);
+            //console.log('obs_all_table_records data', data);
             obs_all_table_records.pause();
             // see about constructing the index from these
 
@@ -311,38 +339,77 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
             let kv = new BB_Record(data);
             // bpair = buffer pair
             // kvp = key value pair
-            console.log('kv.bpair', kv.bpair);
-            console.log('kv', kv);
+            //console.log('kv.bpair', kv.bpair);
+            //console.log('kv', kv);
             // then from the record we should be able to get the kp, and therefore the table_id
-            console.log('kv.kp', kv.kp);
-            console.log('kv.table_id', kv.table_id);
+            //console.log('kv.kp', kv.kp);
+            //console.log('kv.table_id', kv.table_id);
             let table = model.map_tables_by_id[kv.table_id];
-            console.log('table.name', table.name);
+            //console.log('table.name', table.name);
             // then create the index records for that record.
             //  
 
 
             // could we use a Record_List instead?
 
+
+            // but could a table have been indexed wrong?
+            //  viewing how a table gets indexed may be useful on startup.
+
+
+
             let bbris = table.get_record_bb_index_records(kv);
 
+
+
             // array of such records, not a buffered record-list
+
             console.log('bbris', bbris);
 
+            // check these records exist.
+            //  
+
+            // then put together a bunch of functions to do in an observable sequence.
+
+            // ensure_records may be fine.
+            //  but index records wont need to be concerned with the values.
+
+            this.ensure_index_records(bbris, (err, res_ensure) => {
+                if (err) {
+                    callback(err);
+                } else {
+
+                    obs_all_table_records.resume();
+
+                }
+            });
+
+
+            /*
             each(bbris, bbri => {
                 console.log('bbri', bbri);
                 console.log('Object.keys(bbri)', Object.keys(bbri));
 
                 console.log('bbri.key.decoded', bbri.key.decoded);
-            })
+
+                // need to ensure that each of these index records exist.
+
+
+            });
+            */
+
+            // this.ensure(bbris);
+            //  means checking if they exist before putting.
+            //  would be cool to have a true/false batched has keys function.
 
 
 
+            // Then look for these keys.
+            //  They should be there.
+            //  
 
-
-
-
-
+            // ensure_index_record
+            //  looks it up first
 
 
 
@@ -354,11 +421,17 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
 
 
 
-
+            /*
             setTimeout(() => {
                 obs_all_table_records.resume();
             }, 0);
+            */
 
+        })
+
+
+        obs_all_table_records.on('complete', () => {
+            callback(null, true);
         })
         //console.trace();
         //throw 'stop';
@@ -368,6 +441,157 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
 
 
 
+
+
+
+    // This could be done with a different pattern. Observable result, when it finds an error, raises the obs error result.
+    //  Then a fixer would watch that observer.
+
+
+    fix_observed_invalid_index_records() {
+
+    }
+
+    observe_invalid_index_records() {
+        let res = new Evented_Class();
+        let obs_all_index_keys = obs_map(this.get_all_index_records(), data => new Index_Record_Key(data));
+        // And with a validation filter...
+        // 
+
+        //let res = obs_filter(obs_all_index_keys, key => !key.validate());
+
+
+        // get_all_index_record_keys
+
+        obs_all_index_keys.on('next', irk => {
+            //let irk = new Index_Record_Key(data);
+            if (irk.validate()) {
+                let decoded = irk.decoded;
+                let table = this.model.map_tables_by_id[irk.table_id];
+                let field_names = table.field_names;
+                let num_pk_fields = table.pk.fields.length;
+                each(table.indexes, (index, idx_index) => {
+                    if (irk.index_id === idx_index) {
+                        let def = index.to_arr_record_def();
+                        let kv_key_part = index.kv_field_ids[0];
+                        let real_key_part = kv_key_part.slice(2);
+                        let key_field_name_0 = field_names[real_key_part[0]];
+                        let key_field_ids_with_table_id_and_index_id = index.kv_field_ids[0];
+                        let indexed_field_id = index.kv_field_ids[0][2];
+                        let indexed_field_name = field_names[indexed_field_id];
+                        let indexed_ref_key = index.kv_field_ids[1];
+                        let found_key;
+                        if (indexed_ref_key.length === 1) {
+                            let single_pk_field_id = indexed_ref_key[0];
+                            found_key = decoded[decoded.length - 1];
+                        } else {
+                            found_key = decoded.slice(decoded.length - indexed_ref_key.length);
+                        }
+                        obs_all_indexes.pause();
+                        this.get_table_record_by_key(irk.table_id, found_key, (err, found_record) => {
+                            if (err) {
+                                callback(err);
+                            } else {
+                                if (found_record) {
+                                    let decoded = database_encoding.decode_model_row(found_record);
+                                    decoded[0].shift();
+                                    let r = table.new_record(decoded);
+                                    let record_index_records = r.get_arr_index_records();
+                                    let rsri = record_index_records[idx_index];
+                                    let matches = rsri + '' == irk.decoded + '';
+                                    if (matches) {
+                                        setTimeout(() => {
+                                            //console.log('\n\n\n');
+                                            obs_all_indexes.resume();
+                                        }, 0);
+                                    } else {
+                                        console.log('index key not valid, record has different data, deleting index', irk.decoded);
+
+                                        /*
+
+                                        this.delete_by_key(irk.buffer, (err, res_delete) => {
+                                            if (err) {
+                                                throw err;
+                                            } else {
+                                                //console.log('delete complete res_delete', res_delete);
+                                                setTimeout(() => {
+                                                    // If the index record does not match the record's generated index, delete it.
+                                                    //console.log('\n\n\n');
+                                                    obs_all_indexes.resume();
+                                                }, 0);
+                                            }
+                                        })
+                                        */
+
+                                        res.raise('next', {
+                                            'type': 'index data mismatch',
+                                            'key': irk
+                                        });
+                                    }
+
+                                } else {
+                                    console.log('record not found, deleting index', irk.decoded);
+
+                                    res.raise('next', {
+                                        'type': 'record not found',
+                                        'key': irk
+                                    });
+
+                                    /*
+
+                                    this.delete_by_key(irk.buffer, (err, res_delete) => {
+                                        if (err) {
+                                            throw err;
+                                        } else {
+                                            //console.log('delete complete res_delete', res_delete);
+                                            setTimeout(() => {
+                                                // If the index record does not match the record's generated index, delete it.
+                                                //console.log('\n\n\n');
+                                                obs_all_indexes.resume();
+                                            }, 0);
+                                        }
+                                    });
+                                    */
+
+                                }
+                            }
+                        })
+                    } else {
+
+
+
+                    }
+                })
+            } else {
+                console.log('index key not valid, deleting index', irk.buffer);
+
+                res.raise('next', {
+                    'type': 'invalid index key',
+                    'key': irk
+                });
+
+                /*
+
+                this.delete_by_key(irk.buffer, (err, res_delete) => {
+                    if (err) {
+                        throw err;
+                    } else {
+                        setTimeout(() => {
+                            obs_all_indexes.resume();
+                        }, 0);
+                    }
+                })
+                */
+            }
+        });
+        obs_all_indexes.on('complete', () => {
+            console.log('obs_all_indexes complete');
+            //callback(null, true);
+
+            res.raise('complete');
+        });
+        return res;
+    }
 
 
     check_index_to_record_validity(callback) {
@@ -753,7 +977,22 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
         })
     }
 
+
+
+    // maintain could mean check and fix.
+
+
+    // Or obs_index_errors
+
+
+
+
+
     safety_check_indexes(callback) {
+
+
+        // Could maybe better do this with observables that observe the probem, and a wrapping function does the fix.
+
 
 
         // check_index_to_record_validity
@@ -776,6 +1015,9 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
 
 
     safety_check_autoincrementing_pk_tables(callback) {
+
+        // Specifying a 'set incrementor' fix?
+
         let autoincrementing_pk_tables = [];
         each(this.model.tables, table => {
             if (table.pk_incrementor) {
@@ -784,7 +1026,7 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
             //if (table.)
         })
 
-        console.log('autoincrementing_pk_tables.length', autoincrementing_pk_tables.length);
+        //console.log('autoincrementing_pk_tables.length', autoincrementing_pk_tables.length);
         let fns = Fns();
         each(autoincrementing_pk_tables, table => {
             fns.push([this, this.check_autoincrementing_table_pk, [table.name]])
@@ -819,7 +1061,7 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
 
 
 
-
+    // Can use a more functional style involving filtering and mapping.
 
     get_all_invalid_table_records() {
 
@@ -871,13 +1113,77 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
 
     // log_all_invalid_table_records
 
-    log_all_invalid_table_records() {
-        let obs = this.get_all_invalid_table_records();
-        obs.on('next', data => {
-            //console.log('get_all_invalid_table_records data', data);
-            console.log('get_all_invalid_table_records data.kvp_bufs', data.kvp_bufs);
+    observe_delete_records(obs) {
 
+        obs.on('next', record => {
+
+            //console.log('observe_delete_records data', record);
+
+            // then should be as easy as this.delete()
+
+            this.delete(record);
+
+            //stream.write(JSON.stringify([data.kvp_bufs[0].toString('hex'), data.kvp_bufs[1].toString('hex')]) + os.EOL);
         });
+
+        obs.on('complete', () => {
+            //stream.end();
+            console.log('log_all_invalid_table_records completed');
+
+            //callback(null, true);
+        });
+        return obs;
+    }
+
+
+    observe_log_records(obs) {
+
+        // A way to pause the observable until the dir is set up, file is opened.
+
+        obs.pause();
+
+        this.open_new_log_file_writer('invalid-table-records', (err, stream) => {
+            if (err) {
+                callback(err);
+            } else {
+                obs.resume();
+                obs.on('next', data => {
+                    stream.write(JSON.stringify([data.kvp_bufs[0].toString('hex'), data.kvp_bufs[1].toString('hex')]) + os.EOL);
+                });
+
+                obs.on('complete', () => {
+                    //stream.end();
+                    console.log('log_all_invalid_table_records completed');
+
+                    //callback(null, true);
+                });
+            }
+        });
+
+        return obs;
+    }
+
+
+    log_all_invalid_table_records(callback) {
+        console.log('log_all_invalid_table_records');
+        let obs = this.get_all_invalid_table_records();
+        if (callback) {
+            obs.on('complete', () => callback(null, true));
+        }
+        return this.observe_log_records(obs);
+
+
+
+
+    }
+
+    log_and_delete_invalid_table_records(callback) {
+        console.log('log_all_invalid_table_records');
+        let obs = this.get_all_invalid_table_records();
+        if (callback) {
+            obs.on('complete', () => callback(null, true));
+        }
+        return this.observe_delete_records(this.observe_log_records(obs));
     }
 
 
@@ -960,10 +1266,31 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
 
 
     // maybe fix them too.
+
+    // Maybe don't need this fn.
     check_records_validity(callback) {
 
 
-        let obs_log = this.log_all_invalid_table_records();
+        //let obs_log = this.log_all_invalid_table_records();
+
+        // all invalid table records => log => delete
+
+        // Want a simpler way of doing this with some better flow control.
+
+        // delete(log(this.all_invalid_table_records))
+
+        // Would be an observer function.
+
+        // observe_log_records
+
+
+        this.log_all_invalid_table_records((err, res) => {
+            if (err) {
+                callback(err);
+            } else {
+                callback(null, true);
+            }
+        })
 
 
         // What about loads of problem records?
@@ -991,13 +1318,6 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
         //  Want to get and explore complete data sets.
 
 
-
-
-
-
-
-
-
         //let res_problem_records = [];
 
     }
@@ -1005,18 +1325,17 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
     safety_check_table_records(callback) {
 
 
-        this.check_records_validity(callback);
+        // log_and_delete_invalid_table_records
+
+        this.log_and_delete_invalid_table_records(callback);
+
+        //this.check_records_validity(callback);
     }
 
     safety_check(fix_errors = true, callback) {
-
-
         let fns = Fns();
-
-        fns.push([this, this.safety_check_table_records, []]);
-
-
-        //fns.push([this, this.safety_check_autoincrementing_pk_tables, []]);
+        //
+        fns.push([this, this.safety_check_autoincrementing_pk_tables, []]);
 
         // safety check records.
         //  find the malformed records, delete them.
@@ -1024,15 +1343,10 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
 
         // safety_check_table_records
         //  checks the records are valid. Any records which are not valid get reported.
-
-
         // get_all_invalid_table_records
 
-
-
-
-
-        //fns.push([this, this.safety_check_indexes, []]);
+        fns.push([this, this.safety_check_indexes, []]);
+        fns.push([this, this.safety_check_table_records, []]);
         fns.go((err, res_all) => {
             if (err) {
                 callback(err);
@@ -1373,6 +1687,25 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
                 console.log('cb super NextLevelDB_Safer_Server start');
 
                 let fix_errors = true;
+
+
+                // 09/05/2018
+                //  Found that the way that the records can be (set to be) indexed can be wrong as well.
+                //  Meaning the records in the 'table indexes' table can be wrong.
+                //   That means the wrong index records would be generated.
+
+
+                // The index records were loaded up from the tables def originally, created within the model.
+                //  Maybe even this had been done wrong.
+
+
+
+
+                //
+                //this.regenerate_table_index_records();
+
+
+
 
 
                 // Could have diagnose, fix, diagnose_fix

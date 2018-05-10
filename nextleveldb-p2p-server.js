@@ -276,6 +276,93 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
         client.load_buf_core(callback);
     }
 
+    get_table_key_subdivision_sync_ranges(db_name, table_name) {
+
+        // an observable makes most sense.
+        // Would be nice to use an inner observable
+        //  or 2 - get back the subdivisions one at a time.
+
+        // get both the local and remote subdivisions
+        // Same table id local and remote?
+
+        let client = this.clients[this.map_client_indexes[db_name]];
+        let local_table_id = this.model.table_id(table_name);
+        let remote_table_id = client.model.table_id(table_name);
+
+        let table_id;
+
+        let res = new Evented_Class();
+        // res.encoding_type
+        // res.encoding
+        //  res.decode ???
+
+        // .go could return a promise or observable.
+
+
+        if (local_table_id === remote_table_id) {
+
+            // Observe the subdivisions from both tables
+            table_id = local_table_id;
+
+
+        } else {
+            throw 'Table ID mismatch. Make sure both the local and remote tables have the same ID.'
+        }
+
+        let obs_local = this.get_table_key_subdivisions(table_id, false, true).decode_envelope();
+
+        let obs_remote = client.get_table_key_subdivisions(table_id);
+        let map_local_subdivisions = {};
+        let map_remote_subdivisions = {};
+
+        let pr_all = pr_obs_all_complete([obs_local, obs_remote]);
+
+        // But with decoding as false on local it behaves differently.
+        //  Unify the behaviours and APIs of both the client and server versions.
+
+
+        obs_local.on('next', data => {
+
+            map_local_subdivisions[data[0].toString('hex')] = data[1];
+
+            if (map_remote_subdivisions[data[0].toString('hex')]) {
+                res.raise('next', [data[0],
+                    [data[1], map_remote_subdivisions[data[0].toString('hex')]]
+                ])
+            }
+        })
+        obs_remote.on('next', data => {
+
+            map_remote_subdivisions[data[0].toString('hex')] = data[1];
+            if (map_local_subdivisions[data[0].toString('hex')]) {
+                //console.log('found match');
+                res.raise('next', [data[0],
+                    [map_local_subdivisions[data[0].toString('hex')], data[1]]
+                ])
+            }
+        });
+        obs_remote.on('error', err => {
+            console.log('err', err);
+            throw 'stop';
+        });
+
+        obs_remote.on('complete', () => {
+            console.log('remote is complete');
+        });
+        obs_local.on('complete', () => {
+            console.log('local is complete');
+        });
+
+        pr_all.then(() => {
+
+            console.log('pr all complete')
+
+            res.raise('complete');
+        })
+        // and want the results of each of them.
+        return res;
+    }
+
 
 
     diff_local_and_remote_models(remote_db_name, callback) {
@@ -467,6 +554,182 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
             fns.push([this, this.copy_from_source_db, [source_db]]);
         })
         fns.go(callback);
+    }
+
+
+
+    // copy_key_ranges_to_local(db_name, key_ranges)
+
+    // get_records_in_ranges
+
+    copy_key_ranges_to_local(db_name, key_ranges) {
+        let res = new Evented_Class();
+        // could have an observable that gives feedback on the number of records put.
+
+        let client = this.clients[this.map_client_indexes[db_name]];
+
+
+
+        /*
+
+        // Could count them first for better progress report.
+        let obs_get = client.ll_get_records_in_ranges(key_ranges);
+        // Don't want these to be unpaged.
+        //  The ll client version will keep them paged.
+
+        obs_get.on('next', data => {
+
+            console.log('obs_get data.length', data.length);
+
+        });
+        */
+
+
+
+    }
+
+
+
+    // 
+
+    copy_key_range_to_local(db_name, buf_l, buf_u) {
+
+        let res = new Evented_Class();
+        // could have an observable that gives feedback on the number of records put.
+
+        let client = this.clients[this.map_client_indexes[db_name]];
+
+        let obs_count = client.ll_count_keys_in_range(buf_l, buf_u);
+
+        console.log('copy_key_range_to_local buf_l, buf_u', buf_l, buf_u);
+
+        obs_count.on('next', data => {
+            console.log('obs_count data', data);
+
+            // Then raise a result, saying it's counting.
+
+            let o = {
+                'type': 'count'
+            }
+            res.raise('next', o);
+
+        });
+
+        obs_count.on('complete', count => {
+            console.log('obs_count complete count', count);
+
+
+
+            if (count > 0) {
+                let obs_get = client.ll_get_records_in_range(buf_l, buf_u);
+
+                // Total put in this key range
+                let total_put = 0,
+                    prop_put, pct_put;
+
+
+                // How many bytes downloaded
+
+                obs_get.on('next', data => {
+
+                    console.log('obs_get data.length', data.length);
+
+                    // Buffer put this data into the DB.
+
+
+
+                    this.batch_put(data, (err, put_count) => {
+
+                        // Want to say how many records were put in the result.
+                        //  Not sure we want other data?
+                        //  res.count
+
+                        if (err) {
+                            res.raise('error', err);
+                        } else {
+                            // the batch put result could say the number of records.
+                            //  That way we can work out the proportion complete.
+                            //console.log('put_count', put_count);
+                            total_put = total_put + put_count;
+                            prop_put = total_put / count;
+                            pct_put = (prop_put * 100).toFixed(1);
+
+                            //console.log('pct_put ' + pct_put + '%');
+
+
+                            let o = {
+                                'type': 'put',
+                                'pct': pct_put,
+                                'total_records_put': total_put
+                            }
+                            res.raise('next', o);
+
+
+
+
+
+                            /*
+
+
+                            let obj_res = {
+                                'db_name': db_name,
+                                'table_name': table_name,
+                                'prop_complete': prop_put,
+                                'pct_complete': pct_put
+                            }
+                            //console.log('have put record batch.');
+                            res.raise('next', obj_res);
+
+                            */
+
+                            // 
+                        }
+                    });
+
+
+
+
+
+                })
+
+                obs_get.on('complete', () => {
+                    console.log('data has been put into the db');
+
+                    res.raise('complete');
+                })
+
+            } else {
+                console.log('count is 0');
+                res.raise('complete');
+            }
+
+            // then do the actual key range copy.
+            //
+
+            //  Want all of the records grouped together for faster put.
+
+
+
+
+
+
+
+            //res.raise('complete');
+        });
+
+        // Could count the keys there.
+
+
+        // Count first, then sync over.
+
+        // 
+
+
+
+
+
+        return res;
+
     }
 
     connect_all_clients(callback) {
@@ -671,179 +934,7 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
 
 
 
-    // copy_key_ranges_to_local(db_name, key_ranges)
 
-    // get_records_in_ranges
-
-    copy_key_ranges_to_local(db_name, key_ranges) {
-        let res = new Evented_Class();
-        // could have an observable that gives feedback on the number of records put.
-
-        let client = this.clients[this.map_client_indexes[db_name]];
-
-
-
-        /*
-
-        // Could count them first for better progress report.
-        let obs_get = client.ll_get_records_in_ranges(key_ranges);
-        // Don't want these to be unpaged.
-        //  The ll client version will keep them paged.
-
-        obs_get.on('next', data => {
-
-            console.log('obs_get data.length', data.length);
-
-        });
-        */
-
-
-
-    }
-
-
-
-    // 
-
-    copy_key_range_to_local(db_name, buf_l, buf_u) {
-
-        let res = new Evented_Class();
-        // could have an observable that gives feedback on the number of records put.
-
-        let client = this.clients[this.map_client_indexes[db_name]];
-
-        let obs_count = client.ll_count_keys_in_range(buf_l, buf_u);
-
-        console.log('copy_key_range_to_local buf_l, buf_u', buf_l, buf_u);
-
-        obs_count.on('next', data => {
-            console.log('obs_count data', data);
-
-            // Then raise a result, saying it's counting.
-
-            let o = {
-                'type': 'count'
-            }
-            res.raise('next', o);
-
-        });
-
-        obs_count.on('complete', count => {
-            console.log('obs_count complete count', count);
-
-
-
-            if (count > 0) {
-                let obs_get = client.ll_get_records_in_range(buf_l, buf_u);
-
-                // Total put in this key range
-                let total_put = 0,
-                    prop_put, pct_put;
-
-
-                // How many bytes downloaded
-
-                obs_get.on('next', data => {
-
-                    console.log('obs_get data.length', data.length);
-
-                    // Buffer put this data into the DB.
-
-
-
-                    this.batch_put(data, (err, put_count) => {
-
-                        // Want to say how many records were put in the result.
-                        //  Not sure we want other data?
-                        //  res.count
-
-                        if (err) {
-                            res.raise('error', err);
-                        } else {
-                            // the batch put result could say the number of records.
-                            //  That way we can work out the proportion complete.
-                            //console.log('put_count', put_count);
-                            total_put = total_put + put_count;
-                            prop_put = total_put / count;
-                            pct_put = (prop_put * 100).toFixed(1);
-
-                            //console.log('pct_put ' + pct_put + '%');
-
-
-                            let o = {
-                                'type': 'put',
-                                'pct': pct_put,
-                                'total_records_put': total_put
-                            }
-                            res.raise('next', o);
-
-
-
-
-
-                            /*
-
-
-                            let obj_res = {
-                                'db_name': db_name,
-                                'table_name': table_name,
-                                'prop_complete': prop_put,
-                                'pct_complete': pct_put
-                            }
-                            //console.log('have put record batch.');
-                            res.raise('next', obj_res);
-
-                            */
-
-                            // 
-                        }
-                    });
-
-
-
-
-
-                })
-
-                obs_get.on('complete', () => {
-                    console.log('data has been put into the db');
-
-                    res.raise('complete');
-                })
-
-            } else {
-                console.log('count is 0');
-                res.raise('complete');
-            }
-
-            // then do the actual key range copy.
-            //
-
-            //  Want all of the records grouped together for faster put.
-
-
-
-
-
-
-
-            //res.raise('complete');
-        });
-
-        // Could count the keys there.
-
-
-        // Count first, then sync over.
-
-        // 
-
-
-
-
-
-        return res;
-
-    }
 
     unsafe_sync_core(db_name, callback) {
         // Does not do it by model, does it lower level by records.
@@ -887,277 +978,6 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
 
 
 
-
-
-    _start_db_sync(db_name) {
-
-
-
-        let res = new Evented_Class();
-
-        this.get_local_and_remote_models(db_name, (err, models) => {
-            if (err) {
-                throw err;
-            } else {
-
-                let [local, remote] = models;
-                let diff = local.diff(remote);
-
-                //console.log('diff', diff);
-
-                //console.log('diff', JSON.stringify(diff, null, 2));
-
-                console.log('diff.count', diff.count);
-
-                // Could use these differences in the model to determine which tables will need to be synced.
-                //  Syncing here will always be about requesting data.
-
-
-                if (diff.count === 0) {
-                    // Should be able to do the sync so far...
-                    res.raise('next', 'Verified database models match');
-
-                    // Then download all of the keys....
-                    //  Could do this on a very low level.
-                    //   Even the incrementors would be the same at this stage
-                    //    Meaning the syncing would have to take place amongst the non-structural tables.
-                    //     Such as snapshot records.
-
-                    // find every table that is not core / system, and does not have any autoincrementing PKs?
-                    // When syncing tables, will need to sync the tables ahead of them
-
-                    let obs_sync_non_core_tables = this.sync_db_non_core_tables(db_name);
-                } else {
-                    // This looks like it will be the way to spin up a db instance and have it copy data from another instance automatically
-                    //  and relatively quickly.
-
-                    // Will not be that huge an algorithm.
-
-
-                    // Need to find out for every table what its outward fk links are
-
-
-                    each(diff.changed, change => {
-                        //console.log('change', change);
-
-                        let [before, after] = change;
-
-                        let int_kp = before[0][0];
-                        //console.log('int_kp', int_kp);
-
-                        if (int_kp === 0) {
-                            // Its an incrementor
-
-                            let name = before[0][2];
-                            console.log('incrementor ' + name + ' changed from ' + before[1] + ' to ' + after[1]);
-
-
-                            if (name === 'incrementor') {
-                                let vdiff = after[1] - before[1];
-                                console.log(vdiff + ' new incrementors');
-                            }
-
-                            if (name === 'table') {
-                                let vdiff = after[1] - before[1];
-                                console.log(vdiff + ' new tables');
-                            }
-
-
-
-                        }
-
-                        if (int_kp === 2) {
-                            // Tables table record
-                            //  Need to reflect / process a change to the table record.
-                            //   Will need to handle the structure of tables changing, or their number of keys...
-                            //   Currently working on creating new tables in the sync.
-
-                            // Would be nice to have a function to download a table, and all tables it relies on.
-                            //  Would be quite a useful function on the server-side that would sync a table.
-
-                            // The normalised nature of the db makes syncing more difficult right now.
-                            //  Need to approach it in stages.
-
-                            // Very soon want it so that it downloads all data smoothly and relatively quickly.
-
-                            //  Should probably keep the DB structures syncronised accross dbs.
-                            //   ie the same IDs for anything which gets referred to accross the cluster.
-
-                        }
-                    });
-
-
-                    let syncable_tables = [];
-                    let ctu = true;
-
-                    each(diff.added, item => {
-                        console.log('item', item);
-                        let int_kp = item[0][0];
-                        if (int_kp === 2) {
-                            let table_id = item[0][1];
-                            let table_name = item[1][0];
-                            console.log('Added table: ' + table_name + ' at id ' + table_id);
-                            // Check there is not already a table at that ID.
-                            //  
-                            if (this.model.tables[table_id]) {
-                                res.raise('error', new Error('Attempting to sync table ' + table_name + ' to id ' + table_id + ' but table ' + this.model.tables[table_id].name + ' is already there.'));
-                                ctu = false;
-                                // Stop running this
-                            } else {
-                                syncable_tables.push(table_name);
-                            }
-                        }
-                    })
-
-                    if (ctu) {
-                        let map_tables_fk_refs = remote.map_tables_fk_refs;
-                        console.log('map_tables_fk_refs', map_tables_fk_refs);
-                        console.log('syncable_tables', syncable_tables);
-
-
-                        // then sync the tables when ready.
-                        //  Observe something to see when it's ready.
-
-                        let ready_notifier = new Evented_Class();
-
-                        let level_0_ref_tables = [];
-                        let map_l0 = {};
-                        each(syncable_tables, syncable_table => {
-                            if (!map_tables_fk_refs[syncable_table]) {
-                                level_0_ref_tables.push(syncable_table);
-                                map_l0[syncable_table] = true;
-                            }
-                        });
-
-                        console.log('level_0_ref_tables', level_0_ref_tables);
-
-                        let q_table_sync = [];
-                        let pending = [];
-
-                        let sync_when_ready = function (table_name) {
-                            if (map_l0[table_name]) {
-                                q_table_sync.push(table_name);
-                            } else {
-                                // a pending table list.
-                                pending.push(table_name);
-                            }
-                        }
-
-
-
-                        each(syncable_tables, syncable_table => sync_when_ready(syncable_table));
-
-                        console.log('q_table_sync', q_table_sync);
-
-
-
-
-
-                        let process = () => {
-                            // shift the first item from q_table_sync
-
-                            let item = q_table_sync.shift();
-                            console.log('process item', item);
-
-
-                            if (item) {
-                                let obs_sync = this.sync_db_table(db_name, item, remote);
-                                obs_sync.on('complete', () => {
-                                    console.log('obs_sync complete');
-
-
-
-
-                                    process();
-                                })
-                                obs_sync.on('error', (err) => {
-                                    console.log('obs_sync error');
-                                    res.raise('error', err);
-
-
-
-                                    //process();
-                                })
-                            } else {
-                                process_complete();
-                            }
-
-
-                            // sync that table
-
-                            // could do sync table records.
-                            //  would need to update relevant incrementor and table field records too.
-                            //   Even keeping the table field ids the same between syncs would be useful.
-                            //   Means that a db that has got a different structure already (extra tables / fields) can't join that cluster.
-                            //    The joining db could change itself so that the needed key positions are free.
-                            //     Maybe that would even mean a process of pausing where it updates its own structure.
-                            //      Would have to notify clients of this.
-
-
-
-
-
-
-
-
-
-
-
-
-
-                        }
-
-                        let process_complete = () => {
-                            console.log('process_complete', process_complete);
-                        }
-
-                        process();
-
-
-                        // start syncing these.
-
-                        // 
-
-                    }
-
-                    // Then for each of the syncable tables, we sync it when it's ready to be synced. Precursor / structural / platform tables must have already been synced.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                    // Looks like we will need to sync various structural tables.
-
-                    // // Need to work out the syncing path.
-                    //  Sequence of tables to sync.
-
-                    // Sync structural tables which have got no fk references.
-
-                    // Keep track of when tables are ready to sync.
-
-                    // For each table, will will know which 
-
-
-
-
-
-                }
-            }
-        });
-        return res;
-    }
 
 
 
@@ -1205,278 +1025,7 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
         return res;
     }
 
-    get_table_key_subdivision_sync_ranges(db_name, table_name) {
 
-        // an observable makes most sense.
-        // Would be nice to use an inner observable
-        //  or 2 - get back the subdivisions one at a time.
-
-        // get both the local and remote subdivisions
-        // Same table id local and remote?
-
-        let client = this.clients[this.map_client_indexes[db_name]];
-
-        let local_table_id = this.model.table_id(table_name);
-        let remote_table_id = client.model.table_id(table_name);
-
-
-        let table_id;
-
-        let res = new Evented_Class();
-        // res.encoding_type
-        // res.encoding
-        //  res.decode ???
-
-        // .go could return a promise or observable.
-
-
-        if (local_table_id === remote_table_id) {
-
-            // Observe the subdivisions from both tables
-            table_id = local_table_id;
-
-
-        } else {
-            throw 'Table ID mismatch. Make sure both the local and remote tables have the same ID.'
-        }
-
-        // fns does not call as an observable.
-
-        // fns.observe
-        //  that would be a nice way to call all of these functions as a observable.
-
-
-
-
-        /*
-        let fns = Fns([
-            [
-                [this, this.get_table_key_subdivisions, [table_id]],
-                [client, client.get_table_key_subdivisions, [table_id]]
-            ]
-        ]);
-
-        let obs = fns.observe();
-        */
-
-        // On local - don't want key beginnings decoded.
-
-        //let obs_local = this.get_table_key_subdivisions(table_id, true, false);
-
-        // Think these should be encoded as being binary buffers anyway?
-
-
-        // But set it to decode?
-
-
-        // Asking for this in decoded form does not get the decoded index values.
-        //  Just separate buffers.
-
-
-        // From the local ones, want to strip out the key search
-
-        // So, the local one should have the items separated from each other, not have the items joined together as one.
-        //  Despite joined together as one being faster for some things.
-        //   Such as sending them to the server.
-
-        // Want the local calls to return split up values in terms of encoding, while when they get sent to the client they are encoded together.
-
-        //  to split the data inside the return value envelope
-        //   Don't really want to handle that within the function. They should always be deconstructed into objects on the client side.
-
-
-
-        // Could put decode options into a .decode, being a function that runs afterwards, and is given back by the calling function.
-
-        // Making decode envelope automatic on the same server would be cool.
-        //  May need to know we are not doing it in p2p mode, calling the function directly.
-
-
-
-
-        let obs_local = this.get_table_key_subdivisions(table_id, false, true).decode_envelope();
-        // But maybe have that as true when directly using the server.
-
-        // could just be a single decode level.
-
-        // Then the next stage will be to get this working for syncing, rapidly copying over records.
-
-
-
-
-
-        //  Or require its use when using the client.
-        //   Just not keen on the function itself doing it.
-
-
-
-
-
-        // obs_local.decode_result_envolope();
-
-
-
-        // obs_local.decode_result_envolope = true
-
-        // The different levels and places of decoding could be clearer when given as a parameter.
-        //  Can have more functional processing and decoding styles, using observables too.
-
-
-
-
-
-        //let obs_local = new Evented_Class();
-        // Returns full / encoded rows, no decoding whatsoever.
-
-        // Want decode option on client too.
-
-        // 
-
-        // Getting back the encoded data... would the keys still be encoded as buffers?
-        //  The beginnings as buffers, then after as values?
-        //  Probably best to fully decode these into
-        //   key / key part / incomplete key
-        //   array of the values after that key part.
-
-        // Keeping messages fully encoded for longer will have one ease advantage - we know the messages / data are encoded, or functionality needs to be able to handle encoded data.
-        //  Standard decoding will deocde the messages one level. If there is still encoded data in parts of the message, it would need to be decoded separately.
-
-        // Think we need more work calling both local and remote versions of this, to check it works the same way.
-        // [arr_key_beginning, [arr_the_rest_1, arr_the_rest_2]]
-
-        let obs_remote = client.get_table_key_subdivisions(table_id);
-        // Should have the KPs removed on the server side
-
-        // unpaging will be true by default.
-
-
-
-
-
-        // Now, this observer of remote data should unpage the data.
-
-        // unpaging observable seems like a decent way of looking at things.
-        //  could have an unpaging observable wrapper, or build it into the observable's results.
-
-
-
-
-        //let obs_remote = new Evented_Class();
-
-
-
-        let map_local_subdivisions = {};
-        let map_remote_subdivisions = {};
-
-        let pr_all = pr_obs_all_complete([obs_local, obs_remote]);
-
-        // But with decoding as false on local it behaves differently.
-        //  Unify the behaviours and APIs of both the client and server versions.
-
-
-        obs_local.on('next', data => {
-            //console.log('obs_local data', data);
-
-            //console.log('obs_local data', data);
-
-
-            // At the least we need to deocde the messages so that they 
-
-            //let d_data = Binary_Encoding.decode_buffer(data)[0];
-            //console.log('d_data', d_data);
-
-            // 
-
-
-            //throw 'stop';
-
-            //let d_data = Binary_Encoding.decode_buffer(data)[0];
-            //console.log('d_data', d_data);
-
-            // then decode the keys?
-
-
-
-
-            // may be a single buffer.
-            //console.log('obs_local data[0]' + data[0].toString('hex'));
-
-            map_local_subdivisions[data[0].toString('hex')] = data[1];
-
-            if (map_remote_subdivisions[data[0].toString('hex')]) {
-                res.raise('next', [data[0],
-                    [data[1], map_remote_subdivisions[data[0].toString('hex')]]
-                ])
-            }
-
-        })
-        obs_remote.on('next', data => {
-
-            // Nice if we can have it so that decoding here decodes the message structure.
-            //  Could consider the responses to be 'already encoded'.
-            //  I think that going into more detail on the encoding levels would work.
-
-            // Though it's unpaged, we may want to decode the results envelope.
-            //  send needs more functionality that will help with this.
-
-
-            //console.log('obs_remote data.length', data.length);
-            //console.log('obs_remote data', data);
-
-            // They should come back one at a time from the client.
-
-            // The row / response item buffer was decoded to an array structure containing buffers.
-            //  
-
-
-
-
-            //let d_data = Binary_Encoding.decode_buffer(data)[0];
-            //console.log('r_d_data', d_data);
-            //throw 'stop';
-
-            //console.log('obs_remote data[0]', data[0].toString('hex'));
-
-            // 
-
-            map_remote_subdivisions[data[0].toString('hex')] = data[1];
-
-            //console.log('map_local_subdivisions[data[0]]', map_local_subdivisions[data[0]]);
-
-            //console.log('Object.keys(map_local_subdivisions)', Object.keys(map_local_subdivisions));
-
-
-            //console.log("!!map_local_subdivisions[data[0].toString('hex') " + !!map_local_subdivisions[data[0].toString('hex')]);
-
-
-            if (map_local_subdivisions[data[0].toString('hex')]) {
-                //console.log('found match');
-                res.raise('next', [data[0],
-                    [map_local_subdivisions[data[0].toString('hex')], data[1]]
-                ])
-            }
-        });
-        obs_remote.on('error', err => {
-            console.log('err', err);
-            throw 'stop';
-        });
-
-        obs_remote.on('complete', () => {
-            console.log('remote is complete');
-        });
-        obs_local.on('complete', () => {
-            console.log('local is complete');
-        });
-
-        pr_all.then(() => {
-
-            console.log('pr all complete')
-
-            res.raise('complete');
-        })
-        // and want the results of each of them.
-        return res;
-    }
 
 
     // It looks like syncing won't be too difficult in this case.
@@ -2170,245 +1719,6 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
     //   that could then do some rearrangement if necessary.
 
 
-    __sync_db_table(db_name, table_name, remote_model) {
-        let res = new Evented_Class();
-
-
-        // Maybe don't give an update on all of the syncing. Could do it after pages loaded
-        console.log('sync_db_table');
-
-        console.log('db_name', db_name);
-        console.log('table_name', table_name);
-
-
-        let client = this.clients[this.map_client_indexes[db_name]];
-        // 
-
-
-        // Do any other tables use this table as an FK?
-        //  Would be nice if the model held maps of what links to a table.
-        //   Would be: whenever a table is added to / created within the Model, it checks to see which table(s) it refers to. Then adds that to inward_fk_refs array on that table.
-        //    for the moment, an inward_fk_refs scan would be OK.
-        //  If it has any inward fk refs, we don't want to update any values.
-        //   Want to verify that the values are the same.
-        //    Will raise an error if we find any differing values in such a table.
-        //    Will copy over new values.
-
-        let model_table = remote_model.map_tables[table_name];
-
-
-        let do_table_data_sync = () => {
-            this.get_table_id_by_name(table_name, (err, table_id) => {
-                if (err) {
-                    res.raise('error', err);
-                } else {
-
-                    // Could have different syncing systems to handle large or small amounts of rows?
-
-                    // Could avoid decoding the records too.
-                    //  What about the index records?
-                    //  Looks like they would be handled separately in ll downloads.
-                    //  Before syncing, could carry out index verification on the target DB.
-
-                    // Before getting the table records, we need to sync the table structure
-
-
-
-
-
-                    // Doing this without decoding / with minimal decoding would be fastest.
-                    //  Could maybe send at 3* the speed.
-                    //  Could also explore worker threads for decoding?
-
-
-
-                    let obs_table_records = client.get_table_records(table_name, true);
-
-                    // obs_table_records.pause(), obs_table_records.resume();
-                    //  could fit that into the client and server with some lower level instructions.
-
-
-
-
-                    obs_table_records.on('next', data => {
-                        //console.log('obs_table_records data', data);
-                        //console.log('obs_table_records data.length', data.length);
-
-                        if (data.length > 1) {
-
-                            // Batch put table records.
-                            //  Will insert the table kp itself.
-
-
-
-
-
-                            this.batch_put_table_records(table_name, data, (err, res_put) => {
-                                if (err) {
-                                    res.raise('error', err);
-                                } else {
-                                    console.log('have put record batch.');
-                                }
-                            });
-
-
-
-                        }
-
-
-
-
-                        // Want to put this data into the db.
-
-                        // 
-
-
-
-
-
-                    })
-                    obs_table_records.on('complete', data => {
-                        console.log('obs_table_records complete', data);
-
-                        res.raise('complete');
-
-                    })
-
-
-
-
-
-
-
-
-
-                    // paged download of the table rows
-
-                    // just sync by getting all of the records for the moment.
-
-
-                    // Syncing by keys...
-
-
-                }
-            })
-        }
-
-        if (model_table.inward_fk_refs.length === 0) {
-
-            // Still need to sync the structure.
-
-            let obs_sync = this.sync_db_table_structure(db_name, table_name, remote_model);
-
-
-            obs_sync.on('complete', () => {
-                do_table_data_sync();
-            })
-
-            //
-
-
-            // Also want to avoid indexed tables for the moment.
-            //  Better to verify the index on the remote table before copying it.
-            //  However the safer db system will have its own index verification.
-
-
-
-
-
-
-
-
-
-
-        } else {
-            // Becomes trickier.
-            //  Syncing will be about compare / verify / add.
-            //   Fine to add new data (however not expecting to because of model comparison showing the incrementors are in the same state)
-            console.log('has inward fk refs');
-
-            // That's OK if the table with the FKs does not exist here yet.
-
-            if (this.model.map_tables[table_name]) {
-
-                // Should be fine.
-
-                do_table_data_sync();
-
-                //throw 'table already exists';
-            } else {
-
-                let obs_sync = this.sync_db_table_structure(db_name, table_name, remote_model);
-
-
-                //throw 'stop';
-                //do_table_data_sync();
-
-            }
-
-
-            // Get the data, and compare with what exists.
-            // Checking the records individually could take a while.
-
-
-
-            /*
-            process.nextTick(() => {
-                res.raise('complete');
-            })
-            */
-
-
-
-        }
-
-
-        // Check to see if the table exists in the local model.
-        if (this.model.map_tables[table_name]) {
-
-
-            console.log('model_table.inward_fk_refs', model_table.inward_fk_refs);
-
-
-
-
-
-        } else {
-
-        }
-
-
-        // Probably need to load the remote model version.
-
-
-
-        //console.log('model_table', model_table);
-
-        //let inward_fk_refs = model_table.inward_fk_refs;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        // get the table id, then download all of the records.
-
-        // Table ids should match in both DBs, because the core models have been compared and found to be the same.
-
-        return res;
-
-    }
 
     sync_db_non_core_tables_data(db_name) {
         let res = new Evented_Class();

@@ -3,7 +3,7 @@
     "main": "nextleveldb-server.js",
     "license": "MIT",
     "dependencies": {
-        "binary-encoding": "^0.0.51",
+        "binary-encoding": "^0.0.53",
         "command-line-args": "^5.0.2",
         "deep-diff": "^0.3.8",
         "deep-equal": "^1.0.1",
@@ -11,8 +11,8 @@
         "lang-mini": "^0.0.5",
         "level": "^3.0.0",
         "my-config": "^2.0.0",
-        "nextleveldb-client": "^0.0.52",
-        "nextleveldb-model": "^0.0.45",
+        "nextleveldb-client": "^0.0.53",
+        "nextleveldb-model": "^0.0.46",
         "recursive-readdir": "^2.2.2",
         "rimraf": "^2.6.2",
         "single-line-log": "^1.1.2",
@@ -28,5 +28,5 @@
         "type": "git",
         "url": "https://github.com/metabench/nextleveldb-server.git"
     },
-    "version": "0.0.39"
+    "version": "0.0.40"
 }
