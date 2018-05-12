@@ -493,6 +493,8 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
     // validate_index_record
 
 
+    // validate against record itself
+
     observe_invalid_index_records() {
         console.log('observe_invalid_index_records');
 
