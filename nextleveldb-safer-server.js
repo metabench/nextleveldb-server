@@ -26,6 +26,13 @@ const BB_Record = Model.BB_Record;
 
 const Index_Record_Key = Model.Index_Record_Key;
 const database_encoding = Model.encoding;
+
+
+// 12/05/2018 - These functions can be best done using observables and features developed to make cleaner, more concise syntax here.
+//  It's becoming possible to express operations with much less code - repetitive work is done inside observable lang functions elsewhere.
+
+
+
 // Best to read the data out of the config before initialising.
 //  Will use local config for these p2p servers.
 //  Each server will have basic modes it operates under.
@@ -160,7 +167,17 @@ const database_encoding = Model.encoding;
 
 
 
-
+const prom_opt_cb = (prom, opt_cb) => {
+    if (opt_cb) {
+        prom.then((res) => {
+            opt_cb(null, res);
+        }, err => {
+            opt_cb(err);
+        })
+    } else {
+        return prom;
+    }
+}
 
 
 let obs_map = (obs, fn_data) => {
@@ -198,7 +215,6 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
         super(spec);
         // use some servers as full sources.
     }
-
 
     // Promises would be better overall.
     //  Would take some work but make for a nicer overall API.
@@ -306,9 +322,16 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
     // and fixes it too?
 
 
+    // check invalid index records
+
+    // scan.invalid.index.keys
+
+
 
 
     check_record_to_index_validity(callback) {
+
+        // Would be better as a Promise.
 
         // Should have done check on records first.
         //  Invalid records deleted makes sense.
@@ -336,7 +359,10 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
             //     Then comparing these to what is in the records.
             //      Decoding will be easier for the moment.
             // Using an OO record would definitely help, could use it for index lookups
-            let kv = new BB_Record(data);
+
+            console.log('data', data);
+
+            //let kv = new BB_Record(data);
             // bpair = buffer pair
             // kvp = key value pair
             //console.log('kv.bpair', kv.bpair);
@@ -344,7 +370,8 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
             // then from the record we should be able to get the kp, and therefore the table_id
             //console.log('kv.kp', kv.kp);
             //console.log('kv.table_id', kv.table_id);
-            let table = model.map_tables_by_id[kv.table_id];
+            //console.log('kv', kv);
+            let table = model.map_tables_by_id[data.table_id];
             //console.log('table.name', table.name);
             // then create the index records for that record.
             //  
@@ -358,7 +385,7 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
 
 
 
-            let bbris = table.get_record_bb_index_records(kv);
+            let bbris = table.get_record_bb_index_records(data);
 
 
 
@@ -452,8 +479,28 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
 
     }
 
+
+    // Can be done easily through get_index_records with a filter.
+
+
+    // scan functions
+
+
+    // malformed vs invalid
+    //  
+
+
+    // validate_index_record
+
+
     observe_invalid_index_records() {
+        console.log('observe_invalid_index_records');
+
         let res = new Evented_Class();
+
+        // Maybe retire Index_Record_Key.
+        //  Key can handle index records, and don't always know ahead of time.
+
         let obs_all_index_keys = obs_map(this.get_all_index_records(), data => new Index_Record_Key(data));
         // And with a validation filter...
         // 
@@ -463,9 +510,16 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
 
         // get_all_index_record_keys
 
+        // filter valid, then decode
+
+
+
         obs_all_index_keys.on('next', irk => {
             //let irk = new Index_Record_Key(data);
             if (irk.validate()) {
+
+
+
                 let decoded = irk.decoded;
                 let table = this.model.map_tables_by_id[irk.table_id];
                 let field_names = table.field_names;
@@ -558,8 +612,6 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
                         })
                     } else {
 
-
-
                     }
                 })
             } else {
@@ -594,8 +646,40 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
     }
 
 
+    // Maintain, check fix
+
+    // Have observables and maybe generators that produce sequences of results.
+
+
+
+    // Maintaining
+
+    // Checking
+
+
+    //get_correctly_formed_index_records
+
+    // validate_format
+    // validate_encoding
+
+
+
+    // get, full_scan
+
+
+
+
+    // Could use new style of coding.
+    // Get all index records, then validate filter them, so we only see the valid ones.
+
     check_index_to_record_validity(callback) {
         // Looks like there need to be 2 functions called.
+
+
+        // Should use a Promise inside
+
+
+
 
 
 
@@ -612,16 +696,55 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
 
 
 
+        // correctly formed
+        // 
 
+
+
+
+        // Also will map some observables in some places.
+
+
+
+
+
+        //let [obs_correctly_formed_indexes, obs_malformed_indexes] = this.get_all_index_records().split(data => data.validate());
+
+
+
+        // then split them into valid and invalid.
+
+
+
+
+        // get_all_valid_index_records
+        // split valid_invalid_index_records
+
+        // returns two observables
+
+        // a split function would be cool for observables.
+        //  could split into valid and invalid index records, with 2 observables.
 
         let obs_all_indexes = this.get_all_index_records();
+
+
+
+        //  for (let index in this.get_all_index_records())
+        // obs_all_indexes.each()
+
+        // 
+
+
+
+        // Match the index record with its index def record.
 
         // Can we pause and unpause this observable?
         //  Unpause it whenever we work out a result and want the next.
 
         obs_all_indexes.on('next', data => {
             //console.log('');
-            //console.log('data', data);
+            console.log('data', data);
+
 
             // The data could be full records, not just the index keys.
             //  Seems fine so far.
@@ -636,7 +759,13 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
 
 
 
-            let irk = new Index_Record_Key(data);
+            //let irk = new Index_Record_Key(data);
+            let irk = data.key;
+
+
+            console.log('irk', irk);
+            console.log('Object.keys(irk)', Object.keys(irk));
+            //throw 'stop';
 
             // irk.validate();
             //  will check the spacing, following an alg like decode, but without actual decoding.
@@ -682,6 +811,8 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
                 // for that table, should be able to refer to the model to look at what the indexes should be.
                 //  and what the fields should be.
 
+                // 
+
                 let table = this.model.map_tables_by_id[irk.table_id];
                 //console.log('table.field_names', table.field_names);
 
@@ -708,6 +839,8 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
                 // oh.. some tables have 2 indexes to check.
                 //  It's OK. They both come back at the same time.
                 //  No big problem.
+
+                // can do an index lookup.
 
 
 
@@ -820,6 +953,10 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
                         // look up the record by key
 
                         //console.log('pre this.get_table_record_by_key found_key', found_key);
+
+                        // could use a promise with await here.
+
+
                         this.get_table_record_by_key(irk.table_id, found_key, (err, found_record) => {
                             if (err) {
                                 callback(err);
@@ -917,11 +1054,6 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
                                     });
 
 
-
-
-
-
-
                                     // Will need to delete the index record.
 
                                 }
@@ -948,6 +1080,7 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
                 })
             } else {
                 console.log('index key not valid, deleting index', irk.buffer);
+                console.log('irk', irk);
 
                 // Should probably put this aside, or even delete it here.
                 //  Doing this sequentially, record by record, helps to delete it here.
@@ -987,6 +1120,9 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
 
 
 
+    // do scans, maintain = scan + fix
+
+
 
     safety_check_indexes(callback) {
 
@@ -997,6 +1133,48 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
 
         // check_index_to_record_validity
         // check_record_to_index_validity
+
+
+        // do them as promises instead
+        //  or observables
+
+        // delete the invalid indexes
+        //  
+
+        // could split an observable too.
+
+        // using async and promises would be better here.
+
+
+        // and use a promise internally, optionally return it.
+
+        /*
+        let res = new Promise((resolve, reject) => {
+            (async () => {
+                await this.check_index_to_record_validity();
+                await this.check_record_to_index_validity();
+            })();
+            resolve(true);
+        });
+
+        return prom_opt_cb(res, callback);
+        */
+        return prom_opt_cb(new Promise((resolve, reject) => {
+            (async () => {
+
+                // check index encoding
+                // validate index encoding
+
+                await this.check_index_to_record_validity();
+                await this.check_record_to_index_validity();
+            })();
+            resolve(true);
+        }), callback);
+
+
+        /*
+
+
 
         this.check_index_to_record_validity((err, res) => {
             if (err) {
@@ -1011,6 +1189,8 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
                 })
             }
         })
+
+        */
     }
 
 
@@ -1018,13 +1198,25 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
 
         // Specifying a 'set incrementor' fix?
 
+        // Get the list from the model
+        // Execute that list against one function, check_autoincrementing_table_pk
+
+
+        // best to return promise by default, internally code as Promise.
+
+
         let autoincrementing_pk_tables = [];
         each(this.model.tables, table => {
             if (table.pk_incrementor) {
                 autoincrementing_pk_tables.push(table);
             }
             //if (table.)
-        })
+        });
+
+
+        // could use for of
+
+
 
         //console.log('autoincrementing_pk_tables.length', autoincrementing_pk_tables.length);
         let fns = Fns();
@@ -1058,18 +1250,58 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
     //   May log binary records, if so, will do so in hex.
     //   Will need to store encoded data, but should store the data itself in a very easy to understand way.
 
+    // Could build up a tree of operations.
 
+    // get.all.invalid.table.keys
+    // get.all.invalid.table.records
+
+    // Could have a tree of different operations.
+    //  Put a query together with dot notation.
+    //  Really, find the right function to call.
+
+
+    /*
+    get() {
+        return {
+            'all': {
+                'valid': {
+
+                },
+                'invalid': {
+                    'table': {
+                        'records': () => { },
+                        'keys': () => { }
+                    }
+                }
+            }
+        }
+    }
+    */
 
 
     // Can use a more functional style involving filtering and mapping.
+    // A test suite definitely seems like it would be useful to test fns like this when changing them.
 
     get_all_invalid_table_records() {
 
         // Could be done through observable_filter, when it exists.
 
+
         //let res_problem_records = [];
+
+
+        /*
+
         let obs_all_table_records = this.get_all_table_records();
 
+
+        // Filter will produce a new observable
+        //this.get_all_table_records().filter
+
+
+
+        // could return an observable
+        //  or run a filter on the existing one.
 
         let res = new Evented_Class();
 
@@ -1084,14 +1316,14 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
 
         obs_all_table_records.on('next', data => {
             //console.log('data', data);
-            let bbr = new BB_Record(data);
+            //let bbr = new BB_Record(data);
             //console.log('bbr.validate_encoding()', bbr.validate_encoding());
             //console.log('bbr.decoded', bbr.decoded);
 
 
             // but how does the validation fail?
 
-            if (!bbr.validate_encoding()) {
+            if (!data.validate_encoding()) {
                 //console.log('problem record', bbr);
                 res.raise('next', bbr);
             }
@@ -1109,6 +1341,10 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
         res.stop = obs_all_table_records.stop;
 
         return res;
+
+        */
+
+        return this.get_all_table_records().filter(data => !data.validate());
     }
 
     // log_all_invalid_table_records
@@ -1171,9 +1407,6 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
             obs.on('complete', () => callback(null, true));
         }
         return this.observe_log_records(obs);
-
-
-
 
     }
 
@@ -1335,7 +1568,10 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
     safety_check(fix_errors = true, callback) {
         let fns = Fns();
         //
-        fns.push([this, this.safety_check_autoincrementing_pk_tables, []]);
+
+
+        fns.push([this, this.safety_check_indexes, []]);
+        //fns.push([this, this.safety_check_autoincrementing_pk_tables, []]);
 
         // safety check records.
         //  find the malformed records, delete them.
@@ -1345,8 +1581,8 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
         //  checks the records are valid. Any records which are not valid get reported.
         // get_all_invalid_table_records
 
-        fns.push([this, this.safety_check_indexes, []]);
-        fns.push([this, this.safety_check_table_records, []]);
+
+        //fns.push([this, this.safety_check_table_records, []]);
         fns.go((err, res_all) => {
             if (err) {
                 callback(err);
