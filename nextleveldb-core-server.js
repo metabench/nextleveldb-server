@@ -47,14 +47,19 @@ const Running_Means_Per_Second = require('./running-means-per-second');
 const levelup = require('level');
 
 const Model = require('nextleveldb-model');
-
-const fnl = require('../fnl/fnl');
-const observable = fnl.observable;
-
 const B_Record_List = Model.Record_List;
 const B_Record = Model.BB_Record;
 const B_Key = Model.BB_Key;
 const Key_List = Model.Key_List;
+
+const fnl = require('../fnl/fnl');
+const observable = fnl.observable;
+const execute_q_obs = fnl.seq;
+const sig_obs_or_cb = fnl.sig_obs_or_cb;
+const prom_or_cb = fnl.prom_or_cb;
+const
+
+
 
 const Model_Database = Model.Database;
 const encoding = Model.encoding;
@@ -79,7 +84,23 @@ const CORE_MAX_PREFIX = 9;
 // seq
 
 
-const execute_q_obs = fnl.seq;
+/*
+
+module.exports = {
+    'observable': observable,
+    'seq': seq,
+    'sequence': seq,
+    'sig_obs_or_cb': sig_obs_or_cb,
+    'cb_to_prom_or_cb': cb_to_prom_or_cb,
+    'prom_or_cb': prom_or_cb
+}
+
+
+
+*/
+
+
+
 
 
 const NextlevelDB_Core_Server = require('./nextleveldb-core-server');
@@ -687,33 +708,75 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
     // could have the limit option too, and have an observable result.
 
-
     // with a limit too?
-    ll_count_keys_in_range(buf_l, buf_u, callback) {
+    ll_count_keys_in_range(buf_l, buf_u, limit = -1, callback) {
+        // gets more complex with an observable.
+        //  should ping the count every 1000ms
 
-        // could have signature based assignment functions, then use the variables in a main function.
+        // This completes with its value.
+        //  A last value.
 
-        var count = 0;
-        //var res = [];
-        this.db.createKeyStream({
-            'gt': buf_l,
-            'lt': buf_u
-        }).on('data', function (key) {
-            //arr_res.push(x(key.length).buffer);
-            //console.log('key', key);
-            //arr_res.push(key);
-            count++;
-        }).on('error', function (err) {
-            //console.log('Oh my!', err)
-            callback(err);
-        }).on('close', function () {
-            //console.log('Stream closed')
-        }).on('end', function () {
-            //callback(null, res);
-            //console.log('*** count', count);
-            callback(null, count);
+        // or just a function o(...)
+
+        // a general purpose observable (paradigm) function
+
+        // 
+
+        // A function to get the current value too?
+
+        return sig_obs_or_cb(arguments, (a, sig, next, complete, error, l) => {
+            if (l === 1) {
+                [buf_l, buf_u] = a[0];
+            } else if (l === 2) {
+                if (sig === '[B,B]') {
+
+                } else {
+                    throw 'NYI';
+                }
+                // array and number
+                //console.log('buf_l, buf_u', buf_l, buf_u);
+            }
+
+            // A timer providing interim updates?
+            //  Still will need the last result.
+
+            var count = 0;
+            //var res = [];
+            let stream = this.db.createKeyStream({
+                'gt': buf_l,
+                'lt': buf_u,
+                'limit': limit
+            }).on('data', function (key) {
+                //arr_res.push(x(key.length).buffer);
+                //console.log('key', key);
+                //arr_res.push(key);
+                count++;
+            }).on('error', error).on('close', function () {
+                //console.log('Stream closed')
+            }).on('end', function () {
+                complete(count);
+            });
+
+            return [() => {
+                read_stream.destroy();
+                //res.raise('complete');
+                // or stopped without being completed?
+                complete();
+            }, () => {
+                if (!read_stream.isPaused()) {
+                    read_stream.pause();
+                    //return res.resume;
+                }
+            }, () => {
+                if (read_stream.isPaused()) {
+                    read_stream.resume();
+                }
+            }];
         });
     }
+
+
+    // May be obselete, new and possibly more flexible version.
 
     ll_get_records_in_range(arr_buf_range, limit = -1, callback) {
         let sig = get_a_sig(arguments);
@@ -757,7 +820,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 if (read_stream.isPaused()) {
                     read_stream.resume();
                 }
-            }]
+            }];
         }), callback);
     }
 
@@ -768,29 +831,34 @@ class NextLevelDB_Core_Server extends Evented_Class {
         // Could have a batch limit?
 
         // Promise
-        let ops = [];
-        // encode these keys...
 
-        // If the keys are not already encoded.
-        //let encoded_keys = encoding.encode_keys(arr_keys);
+        return prom_or_cb((resolve, reject) => {
+            let ops = [];
+            // encode these keys...
 
-        each(arr_keys, key => {
-            ops.push({
-                type: 'del',
-                key: key
-            });
-        });
-        this.db.batch(ops, (err) => {
-            if (err) {
-                callback(err);
-            } else {
-                this.raise('db_action', {
-                    'type': 'arr_batch_delete',
-                    'value': arr_keys
+            // If the keys are not already encoded.
+            //let encoded_keys = encoding.encode_keys(arr_keys);
+
+            each(arr_keys, key => {
+                ops.push({
+                    type: 'del',
+                    key: key.buffer || key
                 });
-                callback(null, true);
-            }
-        })
+            });
+            this.db.batch(ops, (err) => {
+                if (err) {
+                    //callback(err);
+                    reject(err);
+                } else {
+                    this.raise('db_action', {
+                        'type': 'arr_batch_delete',
+                        'value': arr_keys
+                    });
+                    //callback(null, true);
+                    resolve(true);
+                }
+            })
+        }, callback);
     }
 
 
@@ -812,6 +880,11 @@ class NextLevelDB_Core_Server extends Evented_Class {
     }
     // Because counting can take a while, need to use observable count.
 
+
+    // will have limit as well
+    //  no range specified.
+
+
     ll_count(callback) {
 
 
@@ -822,6 +895,46 @@ class NextLevelDB_Core_Server extends Evented_Class {
         // sig_obs
         //  and if the last one is a function, it returns using a callback.
 
+        return obs_or_cb((next, complete, error) => {
+            var count = 0;
+            var delay = 1000;
+            let repeater = setInterval(() => {
+                res.raise('next', count);
+
+                this.db.createKeyStream({}).on('data', function (key) {
+                    count++;
+
+                }).on('error', error)
+                    .on('close', function () {
+                        //console.log('Stream closed')
+                    })
+                    .on('end', function () {
+
+                        complete(count);
+
+                        //callback(null, count);
+                        //console.log('* count', count);
+                        // Should be able to just send a number through.
+
+                        //res.raise('next', {
+                        //    'count': count
+                        //});
+                        //res.raise('complete', {
+                        //    'count': count
+                        //});
+
+                        //res.raise('next', count);
+                        //res.raise('complete', count);
+                        clearInterval(repeater);
+                    });
+            }, delay);
+
+            return [];
+
+        })
+
+
+        /*
 
         var count = 0;
         var delay = 1000;
@@ -857,6 +970,8 @@ class NextLevelDB_Core_Server extends Evented_Class {
             // return an observable that gives count updates.
 
             let res = new Evented_Class();
+
+            // use observable instead
 
             // Then use setInterval to send back messages saying how the count has progressed.
 
@@ -894,6 +1009,8 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 });
             return res;
         }
+
+        */
     }
 
     // Could be possible to have decoding option here too.
@@ -908,12 +1025,14 @@ class NextLevelDB_Core_Server extends Evented_Class {
     //  ll version won't decode
     //  Will return records as buffer-backed
 
-
+    // Won't have decoding here.
     ll_get_table_records(table_id, opt_cb) {
         /*
         return sig_obs_or_cb(arguments, (a, sig, next, complete, error))
         // don't think we need this.
         */
+
+        /*
 
         let a = arguments,
             sig = get_a_sig(a);
@@ -921,13 +1040,20 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
         // Don't want decoding option here. It's easy to do from the result objects anyway now.
 
+
         if (sig === '[n,b]') {
             decode = a[1];
             opt_cb = null;
         }
+        */
 
         let kp = table_id * 2 + 2;
         let obs = this.ll_get_records_with_kp(xas2(kp).buffer);
+
+        return
+
+        /*
+
         if (decode) {
 
             let res = new Evented_Class();
@@ -945,9 +1071,12 @@ class NextLevelDB_Core_Server extends Evented_Class {
         } else {
             return obs;
         }
+        */
     }
 
     // No decoding
+
+
 
     ll_get_table_index_records(table_id, opt_cb) {
 
@@ -973,31 +1102,9 @@ class NextLevelDB_Core_Server extends Evented_Class {
         //console.log('obs', obs);
 
         //console.log('decode', decode);
-        if (decode) {
-
-            // Apply a filter to the observable?
-            //  A new observable around the old one that encludes decoding events?
-            //  Sounds like a job for Observable Map.
-            let res = new Evented_Class();
-
-            obs.on('next', data => {
-                //console.log('data', data);
-
-                let decoded = Model_Database.decode_model_row(data);
-                //console.log('decoded', decoded);
-
-                res.raise('next', decoded);
-            })
-            obs.on('complete', () => {
-                //console.log('ll_get_table_index_records obs complete');
-                res.raise('complete');
-            })
-            return res;
+        return obs_or_cb(obs, opt_cb);
 
 
-        } else {
-            return obs;
-        }
         //throw 'stop';
         // Observe them, having got the kp right for the indexes
 
@@ -1006,19 +1113,30 @@ class NextLevelDB_Core_Server extends Evented_Class {
     delete(record, callback) {
         // B_Record
         if (record instanceof B_Record) {
-            this.delete_by_key(record.kvp_bufs[0], callback);
+            return this.delete_by_key(record.kvp_bufs[0], callback);
         } else {
             throw 'NYI';
         }
     }
 
     delete_by_key(buf_key, callback) {
-        this.db.del(buf_key, callback);
+
+        // want this to work as a promise.
+
+        //return prom_or_cb()
+
+        if (callback) {
+            this.db.del(buf_key, callback);
+        } else {
+            return this.db.del(buf_key);
+        }
     }
 
     load_model(callback) {
         // only loads the core system db rows for the moment.
         var that = this;
+
+
 
         this.get_system_db_rows((err, system_db_rows) => {
             // These system db rows could be wrong.
@@ -1027,6 +1145,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 callback(err);
             } else {
                 console.log('system_db_rows', system_db_rows);
+                //throw 'atop';
                 // The table incrementor value should be at least about 4.
 
                 //let decoded_system_db_rows = Model_Database.decode_model_rows(system_db_rows);
@@ -1123,7 +1242,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
     count_core(callback) {
         var [bl, bu] = this.core_lu_buffers;
-        this.ll_count_keys_in_range(bl, bu, callback);
+        return this.ll_count_keys_in_range(bl, bu, callback);
         //this.
     }
 
@@ -1214,9 +1333,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
                         //  It should make use of the table incrementor to get the id.
                         //   The table incrementor had not been set correctly when initially creating the model, or not saved properly into the DB.
 
-
-
-
                         //throw 'stop';
                         // Then do the whole model diff...
 
@@ -1290,75 +1406,13 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
             throw 'NYI';
         }
-
-
-
-
-
-
-
-
-
-
-        // 
-
-        // The model table could have a function that compares itself to a table definition.
-        //  Maybe could do with a parse_table_def function that can be reused more. 
-
-        // Or create a new Table that is disconnected from the Model.
-        //  This sounds like a decent way of doing it, then compare that table to the one in the Model.
-        //   
-
-
-
-
-        // If so, get the fields from the model.
-
-
-
-
-
-
-        // This could load up table definions on the server
-
-
-        /*
-
-        this.load_model((err, model) => {
-            if (err) {
-                callback(err);
-            } else {
-
-                let table_name = arr_table[0];
-                if (model.table_exists(table_name)) {
-
-                } else {
-                    let new_table = model.add_table(arr_table);
-
-                    // A function to get every single lower level DB record from the table, then add this to the database
-
-
-
-                    // And the model would have some db changes too.
-                    //  Changes to an incrementor
-
-
-
-                    // Then get all of the db rows including incrementor rows
-
-
-
-                }
-
-                //if (model.table_exists)
-
-                //model.ensure_table()
-
-            }
-        })
-        */
-
     }
+
+
+    // This one can definitely be improved greatly.
+
+    // Definitely would like a sample / test database which does not have all that many records.
+
 
 
     ensure_tables(arr_tables, callback) {
@@ -1768,8 +1822,10 @@ class NextLevelDB_Core_Server extends Evented_Class {
     }
 
 
-    // less need for this, a record-list would be fine, easy to make.
 
+
+    // less need for this, a record-list would be fine, easy to make.
+    /*
     get_system_db_buffer(callback) {
         // tables ids 0, 1, 2
         // tables, native types, table fields
@@ -1800,6 +1856,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
             callback(null, Buffer.concat(arr_buf_res));
         })
     }
+    */
 
     get_first_and_last_keys_in_buf_range(buf_l, buf_u, remove_kp, decode, callback) {
 
@@ -1861,6 +1918,10 @@ class NextLevelDB_Core_Server extends Evented_Class {
     // get rid of remove_pks = false, decode = false to make simpler syntax
 
     get_first_and_last_keys_beginning(key_beginning, remove_pks = false, decode = false, callback) {
+
+        // change to a promise.
+
+
         let a = arguments;
         let sig = get_a_sig(a);
         let buf_key_beginning;
@@ -1899,6 +1960,8 @@ class NextLevelDB_Core_Server extends Evented_Class {
         // Already have something in the binary handler that does this.
         //  Will do first and last keys by range
 
+
+        /*
         let buf_0 = Buffer.alloc(1);
         buf_0.writeUInt8(0, 0);
         let buf_255 = Buffer.alloc(1);
@@ -1908,6 +1971,11 @@ class NextLevelDB_Core_Server extends Evented_Class {
         let buf_l = Buffer.concat([buf_key_beginning, buf_0]);
         let buf_u = Buffer.concat([buf_key_beginning, buf_255]);
         // This will also need a decode option.
+        */
+
+
+        let [buf_l, buf_u] = kp_to_range(buf_key_beginning);
+
         let pr_res = this.get_first_and_last_keys_in_buf_range(buf_l, buf_u, remove_pks, decode);
 
         if (callback) {
@@ -1925,16 +1993,13 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
     get_first_key_beginning(buf_beginning, callback) {
         let range = kp_to_range(buf_beginning);
-        this.get_first_key_in_range(range, callback);
+        return this.get_first_key_in_range(range, callback);
     }
 
     get_last_key_beginning(buf_beginning, callback) {
         let range = kp_to_range(buf_beginning);
-        this.get_last_key_in_range(range, callback);
+        return this.get_last_key_in_range(range, callback);
     }
-
-
-
 
     // Assumes decoding
 
@@ -1945,7 +2010,9 @@ class NextLevelDB_Core_Server extends Evented_Class {
     //  no decoding - but the Key is a class that can decode the buffer.
 
 
-    get_first_key_in_range(arr_range, remove_kp, decode, callback) {
+    get_first_key_in_range(arr_range, callback) {
+
+        // range query, limit 0. can use short code route here.
 
 
         // This is worth promisifying
@@ -1955,7 +2022,11 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
 
 
+        /*
+
         let a = arguments;
+
+
 
         if (a.length === 3) {
             callback = a[2];
@@ -1970,9 +2041,10 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
             throw 'get_first_key_in_range NYI';
         }
-
-
+        */
         // return prom_or_cb
+
+
 
 
         //console.log('get_first_key_in_range [remove_kp, decode]', remove_kp, decode);
@@ -1980,63 +2052,70 @@ class NextLevelDB_Core_Server extends Evented_Class {
         //console.log('buf_l', buf_l);
         //console.log('buf_u', buf_u);
 
-        let res;
 
-        this.db.createKeyStream({
-            'gte': arr_range[0],
-            'lte': arr_range[1],
-            'limit': 1
-        }).on('data', function (key) {
-            //console.log('key', key);
-            res = key;
+        return prom_or_cb((resolve, reject) => {
+            let res;
 
-        })
-            .on('error', function (err) {
-                //console.log('Oh my!', err);
+            this.db.createKeyStream({
+                'gte': arr_range[0],
+                'lte': arr_range[1],
+                'limit': 1
+            }).on('data', function (key) {
+                //console.log('key', key);
+                res = key;
             })
-            .on('close', function () {
-                //console.log('Stream closed');
-            })
-            .on('end', function () {
-                // decode
-                if (res) {
-                    //console.log('get_first_key_in_range res', res);
-
-                    if (decode) {
-                        let decoded = Model_Database.decode_key(res);
-                        if (remove_kp) {
-                            decoded.shift();
-                        }
-                        callback(null, decoded);
+                //.on('error', reject(err))
+                .on('close', function () {
+                    //console.log('Stream closed');
+                })
+                .on('end', function () {
+                    if (res) {
+                        resolve(B_Key(res));
                     } else {
-                        // Can still remove the kp from the encoded buffer.
-                        if (remove_kp) {
-                            //console.log('remove_kp', remove_kp);
-                            //console.log('!* res', res);
-
-                            let decoded_res = Model_Database.decode_key(res);
-                            //console.log('decoded_res', decoded_res);
-
-                            let rkpr = Binary_Encoding.remove_kp(res);
-                            //console.log('rkpr', rkpr);
-                            callback(null, rkpr);
-                        } else {
-                            callback(null, res);
-                        }
+                        //callback(null, undefined);
+                        // key not found.
+                        reject();
                     }
-                } else {
-                    callback(null, undefined);
-                }
-            });
+                });
+        }, callback);
+
+
     }
 
     // Should make decoding faslse by default in various places.
 
-    get_last_key_in_range(arr_range, remove_kp, decode, callback) {
+    get_last_key_in_range(arr_range, callback) {
         // again, promisify, remove remove_kp, decode, cb optional
         //console.log('buf_l', buf_l);
         //console.log('buf_u', buf_u);
 
+
+        return prom_or_cb((resolve, reject) => {
+            let res;
+            this.db.createKeyStream({
+                'gte': arr_range[0],
+                'lte': arr_range[1],
+                'limit': 1
+            }).on('data', function (key) {
+                //console.log('key', key);
+                res = key;
+            })
+                //.on('error', reject(err))
+                .on('close', function () {
+                    //console.log('Stream closed');
+                })
+                .on('end', function () {
+                    if (res) {
+                        resolve(B_Key(res));
+                    } else {
+                        //callback(null, undefined);
+                        // key not found.
+                        reject();
+                    }
+                });
+        }, callback);
+
+        /*
         let a = arguments;
         if (a.length === 2) {
             callback = a[1];
@@ -2085,17 +2164,29 @@ class NextLevelDB_Core_Server extends Evented_Class {
                         } else {
                             callback(null, res);
                         }
-
                     }
                 } else {
                     callback(null, undefined);
                 }
             });
+
+            */
     }
 
     // can use above fn because we know range
 
     get_last_key_in_table(table, callback) {
+
+
+        // find the table key range
+
+        //let [buf_l, buf_u] = this.model.map_tables_by_id[this.model.table_id(table)].key_range;
+        let range = this.model.map_tables_by_id[this.model.table_id(table)].key_range;
+        return this.get_last_key_in_range(range, callback);
+
+
+        /*
+
         let table_id, table_name;
         let t_table = tof(table);
         //console.log('table', table);
@@ -2163,10 +2254,67 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 }
             })
         }
+        */
+    }
+
+    // Basically the ll version but expressed differently, using sig_obs_or_cb to make the observable.
+
+    get_records_in_range(buf_l, buf_u, limit = -1, callback) {
+        // may want to call this using a single arr to hold the ranges.
+        // remove options decoding, remove_kp
+        // Make this use an Observable(...)
+
+        return sig_obs_or_cb(arguments, (a, sig, next, complete, error, l) => {
+            //console.log('sig', sig);
+            //console.log('a', a);
+            let buf_l, buf_u;
+            if (sig === '[a]') {
+                [buf_l, buf_u] = a[0];
+                //console.log('a[0]', a[0]);
+            } else if (sig === '[a,n]') {
+                [buf_l, buf_u] = a[0];
+                limit = a[1];
+            } else if (sig === '[B,B]') {
+                [buf_l, buf_u] = a;
+            } else if (sig === '[B,B,n]') {
+                [buf_l, buf_u, limit] = a;
+            } else {
+                console.trace();
+                console.log('sig', sig);
+                throw 'stop';
+            }
+
+            let stream = this.db.createReadStream({
+                'gt': buf_l,
+                'lt': buf_u,
+                'limit': limit
+            }).on('data', data => {
+                next(new B_Record([data.key, data.value]));
+            }).on('error', error)
+                .on('close', function () {
+                    //console.log('2) Stream closed')
+                }).on('end', complete)
+
+            return [() => {
+                stream.destroy();
+                //res.raise('complete');
+                // or stopped without being completed?
+                complete();
+            }, () => {
+                if (!stream.isPaused()) {
+                    stream.pause();
+                    //return res.resume;
+                }
+            }, () => {
+                if (stream.isPaused()) {
+                    stream.resume();
+                }
+            }];
+        })
     }
 
 
-    get_records_in_range(buf_l, buf_u, decoding = false, remove_kp = true, limit = -1, callback) {
+    _get_records_in_range(buf_l, buf_u, decoding = false, remove_kp = true, limit = -1, callback) {
         // may want to call this using a single arr to hold the ranges.
         // remove options decoding, remove_kp
         // Make this use an Observable(...)
@@ -2302,7 +2450,163 @@ class NextLevelDB_Core_Server extends Evented_Class {
     // obs_cb
     //  creates the observable but raises callback if there is one.
 
-    get_keys_in_range(buf_l, buf_u, decoding = false, remove_kp = true, limit = -1, callback) {
+    get_keys_in_range(range, limit = -1, callback) {
+
+        // A good candidate for being written as an observable
+
+
+        // may not have the best syntactic sugar yet.
+        //  would like to specify functions to assign the parameters
+        //  or even better do it quickly and automatically
+        //  want to call a different function depending on the sig, then could call other main function?
+        //  there will be some tricks that get data in the right closures.
+
+        return sig_obs_or_cb(arguments, (a, sig, next, complete, error, l) => {
+            //console.log('sig', sig);
+            //console.log('a', a);
+            let buf_l, buf_u;
+            if (sig === '[a]') {
+                [buf_l, buf_u] = a[0];
+                //console.log('a[0]', a[0]);
+            } else if (sig === '[a,n]') {
+                [buf_l, buf_u] = a[0];
+                limit = a[1];
+            } else if (sig === '[B,B]') {
+                [buf_l, buf_u] = a;
+            } else if (sig === '[B,B,n]') {
+                [buf_l, buf_u, limit] = a;
+            } else {
+                console.trace();
+                console.log('sig', sig);
+                throw 'stop';
+            }
+
+            //console.log('[buf_l, buf_u, limit]', [buf_l, buf_u, limit]);
+
+            let stream = this.db.createKeyStream({
+                'gt': buf_l,
+                'lt': buf_u,
+                'limit': limit
+            }).on('data', data_key => {
+                //console.log('data_key', data_key);
+                next(new B_Key(data_key));
+            }).on('error', error).on('close', function () {
+                //console.log('2) Stream closed')
+            }).on('end', complete)
+
+            return [() => {
+                stream.destroy();
+                //res.raise('complete');
+                // or stopped without being completed?
+                complete();
+            }, () => {
+                if (!stream.isPaused()) {
+                    stream.pause();
+                    //return res.resume;
+                }
+            }, () => {
+                if (stream.isPaused()) {
+                    stream.resume();
+                }
+            }];
+        })
+
+
+        //obs_or_cb_sig(arguments, )
+        /*
+        let a = arguments,
+            l = a.length;
+        if (l === 5) {
+            callback = a[4];
+            limit = -1;
+        }
+        */
+
+
+        // Will be possible to remove the key prefixes while not decoding them.
+
+
+        /*
+        let inner = () => {
+            let res = new Evented_Class();
+            res.response_type = 'keys';
+            res.decoded = decoding;
+
+            // but with decoding option
+
+            if (!decoding) {
+                this.db.createKeyStream({
+                    'gt': buf_l,
+                    'lt': buf_u,
+                    'limit': limit
+                }).on('data', key => {
+                    if (remove_kp) {
+                        res.raise('next', Binary_Encoding.remove_kp(key));
+                    } else {
+                        res.raise('next', key)
+                    }
+                })
+                    .on('error', function (err) {
+                        //callback(err);
+                        res.raise('next', err);
+                    })
+                    .on('close', function () {
+                        //console.log('1) Stream closed')
+                    })
+                    .on('end', function () {
+                        //callback(null, res);
+                        //console.log('arr_res', arr_res);
+                        //buf_res = Buffer.concat(arr_res);
+                        //connection.sendBytes(buf_res);
+                        res.raise('complete', {});
+                    })
+            } else {
+                this.db.createKeyStream({
+                    'gt': buf_l,
+                    'lt': buf_u,
+                    'limit': limit
+                }).on('data', function (key) {
+                    //console.log('data', data);
+                    let decoded = encoding.decode_key(key);
+                    //console.log('decoded', decoded);
+                    if (remove_kp) decoded.shift();
+                    res.raise('next', decoded);
+                })
+                    .on('error', function (err) {
+                        //callback(err);
+                        res.raise('error', err);
+                    })
+                    .on('close', function () {
+                        //console.log('2) Stream closed')
+                    })
+                    .on('end', function () {
+                        //callback(null, res);
+                        //console.log('arr_res', arr_res);
+                        //buf_res = Buffer.concat(arr_res);
+                        //connection.sendBytes(buf_res);
+
+                        //console.log('completed');
+                        res.raise('complete', {});
+                    })
+            }
+            return res;
+        }
+
+        if (callback) {
+            let obs = inner();
+            let res = [];
+            obs.on('next', data => res.push(data));
+            obs.on('error', err => callback(err));
+            obs.on('complete', () => callback(null, res));
+        } else {
+            return inner();
+        }
+        */
+    }
+
+
+
+    _get_keys_in_range(buf_l, buf_u, decoding = false, remove_kp = true, limit = -1, callback) {
 
         let a = arguments,
             l = a.length;
@@ -2433,6 +2737,16 @@ class NextLevelDB_Core_Server extends Evented_Class {
     //  but then would need to work on param parsing more.
 
     // Decoding while removing the key prefix could be useful... but we don't have it right now
+
+
+    // get keys in range
+
+    get_table_records(table, callback) {
+        let range = this.model.map_tables_by_id[this.model.table_id(table)].key_range;
+        return this.get_records_in_range(range, callback);
+    }
+
+    /*
     get_table_records(table, decode = false, remove_kp = false, callback) {
         console.log('get_table_records table', table);
         // Should have option to remove the kps.
@@ -2473,14 +2787,24 @@ class NextLevelDB_Core_Server extends Evented_Class {
         // could have a callback
         //let res = new Evented_Class();
     }
+    */
 
 
-    get_table_keys(table, decode = false, remove_kp = false, callback) {
+    // Inner observable here
+    //  Get rid of excess options.
+    get_table_keys(table, callback) {
+
+        //let buf_key_prefix = xas2(this.model.table_id(table) * 2 + 2).buffer;
+        let range = kp_to_range(xas2(this.model.table_id(table) * 2 + 2).buffer);
+        return this.get_keys_in_range(range, callback);
+
+        /*
 
         let inner = () => {
             //console.log('this.model.table_id(table)', this.model.table_id(table));
             let buf_key_prefix = xas2(this.model.table_id(table) * 2 + 2).buffer;
             //console.log('buf_key_prefix', buf_key_prefix);
+            //throw 'stop';
             let buf_0 = Buffer.alloc(1);
             buf_0.writeUInt8(0, 0);
             let buf_1 = Buffer.alloc(1);
@@ -2490,13 +2814,16 @@ class NextLevelDB_Core_Server extends Evented_Class {
             let buf_l = Buffer.concat([buf_key_prefix, buf_0]);
             let buf_u = Buffer.concat([buf_key_prefix, buf_1]);
 
+
             // While removing the key prefixes?
             //  That would be expected when it's specific to the table
             //  Would be nice (but extra work) to hava as an option
 
             // With remove kp
             //let remove_kp = true;
-            let res = this.get_keys_in_range(buf_l, buf_u, decode, remove_kp);
+            //let res = this.get_keys_in_range(buf_l, buf_u, decode, remove_kp);
+
+            let res = this.get_keys_in_range(buf_l, buf_u);
             return res;
         }
         if (callback) {
@@ -2508,7 +2835,20 @@ class NextLevelDB_Core_Server extends Evented_Class {
         } else {
             return inner();
         }
+        */
     }
+
+
+    // get all table keys
+
+    // fn_all_tables...
+
+
+    // rather we iterate the tables, get their keys easily.
+
+
+
+
 
     // Would be nice to get this working from the client.
     //  When syncing smaller tables can look for that hash value to compare.
@@ -2521,7 +2861,18 @@ class NextLevelDB_Core_Server extends Evented_Class {
     //  As well as hashes of other key selections of records.
 
 
+    // Watch an observable and return promise or callback.
     get_table_records_hash(table, callback) {
+
+        return prom_or_cb((resolve, reject) => {
+            let obs_records = this.get_table_records(table);
+            let hash = crypto.createHash('sha256');
+            obs_records.on('next', record => hash.update(record));
+            obs_records.on('complete', () => resolve(hash.digest('hex')));
+        });
+
+        /*
+
         console.log('table', table);
         let pr_inner = () => {
             let res = new Promise((resolve, reject) => {
@@ -2537,9 +2888,30 @@ class NextLevelDB_Core_Server extends Evented_Class {
         } else {
             return pr_inner();
         }
+        */
     }
 
+
+    // table.fields_info
+
+
     get_table_fields_info(table, callback) {
+
+
+        let _table = this.model.map_tables_by_id[this.model.table_id(table)];
+
+
+        if (callback) {
+            callback(null, table.fields_info);
+        } else {
+            return table.fields_info;
+        }
+
+
+
+        /*
+
+
         // May be better by far to use the model here, not interpreting DB rows.
         let inner = (callback) => {
             let table_id, table_name;
@@ -2611,6 +2983,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 callback(null, res);
             }
         });
+        */
     }
 
 
@@ -2624,20 +2997,43 @@ class NextLevelDB_Core_Server extends Evented_Class {
     // can just be get_records or get_records_by_keys
     //  observable is becoming more standard.
 
+    // Could just use 'get' command.
+
+    // Want some kind of functional optimised fp.
+
+
 
     // get_records_by_keys
 
     obs_get_records(key_list) {
-
         // would be nice to do for of with key list
-
         //console.log('obs_get_records key_list', key_list);
-
-
         // But keys that are not there?
 
         // Could return an Observable result.
 
+
+        // for of the key list
+
+
+
+        //return observable(())
+
+        return observable((next, complete, error) => {
+            for (key of key_list) {
+                let record = await this.get(key);
+                //next(await this.get(key));
+                if (record) {
+                    next(record)
+                } else {
+                    error(key);
+                }
+            }
+            complete();
+        });
+
+
+        /*
 
         let res = new Evented_Class();
 
@@ -2678,8 +3074,12 @@ class NextLevelDB_Core_Server extends Evented_Class {
         }
         inner();
         return res;
+
+        */
     }
 
+
+    // maintain / scan
     obs_records_not_found(records) {
         //obs_keys_not_found
         // as in the keys that are not found.
@@ -2701,12 +3101,20 @@ class NextLevelDB_Core_Server extends Evented_Class {
         //console.log('records', records);
 
 
+        // observer get records...
+        //  and then raise when they are not found.
 
+
+
+        /*
         let res = new Evented_Class();
 
         let kl = new Key_List(records);
 
         // We would want to be able to yield keys as we want them too?
+
+
+        // get_all_recordss
 
         let obs = this.obs_get_records(kl);
 
@@ -2727,6 +3135,21 @@ class NextLevelDB_Core_Server extends Evented_Class {
         });
 
         return res;
+        */
+
+        return observable((next, complete, error) => {
+            for (key of key_list) {
+                let record = await this.get(key);
+                //next(await this.get(key));
+                if (record) {
+                    //next(record)
+                } else {
+                    //error(key);
+                    next(key);
+                }
+            }
+            complete();
+        });
 
     }
 
@@ -2749,6 +3172,10 @@ class NextLevelDB_Core_Server extends Evented_Class {
     //  Would not need to decode the buffer.
 
     arr_batch_put(arr_bufs, callback) {
+
+
+
+
 
         // Need to do more to standardise the key prefix subscriptions
         //  and db put notifications to subscribers.
@@ -3182,7 +3609,7 @@ if (require.main === module) {
                     }
                     */
 
-                    var ls = new NextLevelDB_Server({
+                    var ls = new NextLevelDB_Core_Server({
                         'db_path': db_path,
                         'port': port
                     });
@@ -3231,7 +3658,39 @@ if (require.main === module) {
                                 })
 
                             }
-                            test_get_all_index_records();
+                            //test_get_all_index_records();
+
+                            let test_count_core = () => {
+                                console.log('test_count_core');
+
+                                /*
+                                ls.count_core((err, count) => {
+                                    if (err) {
+                                        throw err;
+                                    }
+                                    console.log('count', count);
+                                });
+                                */
+
+                                (async () => {
+                                    let count = await ls.count_core();
+                                    console.log('awaited count', count);
+                                })();
+                                // and also an observable that looks at them one by one.
+                            }
+                            //test_count_core();
+
+                            let test_get_table_keys = () => {
+                                console.log('test_get_table_keys');
+
+                                (async () => {
+                                    let keys = await ls.get_table_keys('tables');
+                                    console.log('awaited keys', keys);
+                                })();
+
+
+                            }
+                            test_get_table_keys();
 
 
 

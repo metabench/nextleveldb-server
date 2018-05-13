@@ -28,6 +28,13 @@ const Index_Record_Key = Model.Index_Record_Key;
 const database_encoding = Model.encoding;
 
 
+
+const fnl = require('../fnl/fnl');
+const observable = fnl.observable;
+const execute_q_obs = fnl.seq;
+const sig_obs_or_cb = fnl.sig_obs_or_cb;
+const prom_or_cb = fnl.prom_or_cb;
+
 // 12/05/2018 - These functions can be best done using observables and features developed to make cleaner, more concise syntax here.
 //  It's becoming possible to express operations with much less code - repetitive work is done inside observable lang functions elsewhere.
 
@@ -166,8 +173,8 @@ const database_encoding = Model.encoding;
 
 
 
-
-const prom_opt_cb = (prom, opt_cb) => {
+/*
+const prom_or_cb = (prom, opt_cb) => {
     if (opt_cb) {
         prom.then((res) => {
             opt_cb(null, res);
@@ -178,6 +185,7 @@ const prom_opt_cb = (prom, opt_cb) => {
         return prom;
     }
 }
+*/
 
 
 let obs_map = (obs, fn_data) => {
@@ -1159,9 +1167,9 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
             resolve(true);
         });
 
-        return prom_opt_cb(res, callback);
+        return prom_or_cb(res, callback);
         */
-        return prom_opt_cb(new Promise((resolve, reject) => {
+        return prom_or_cb(new Promise((resolve, reject) => {
             (async () => {
 
                 // check index encoding

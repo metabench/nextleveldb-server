@@ -424,20 +424,6 @@ let obs_map = (obs, fn_data) => {
     return res;
 }
 
-let obs_filter = (obs, fn_select) => {
-    let res = new Evented_Class();
-    fn_data.on('next', data => {
-        if (fn_select(data)) {
-            res.raise('next', data);
-        }
-    })
-    fn_data.on('complete', () => res.raise('complete'));
-    fn_data.on('error', err => res.raise('error', err));
-    if (obs.stop) res.stop = obs.stop;
-    if (obs.pause) res.pause = obs.pause;
-    if (obs.resume) res.resume = obs.resume;
-    return res;
-}
 
 let obs_arrayified_call = (caller, fn, arr_params) => {
     // Just execure one at a time.
@@ -503,73 +489,6 @@ let obs_arrayified_call = (caller, fn, arr_params) => {
 
 
 }
-
-
-/*
-
-    return observable((next, complete, error) => {
-
-    });
-
-*/
-
-/*
-
-let observable = handler => {
-
-    return () => {
-
-        // 
-
-        return [(data => {
-
-        }, opt_final_data => {
-
-        }, error => {
-
-        })]
-    }
-
-}
-*/
-
-
-// This may be a convenience way of making an observable.
-//  Allow functions to be executed inside it that produce the results.
-
-/*
-
-// have a more advanced Observable now.
-
-let observable = handler => {
-    // Call the handler function immediately.
-
-    let res = new Evented_Class();
-
-    // want to provide some functions, like aise complete etc
-
-    handler((data => {
-        res.raise('next', data);
-    }, last_val => {
-        if (typeof last_val === 'undefined') {
-            res.raise('complete')
-        } else {
-            res.raise('complete', last_val);
-        }
-    }, error => {
-        res.raise('error', error);
-    }))
-
-    //handler()
-
-    return res;
-
-}
-*/
-
-
-
-
 
 
 let kp_to_range = buf_kp => {
