@@ -57,7 +57,7 @@ const observable = fnl.observable;
 const execute_q_obs = fnl.seq;
 const sig_obs_or_cb = fnl.sig_obs_or_cb;
 const prom_or_cb = fnl.prom_or_cb;
-const
+//const
 
 
 
@@ -354,7 +354,7 @@ let get_map_cookies = request_cookies => {
 class NextLevelDB_Core_Server extends Evented_Class {
     constructor(spec) {
         super();
-        this.db_path = spec.db_path;
+        this.db_path = spec.db_path || spec.path;
         this.port = spec.port;
     }
 
@@ -377,252 +377,262 @@ class NextLevelDB_Core_Server extends Evented_Class {
         return this.model.table_ids_with_indexes;
     }
     start(callback) {
-        //console.log('this.db_path', this.db_path);
-        var options = this.db_options = {
-            'keyEncoding': 'binary',
-            'valueEncoding': 'binary'
-        };
+        return prom_or_cb((resolve, reject) => {
+            var options = this.db_options = {
+                'keyEncoding': 'binary',
+                'valueEncoding': 'binary'
+            };
 
-        var that = this;
+            var that = this;
 
-        this.using_prefix_put_alerts; // ???
-        this.map_b64kp_subscription_put_alerts = {};
-        this.map_b64kp_subscription_put_alert_counts = {};
-        var db;
+            this.using_prefix_put_alerts; // ???
+            this.map_b64kp_subscription_put_alerts = {};
+            this.map_b64kp_subscription_put_alert_counts = {};
+            var db;
 
-        //if (db_already_exists) {
-        //    db = that.db = replace_db_put(levelup(that.db_path, options), that);
-        //}
+            //if (db_already_exists) {
+            //    db = that.db = replace_db_put(levelup(that.db_path, options), that);
+            //}
 
-        //var fns_ws = {};
+            //var fns_ws = {};
 
-        var running_means_per_second = that.running_means_per_second = new Running_Means_Per_Second();
-        running_means_per_second.start_single_line_log();
+            var running_means_per_second = that.running_means_per_second = new Running_Means_Per_Second();
+            running_means_per_second.start_single_line_log();
 
-        var server = http.createServer(function (request, response) {
-            handle_http(request, response);
-        });
-
-        server.listen(that.port, function () {
-            //console.log((new Date()) + ' Server is listening on port 8080');
-            console.log("Server is listening on port " + that.port + ', using database path ' + path.normalize(that.db_path));
-            //callback(null, that.port);
-        });
-
-        var wsServer = new WebSocketServer({
-            httpServer: server,
-            maxReceivedFrameSize: 512000000,
-            autoAcceptConnections: false
-        });
-
-
-        function originIsAllowed(origin) {
-            console.log('\noriginIsAllowed origin', origin);
-            //throw 'stop';
-            // put logic here to detect whether the specified origin is allowed.
-            return true;
-        };
-
-
-        // need to load access tokens from the config
-
-        this.map_access_tokens = {};
-
-        let load_config_access_tokens = () => {
-            var config = require('my-config').init({
-                path: path.resolve('../../config/config.json') //,
-                //env : process.env['NODE_ENV']
-                //env : process.env
+            var server = http.createServer(function (request, response) {
+                handle_http(request, response);
             });
-            let root_tokens = config.nextleveldb_access.root;
-            console.log('root_tokens', root_tokens);
-            //this.map_access_tokens.root = root_tokens;
 
-            each(root_tokens, root_token => {
-                this.map_access_tokens[root_token] = 'root';
-            })
+            server.listen(that.port, function () {
+                //console.log((new Date()) + ' Server is listening on port 8080');
+                console.log("Server is listening on port " + that.port + ', using database path ' + path.normalize(that.db_path));
+                //callback(null, that.port);
+            });
 
-            console.log('this.map_access_tokens', this.map_access_tokens);
-
-
-            //this.map_access_tokens[]
-            //console.log('this.map_access_tokens.root', this.map_access_tokens.root);
-
-        }
-        load_config_access_tokens();
-
-        let check_access_token = access_token => {
-            let username = this.map_access_tokens[access_token];
-            console.log('username', username);
-
-            let allowed = false;
-
-            if (username === 'root') {
-                allowed = true;
-            }
-
-            return allowed;
-        }
+            var wsServer = new WebSocketServer({
+                httpServer: server,
+                maxReceivedFrameSize: 512000000,
+                autoAcceptConnections: false
+            });
 
 
-        //db = db || (that.db = replace_db_put(levelup(that.db_path, options), that));
-
-        var db_already_exists = false;
-        //console.log('this.db_path', this.db_path);
-        fs.exists(this.db_path, (db_dir_exists) => {
-            if (db_dir_exists) {
-                fs2.dir_contents(this.db_path, (err, res_contents) => {
-                    if (err) {
-                        callback(err);
-                    } else {
-                        //console.log('res_contents', res_contents);
-
-                        if (res_contents.files) {
-                            db_already_exists = true;
-
-                        } else {
-                            //db_already_exists = false;
-                        }
-                        proceed();
-                    }
-                });
-            } else {
-                proceed();
-            }
-        });
-
-        var proceed = () => {
-
-            db = db || levelup(this.db_path, this.db_options);
-            this.db = db;
-
-            if (db_already_exists) {
-
-                // Load the model from the database.
-
-                this.load_model((err, model) => {
-                    if (err) {
-                        throw err;
-                    } else {
-                        //console.log('model', model);
-                        //console.log('model rows', model.get_model_rows());
-                        //throw 'stop';
-                        this.model = model;
-                        proceed_2();
-                    }
-                })
-            } else {
-                // need to create the model, then ll_put those records into the db.
-                let model = new Model_Database();
-                //console.log('model', model);
-                let buf = model.get_model_rows_encoded();
-                // Could move away from 'model rows' and use these BB_Rows or a Row_List.
-                //  Row_List can represent all of them, and 
-
-                //console.log('buf.length', buf.length);
-                //console.log('decoded new model', Model_Database.decode_model_rows(buf));
-
-                var arr_core = Binary_Encoding.split_length_item_encoded_buffer_to_kv(buf);
-                //console.log('arr_core', arr_core);
-
-
-                // 13/03/2018 The table incremntor is OK here.
-
+            function originIsAllowed(origin) {
+                console.log('\noriginIsAllowed origin', origin);
                 //throw 'stop';
-
-                // Now, since we have it serialised as binary from the Model_Database, we should be able to use a (new) low level function to put a binary ll record block/array into the DB.
-                //  This is getting on for a very large amount of functionality since the last update.
-                //  Moving more functionality from the client side into the db server, then will make it available through appropriate APIs.
-                //  
+                // put logic here to detect whether the specified origin is allowed.
+                return true;
+            };
 
 
+            // need to load access tokens from the config
 
-                this.batch_put(buf, () => {
-                    // A problem decoding the buffer on the server side?
-                    //  Seems not, it's got the correct ops.
+            this.map_access_tokens = {};
 
-                    this.get_all_db_rows((err, all_db_rows) => {
+            let load_config_access_tokens = () => {
+                var config = require('my-config').init({
+                    path: path.resolve('../../config/config.json') //,
+                    //env : process.env['NODE_ENV']
+                    //env : process.env
+                });
+                let root_tokens = config.nextleveldb_access.root;
+                console.log('root_tokens', root_tokens);
+                //this.map_access_tokens.root = root_tokens;
+
+                each(root_tokens, root_token => {
+                    this.map_access_tokens[root_token] = 'root';
+                })
+
+                console.log('this.map_access_tokens', this.map_access_tokens);
+
+
+                //this.map_access_tokens[]
+                //console.log('this.map_access_tokens.root', this.map_access_tokens.root);
+
+            }
+            load_config_access_tokens();
+
+            let check_access_token = access_token => {
+                let username = this.map_access_tokens[access_token];
+                console.log('username', username);
+
+                let allowed = false;
+
+                if (username === 'root') {
+                    allowed = true;
+                }
+
+                return allowed;
+            }
+
+
+            //db = db || (that.db = replace_db_put(levelup(that.db_path, options), that));
+
+            var db_already_exists = false;
+            //console.log('this.db_path', this.db_path);
+            fs.exists(this.db_path, (db_dir_exists) => {
+                if (db_dir_exists) {
+                    fs2.dir_contents(this.db_path, (err, res_contents) => {
                         if (err) {
-                            callback(err);
+                            //callback(err);
+                            reject(err);
                         } else {
-                            //console.log('all_db_rows', all_db_rows);
-                            this.model = model;
+                            //console.log('res_contents', res_contents);
 
+                            if (res_contents.files) {
+                                db_already_exists = true;
+
+                            } else {
+                                //db_already_exists = false;
+                            }
+                            proceed();
+                        }
+                    });
+                } else {
+                    proceed();
+                }
+            });
+
+            var proceed = () => {
+
+                db = db || levelup(this.db_path, this.db_options);
+                this.db = db;
+
+                if (db_already_exists) {
+
+                    // Load the model from the database.
+
+                    this.load_model((err, model) => {
+                        if (err) {
+                            //throw err;
+                            reject(err);
+                        } else {
+                            //console.log('model', model);
+                            //console.log('model rows', model.get_model_rows());
+                            //throw 'stop';
+                            this.model = model;
                             proceed_2();
                         }
                     })
-                });
-            }
-        }
-        var next_connection_id = 0;
-
-        var proceed_2 = () => {
-
-            wsServer.on('request', function (request) {
-
-                //console.log('request', request);
-                //console.log('request.origin', request.origin);
-
-                //console.log('Object.keys(request)', Object.keys(request));
-                //console.log('Object.keys(request.socket)', Object.keys(request.socket));
-                // console.log('(request.socket)', (request.socket));
-                //console.log('Object.keys(request.socket.server)', Object.keys(request.socket.server));
-                //console.log('Object.keys(request.socket._peername)', Object.keys(request.socket._peername));
-                //console.log('(request.socket._peername)', (request.socket._peername));
-
-                //console.log('request.cookies', request.cookies);
-
-                let map_cookies = get_map_cookies(request.cookies);
-                //console.log('map_cookies', map_cookies);
-
-                let provided_access_token = map_cookies['access_token'];
-                // Check the provided access token to see if it's allowed.
-
-                let access_allowed = check_access_token(provided_access_token);
-                //console.log('access_allowed', access_allowed);
-                if (!access_allowed) {
-                    request.reject();
-                    console.log((new Date()) + ' Valid access token required.');
-                    return;
                 } else {
+                    // need to create the model, then ll_put those records into the db.
+                    let model = new Model_Database();
+                    //console.log('model', model);
+                    let buf = model.get_model_rows_encoded();
+                    // Could move away from 'model rows' and use these BB_Rows or a Row_List.
+                    //  Row_List can represent all of them, and 
 
-                    if (!originIsAllowed(request.origin)) {
-                        request.reject();
-                        console.log((new Date()) + ' Connection from origin ' + request.origin + ' rejected.');
-                        return;
-                    }
+                    //console.log('buf.length', buf.length);
+                    //console.log('decoded new model', Model_Database.decode_model_rows(buf));
 
-                    // // This is a possible place to check authentication and authorisation.
-                    // Could just check for a valid access token. If a valid token is provided, then we can continue.
-                    //  Worth handing it to an auth module. Authenticates a user has the access token, authorises them to connect.
+                    var arr_core = Binary_Encoding.split_length_item_encoded_buffer_to_kv(buf);
+                    //console.log('arr_core', arr_core);
 
-                    var connection = request.accept('echo-protocol', request.origin);
-                    connection.id = next_connection_id++;
-                    //console.log((new Date()) + ' Connection accepted.');
-                    connection.on('message', function (message) {
-                        //console.log('message', message);
-                        if (message.type === 'utf8') {
-                            throw 'deprecating utf8 interface';
-                        } else if (message.type === 'binary') {
-                            handle_ws_binary(connection, that, message.binaryData);
-                        }
-                    });
-                    connection.on('close', function (reasonCode, description) {
-                        console.log((new Date()) + ' Peer ' + connection.remoteAddress + ' disconnected.\n');
-                        console.log('reasonCode, description', reasonCode, description);
-                        // Then need to unsubscribe from event handler.
-                        // Cancel the subscriptions.
-                        var cancel_subscriptions = function () {
-                            each(connection.subscription_handlers, (subscription_handler, event_name) => {
-                                that.off(event_name, subscription_handler);
-                            })
-                        };
-                        cancel_subscriptions();
+
+                    // 13/03/2018 The table incremntor is OK here.
+
+                    //throw 'stop';
+
+                    // Now, since we have it serialised as binary from the Model_Database, we should be able to use a (new) low level function to put a binary ll record block/array into the DB.
+                    //  This is getting on for a very large amount of functionality since the last update.
+                    //  Moving more functionality from the client side into the db server, then will make it available through appropriate APIs.
+                    //  
+
+
+
+                    this.batch_put(buf, () => {
+                        // A problem decoding the buffer on the server side?
+                        //  Seems not, it's got the correct ops.
+
+                        this.get_all_db_rows((err, all_db_rows) => {
+                            if (err) {
+                                //callback(err);
+                                reject(err);
+                            } else {
+                                //console.log('all_db_rows', all_db_rows);
+                                this.model = model;
+
+                                proceed_2();
+                            }
+                        })
                     });
                 }
-            });
-            callback(null, true);
-        }
+            }
+            var next_connection_id = 0;
+
+            var proceed_2 = () => {
+
+                wsServer.on('request', function (request) {
+
+                    //console.log('request', request);
+                    //console.log('request.origin', request.origin);
+
+                    //console.log('Object.keys(request)', Object.keys(request));
+                    //console.log('Object.keys(request.socket)', Object.keys(request.socket));
+                    // console.log('(request.socket)', (request.socket));
+                    //console.log('Object.keys(request.socket.server)', Object.keys(request.socket.server));
+                    //console.log('Object.keys(request.socket._peername)', Object.keys(request.socket._peername));
+                    //console.log('(request.socket._peername)', (request.socket._peername));
+
+                    //console.log('request.cookies', request.cookies);
+
+                    let map_cookies = get_map_cookies(request.cookies);
+                    //console.log('map_cookies', map_cookies);
+
+                    let provided_access_token = map_cookies['access_token'];
+                    // Check the provided access token to see if it's allowed.
+
+                    let access_allowed = check_access_token(provided_access_token);
+                    //console.log('access_allowed', access_allowed);
+                    if (!access_allowed) {
+                        request.reject();
+                        console.log((new Date()) + ' Valid access token required.');
+                        return;
+                    } else {
+
+                        if (!originIsAllowed(request.origin)) {
+                            request.reject();
+                            console.log((new Date()) + ' Connection from origin ' + request.origin + ' rejected.');
+                            return;
+                        }
+
+                        // // This is a possible place to check authentication and authorisation.
+                        // Could just check for a valid access token. If a valid token is provided, then we can continue.
+                        //  Worth handing it to an auth module. Authenticates a user has the access token, authorises them to connect.
+
+                        var connection = request.accept('echo-protocol', request.origin);
+                        connection.id = next_connection_id++;
+                        //console.log((new Date()) + ' Connection accepted.');
+                        connection.on('message', function (message) {
+                            //console.log('message', message);
+                            if (message.type === 'utf8') {
+                                throw 'deprecating utf8 interface';
+                            } else if (message.type === 'binary') {
+                                handle_ws_binary(connection, that, message.binaryData);
+                            }
+                        });
+                        connection.on('close', function (reasonCode, description) {
+                            console.log((new Date()) + ' Peer ' + connection.remoteAddress + ' disconnected.\n');
+                            console.log('reasonCode, description', reasonCode, description);
+                            // Then need to unsubscribe from event handler.
+                            // Cancel the subscriptions.
+                            var cancel_subscriptions = function () {
+                                each(connection.subscription_handlers, (subscription_handler, event_name) => {
+                                    that.off(event_name, subscription_handler);
+                                })
+                            };
+                            cancel_subscriptions();
+                        });
+                    }
+                });
+
+                resolve(true);
+
+                //callback(null, true);
+            }
+        }, callback);
+
+        //console.log('this.db_path', this.db_path);
+
     }
 
     ll_wipe(callback) {
@@ -885,7 +895,14 @@ class NextLevelDB_Core_Server extends Evented_Class {
     //  no range specified.
 
 
-    ll_count(callback) {
+    // just call it count.
+    //  it's the core count now.
+    //  coult be overridden.
+    //   will be changed to accept params / range
+
+    count(callback) {
+
+
 
 
         // change to observable
@@ -894,44 +911,48 @@ class NextLevelDB_Core_Server extends Evented_Class {
         // how about an inner function that gets the argument sig, and has the internal definition for observable.
         // sig_obs
         //  and if the last one is a function, it returns using a callback.
-
+        //console.log('count !!callback', !!callback);
         return obs_or_cb((next, complete, error) => {
             var count = 0;
             var delay = 1000;
             let repeater = setInterval(() => {
-                res.raise('next', count);
+                //res.raise('next', count);
+                next(count);
 
-                this.db.createKeyStream({}).on('data', function (key) {
-                    count++;
+                //console.log('count', count);
 
-                }).on('error', error)
-                    .on('close', function () {
-                        //console.log('Stream closed')
-                    })
-                    .on('end', function () {
-
-                        complete(count);
-
-                        //callback(null, count);
-                        //console.log('* count', count);
-                        // Should be able to just send a number through.
-
-                        //res.raise('next', {
-                        //    'count': count
-                        //});
-                        //res.raise('complete', {
-                        //    'count': count
-                        //});
-
-                        //res.raise('next', count);
-                        //res.raise('complete', count);
-                        clearInterval(repeater);
-                    });
             }, delay);
+            //console.log('counting');
+
+            let stream = this.db.createKeyStream({}).on('data', function (key) {
+                count++;
+
+
+            }).on('error', error)
+                .on('close', function () {
+                    //console.log('Stream closed')
+                })
+                .on('end', function () {
+
+                    //callback(null, count);
+                    //console.log('* count', count);
+                    // Should be able to just send a number through.
+
+                    //res.raise('next', {
+                    //    'count': count
+                    //});
+                    //res.raise('complete', {
+                    //    'count': count
+                    //});
+
+                    //res.raise('next', count);
+                    //res.raise('complete', count);
+                    clearInterval(repeater);
+                    complete(count);
+                });
 
             return [];
-
-        })
+        }, callback);
 
 
         /*
@@ -1248,6 +1269,67 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
 
 
+    // needed in the core.
+    persist_row_diffs(row_diffs, callback) {
+        // Shouldn't use the batch put system I think?
+        //  If it did, listeners would be able to respond to the events.
+
+
+        return prom_or_cb((resolve, reject) => {
+            let ops = [];
+
+            // For the moment, will batch it up into ops.
+
+            each(row_diffs.deleted, record => {
+                ops.push({
+                    'type': 'del',
+                    'key': record[0]
+                });
+            })
+            each(row_diffs.added, record => {
+                ops.push({
+                    'type': 'put',
+                    'key': record[0],
+                    'value': record[1]
+                });
+            })
+            each(row_diffs.changed, record_pair => {
+                let new_record = record_pair[1];
+                ops.push({
+                    'type': 'put',
+                    'key': new_record[0],
+                    'value': new_record[1]
+                });
+            });
+
+            //console.log('ops', ops);
+            //throw 'stop';
+
+            this.db.batch(ops, (err) => {
+                if (err) {
+                    //callback(err);
+                    reject(err);
+                } else {
+                    resolve();
+
+                    /*
+                    this.raise('db_action', {
+                        'type': 'arr_batch_put',
+                        'value': ops
+                    });
+                    */
+
+                    //callback(null, true);
+                }
+            })
+        }, callback);
+
+
+
+    }
+
+
+
     // Records with incomplete keys...
     //  Could be a fine format for when we know the record will be assigned an id by the table.
 
@@ -1269,14 +1351,124 @@ class NextLevelDB_Core_Server extends Evented_Class {
         throw 'NYI';
         let table_pk = arr_record[0][0];
 
-        let table_id = (table_pk - 2) / 2;
+        let table_id = (table_pk - 2) / 2
 
 
 
 
     }
 
+
+
+
+    // would be nice to make an observable
+    //  could send log-level updates about what it is doing
+    //  could get other observables on the way to 
+
     ensure_table(arr_table, callback) {
+        console.log('ensure_table');
+
+        let table_name, table_def;
+
+
+        // observable with last
+        //  so can be used with await
+
+
+        // and get the sig
+
+        return sig_obs_or_cb(arguments, (a, sig, next, complete, error, l) => {
+            // not sure 
+
+            console.log('sig', sig);
+
+            if (sig === '[s,a]') {
+                [table_name, table_def] = a;
+            } else {
+                throw 'NYI';
+            }
+
+            (async () => {
+                let exists = !!this.model.map_tables[table_name];
+                console.log('exists', exists);
+                if (exists) {
+
+                    // but this result is maybe not ready yet.
+                    //  as in the 'then' has not been called.
+                    // a small delay before calling this?
+
+
+
+                    console.log('pre complete');
+                    // could check its structure is the same
+                    //complete();
+                    setImmediate(complete);
+
+                    //complete();
+                } else {
+                    console.log('does not exist');
+
+                    // let old_model_rows = this.model.get_model_rows();
+
+                    // model.rows
+
+                    // a rows property / iterator would be useful.
+                    //  nice if rows were an iterable object.
+                    //  just an array will be fine.
+
+
+                    let old_model_rows = this.model.rows;
+                    //console.log('model.rows', this.model.rows);
+
+                    // that works OK now, at least externally.
+                    //  will use this kind of buffer-backed row more, and as a default.
+                    //  allows use of both encoded and decoded data, decode on demand.
+
+                    console.log('table_name, table_def', table_name, table_def);
+                    //throw 'stop';
+
+                    let new_table = this.model.add_table(table_name, table_def);
+                    console.log('new_table.id', new_table.id);
+
+                    let new_model_rows = this.model.get_model_rows();
+
+                    let diff = Model_Database.diff_model_rows(old_model_rows, new_model_rows);
+                    //console.log('diff ' + JSON.stringify(diff, null, 4));
+                    //console.log('diff ', diff);
+                    console.log('diff.changed.length', diff.changed.length);
+                    console.log('diff.added.length', diff.added.length);
+
+                    // then persist that diff.
+
+                    let persisted = await this.persist_row_diffs(diff);
+
+
+                    // //complete(new Active_Table())
+                    // complete(this.active_table(table_name));
+
+
+                    complete();
+
+                }
+            })();
+            return [];
+        });
+
+
+
+
+        // next({
+        //    type: 'update',
+        //    data: 'difference persisted    
+        //})
+
+
+
+        // could take the table name
+        //  as well as the table definition?
+
+        // cloned model add table
+        // model.Table(arr_table);
 
         // Optional callback, otherwise return observable
 
@@ -1301,6 +1493,8 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
         // If the table doesn't exist, then create it according to the spec.
 
+
+        /*
 
         let inner = (cb) => {
             //console.log('ensure_table arr_table', arr_table);
@@ -1406,6 +1600,8 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
             throw 'NYI';
         }
+
+        */
     }
 
 
@@ -1784,7 +1980,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
     get_system_db_rows(callback) {
 
-        console.log('get_system_db_rows');
+        //console.log('get_system_db_rows');
         //throw 'stop';
 
 
@@ -2418,11 +2614,10 @@ class NextLevelDB_Core_Server extends Evented_Class {
         // probably just an observable producing the results is best.
         //  while faster results could be available by batching the responses here, it's messier code, and I'm going for simpler code where possible.
 
-        console.log('get_records_in_ranges', arr_ranges);
+        //console.log('get_records_in_ranges', arr_ranges);
 
         // multiple observables, carry them out in sequence.
         //  unlikely that making parallel calls here will give much of an advantage, could mess up ordering.
-
 
         // get records in range, called as a sequence of observables.
         // obs_arrayified_call(this, this.get_records_in_range, arr_ranges);
@@ -3019,17 +3214,25 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
         //return observable(())
 
+
+
+
         return observable((next, complete, error) => {
-            for (key of key_list) {
-                let record = await this.get(key);
-                //next(await this.get(key));
-                if (record) {
-                    next(record)
-                } else {
-                    error(key);
+
+            (async () => {
+                for (key of key_list) {
+                    let record = await this.get(key);
+                    //next(await this.get(key));
+                    if (record) {
+                        next(record)
+                    } else {
+                        error(key);
+                    }
                 }
-            }
-            complete();
+                complete();
+            })();
+
+
         });
 
 
@@ -3138,17 +3341,23 @@ class NextLevelDB_Core_Server extends Evented_Class {
         */
 
         return observable((next, complete, error) => {
-            for (key of key_list) {
-                let record = await this.get(key);
-                //next(await this.get(key));
-                if (record) {
-                    //next(record)
-                } else {
-                    //error(key);
-                    next(key);
+
+            (async () => {
+                for (key of key_list) {
+                    let record = await this.get(key);
+                    //next(await this.get(key));
+                    if (record) {
+                        //next(record)
+                    } else {
+                        //error(key);
+                        next(key);
+                    }
                 }
-            }
-            complete();
+                complete();
+            })();
+
+
+
         });
 
     }
@@ -3172,9 +3381,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
     //  Would not need to decode the buffer.
 
     arr_batch_put(arr_bufs, callback) {
-
-
-
 
 
         // Need to do more to standardise the key prefix subscriptions
@@ -3303,8 +3509,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
         } else {
             callback(new Error('Table ' + table_name + ' does not exist locally'));
         }
-
-
     }
 
     batch_put_decoded_arr(arr, callback) {
@@ -3321,7 +3525,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 // Better to use a map and array.
                 //  Maybe the standard event based system would be fine.
                 //  Do more work on subscription handling.
-
                 for (key in this.map_b64kp_subscription_put_alert_counts) {
                     if (b64_key.indexOf(key) === 0) {
                         map_key_batches[key] = map_key_batches[key] || [];
@@ -3335,18 +3538,14 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 'value': row[1]
             });
         });
-
-
         db.batch(ops, err => {
             if (err) {
                 callback(err);
             } else {
-
                 this.raise('db_action', {
                     'type': 'batch_put',
                     'arr': arr
                 });
-
                 each(map_key_batches, (map_key_batch, key) => {
                     //console.log('1) key', key);
                     console.log('map_key_batch', map_key_batch);
@@ -3363,21 +3562,16 @@ class NextLevelDB_Core_Server extends Evented_Class {
     }
 
     batch_put_kvpbs(arr_pairs, callback) {
-
         let ops,
             db = this.db,
             b64_key, c, l, map_key_batches = {},
             key;
-
         // Unable to raise the buffer batch put event.
-
         let put_using_prefix_alerts = () => {
             ops = [];
             each(arr_pairs, pair => {
-
                 //prefix_put_alerts_batch = [];
                 var map_b64kp_subscription_put_alert_counts = this.map_b64kp_subscription_put_alert_counts;
-
                 b64_key = pair[0].toString('hex');
                 // Better to use a map and array.
                 //  Maybe the standard event based system would be fine.
@@ -3389,7 +3583,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
                         map_key_batches[key].push(pair);
                     }
                 }
-
                 ops.push({
                     'type': 'put',
                     'key': pair[0],
@@ -3397,7 +3590,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 });
             })
         }
-
         let put_without_prefix_alerts = () => {
             let l = arr_pairs.length;
             let c;
@@ -3410,26 +3602,20 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 });
             }
         }
-
         if (this.using_prefix_put_alerts) {
             put_using_prefix_alerts();
         } else {
             put_without_prefix_alerts();
         }
-
         var that = this;
         db.batch(ops, function (err) {
             if (err) {
                 callback(err);
             } else {
-
-
-
                 that.raise('db_action', {
                     'type': 'batch_put',
                     'items': arr_pairs
                 });
-
                 each(map_key_batches, (map_key_batch, key) => {
                     //console.log('1) key', key);
                     console.log('map_key_batch', map_key_batch);
@@ -3445,17 +3631,18 @@ class NextLevelDB_Core_Server extends Evented_Class {
         });
     }
 
-
     batch_put(buf, callback) {
 
         // buf is an array by default? An array of buffers?
         this.batch_put_kvpbs(Model.encoding.buffer_to_row_buffer_pairs(buf), callback);
     }
 
-
-
     table_exists(table_name, callback) {
         // Does not need to be async when checking the model.
+
+
+
+
 
         // Should probably consult the index records??? Error was not there.
         //console.log('table_name', table_name);
@@ -3477,9 +3664,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
     //  The server having its own copy of the model makes it more efficient.
 
     // non-core persist_row_diffs
-
-
-
 
 
     // Setting removal of kp to false here may help.

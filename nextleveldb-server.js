@@ -555,6 +555,24 @@ class NextLevelDB_Server extends NextlevelDB_Core_Server {
 
     //ensure_record, ensure_table in the core now.
 
+    // active_table object
+    //  would have various functions given to it / loaded here.
+
+
+    // put function
+    //  and then would check that any records actually refer to this one?
+    //  used to encode records
+
+    // .records
+    //  an async iterator?
+
+    //
+    // for (record of active_table.records) ...
+    //  looks like that would take some more buffered paging.
+    //  so it pages to the active_table, and keeps a buffer populated with results.
+    //   different ways of doing this I'm sure.
+
+
 
 
 
@@ -1168,52 +1186,6 @@ class NextLevelDB_Server extends NextlevelDB_Core_Server {
 
 
 
-    persist_row_diffs(row_diffs, callback) {
-        // Shouldn't use the batch put system I think?
-        //  If it did, listeners would be able to respond to the events.
-
-        let ops = [];
-
-        // For the moment, will batch it up into ops.
-
-        each(row_diffs.deleted, record => {
-            ops.push({
-                'type': 'del',
-                'key': record[0]
-            });
-        })
-        each(row_diffs.added, record => {
-            ops.push({
-                'type': 'put',
-                'key': record[0],
-                'value': record[1]
-            });
-        })
-        each(row_diffs.changed, record_pair => {
-            let new_record = record_pair[1];
-            ops.push({
-                'type': 'put',
-                'key': new_record[0],
-                'value': new_record[1]
-            });
-        })
-
-        this.db.batch(ops, (err) => {
-            if (err) {
-                callback(err);
-            } else {
-
-                /*
-                this.raise('db_action', {
-                    'type': 'arr_batch_put',
-                    'value': ops
-                });
-                */
-
-                callback(null, true);
-            }
-        })
-    }
 
     // Will be useful for partial syncing.
 
