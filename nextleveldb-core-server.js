@@ -1071,7 +1071,10 @@ class NextLevelDB_Core_Server extends Evented_Class {
         let kp = table_id * 2 + 2;
         let obs = this.ll_get_records_with_kp(xas2(kp).buffer);
 
-        return
+
+        return obs_or_cb(obs, opt_cb);
+
+        //return obs;
 
         /*
 
@@ -1430,6 +1433,10 @@ class NextLevelDB_Core_Server extends Evented_Class {
                     let new_table = this.model.add_table(table_name, table_def);
                     console.log('new_table.id', new_table.id);
 
+                    console.log('new_table.indexes.length', new_table.indexes.length);
+                    //throw 'stop';
+
+
                     let new_model_rows = this.model.get_model_rows();
 
                     let diff = Model_Database.diff_model_rows(old_model_rows, new_model_rows);
@@ -1439,6 +1446,8 @@ class NextLevelDB_Core_Server extends Evented_Class {
                     console.log('diff.added.length', diff.added.length);
 
                     // then persist that diff.
+
+                    // The table indexes...
 
                     let persisted = await this.persist_row_diffs(diff);
 
@@ -2461,7 +2470,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
         // Make this use an Observable(...)
 
         return sig_obs_or_cb(arguments, (a, sig, next, complete, error, l) => {
-            //console.log('sig', sig);
+            console.log('get_records_in_range sig', sig);
             //console.log('a', a);
             let buf_l, buf_u;
             if (sig === '[a]') {
@@ -2935,6 +2944,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
 
     // get keys in range
+
 
     get_table_records(table, callback) {
         let range = this.model.map_tables_by_id[this.model.table_id(table)].key_range;
@@ -3440,6 +3450,227 @@ class NextLevelDB_Core_Server extends Evented_Class {
     }
 
 
+    put_table_record(table, record, callback) {
+
+
+        // ensure model is up-to-date
+        //  at least in the section concerning the table
+
+
+        // 
+
+        // 
+
+
+        // For the moment, could assume all indexes are unique indexes
+        //  Later on, completely get rid of that, and use unique constraints, by table.
+        //   Any valid record needs to satisfy the constraints, and those constraints are stored as constraints.
+
+
+        let model_table;
+        if (typeof table === 'number') {
+            model_table = this.model.map_tables_by_id[table];
+        }
+
+
+
+        console.log('table', table);
+
+        // model table
+
+        // Will deal with the indexing as expected.
+
+        return prom_or_cb(async (resolve, reject) => {
+
+            let indexes = model_table.indexes;
+
+            console.log('put_table_record', record);
+
+            if (record instanceof B_Record) {
+                // may need to put index records too
+
+                throw 'NYI';
+
+                if (indexes.length > 0) {
+
+                } else {
+                    // Put that single record.
+
+                    // ll_put makes sense.
+
+                    // want a smallish number of ll_functions, doing some essential tasks relatively simply.
+
+
+
+                    //resolve()
+                }
+            } else if (Array.isArray(record)) {
+                //let b_records = model_table.
+
+
+                // get the pk inc value directly from the db?
+                //  ensure that part of the model is up-to-date.
+
+                // Active incrementors will help considerably.
+                //  Better if increment happens on the DB, synced quickly
+
+
+                // do an index lookup on the unique fields.
+                //  fail to overwrite if any unique fields are already there.
+
+
+                console.log('model_table.unique_fields', model_table.unique_fields);
+
+                // type_id
+
+
+
+
+                let old_model_pk_inc_val = model_table.pk_incrementor.value;
+
+                console.log('m_record.pk_incrementor', model_table.pk_incrementor);
+                let m_record = model_table.add_record(record);
+                console.log('m_record', m_record);
+
+                console.log('m_record.pk_incrementor', model_table.pk_incrementor);
+
+                let new_model_pk_inc_val = model_table.pk_incrementor.value;
+
+                console.log('old_model_pk_inc_val', old_model_pk_inc_val);
+                console.log('new_model_pk_inc_val', new_model_pk_inc_val);
+
+                let b_records = m_record.to_b_records();
+
+
+                if (old_model_pk_inc_val !== new_model_pk_inc_val) {
+                    b_records.push(model_table.pk_incrementor.record);
+                }
+
+                console.log('b_records', b_records);
+
+                // Could use the type id to represent if the field is unique as well as the type.
+                //  if type_id > 128  subtract 128 and say it's a unique field.
+
+                // This lack of unique field status is a challenge right now.
+                //  don't want to assume all indexed fields have to be unique.
+
+
+                // Getting unique fields (and unique indexes) right seems important.
+                //  The distinction between unique and non-unique indexes.
+
+                // Could have multiple crypto-trades at the same timestamp on the same exchange.
+                //  May want to index them in a way that does not assume uniqueness.
+
+                // Uniqueness could be done as a constraint.
+                //  Not sure how much internal change to the DB it would require.
+
+                // Unique constraints may be the way to go about it.
+                //  loads the constraints from a field constraints table
+                //  says which field it applies to.
+                // Old DBs simply would not support or have any unique constraints that way.
+                //  However, may need to have / make some reserved system space in the DBs.
+
+                // Mass-shifting records + indexes would be useful.
+                //  Being able to move a record's id.
+
+
+                // Not doing unique record / constraint checking on put.
+                //  For the moment no constraint checking makes sense, as there are no constraints to check.
+
+
+                // Being able to move a table would make sense.
+                //  Indexes refer to a table by id, so would need to change all index records that point towards it.
+                //  The records themselves. FKs that make reference to 
+
+                // Changing a whole bunch of records at once...
+                //  Key definitions refer to the table.
+
+                // Being able to shift tables (all) along would make sense.
+                //  Seems like a somewhat complicated / involved function.
+
+                // May be best just to use indexes as they are for the moment.
+                //  Don't have a way to mark / check if fields are unique though.
+
+                // Going through every LL record, parsing it, interpreting it will help to be able to change the index values.
+                //  LL_Active_Record? So it refers to a row in the DB?
+
+                // Row - low level leveldb row
+                // Record - logical unit including its row, and all indexes.
+                //  Shifting KPs will be part of it.
+
+                // Could change a table id in the model, then see how it is reflected in the core rows.
+                //  
+
+                // Getting back on with the saving of crypto data...
+                //  Could be done without unique constraints.
+
+                // The next big change to the DB will have further space for system tables.
+                //  Reserving space (by id) for 6 more system tables would be of use.
+
+                // Need to save the crypto data properly now.
+                //  Looks like the crypto saving system broke, it was not collecting data.
+
+                // Seems like going for the crypto collecing reliability is important.
+                //  Very likely to have lost some data from the last few daya (not collected it in the first place).
+
+
+                // Really this should be simple logging, but it's turned into a quite complex DB project.
+                //  Getting info about movement over the last few hours will certainly be useful.
+                //  Really need to have this sitting there gathering info.
+
+                // Actually, saved data collection so far seems OK.
+                //  Want to work on the crypto-data-collector to give it a nicer interface.
+                //  Bittrex watcher could do its repeated collect, and then raise events. The collector would then watch the watcher.
+
+                // worth getting running on data11, data12
+                //  data13 could even amalgamate data from the other servers.
+
+                // copying all the backup dbs would help.
+                //  should be able to sort through them and import data.
+
+
+                // Definitely worth getting another crypto collector running soon, and sync the data from it.
+                //  Being able to download a ZIP of all records? All price info records?
+                //  Getting this in a normalised form?
+                //  Records grouped together by month and by exchange?
+
+                // Making graphs of the data will definitely help to tell if it's full / valid.
+
+                // Worth setting up data11 with improved collector.
+                //  Then get the data back from it.
+
+                // 
+
+
+
+
+
+
+
+                console.log('model_table.fields', model_table.fields.map(x => x.type_id));
+
+
+                //throw 'stop';
+
+                let res = await this.ll_batch_put(b_records);
+                resolve(res);
+
+
+                // get the incrementor record for the table id.
+                //  worth getting that from the model,
+                //  checking that it matches the server's current value
+                //  
+
+                //console.log('Object.keys(model_table)' + Object.keys(model_table));
+
+
+            }
+
+        }, callback);
+    }
+
+
+
     // This one splices the kp into it.
     //  Decoding the records has removed the kp.
 
@@ -3630,6 +3861,77 @@ class NextLevelDB_Core_Server extends Evented_Class {
             }
         });
     }
+
+    // Different types of batch put
+    //  Some batches may also require generation / checking / putting index records.
+
+    // low level batch put
+    //  needs to be a simple put operation.
+
+    // Can have other function to read / respond to key ranges.
+
+    // With invisible callbacks too here....
+    //  can it read the arguments (being an arrow function)
+    ll_batch_put(arr_items, callback) {
+        return prom_or_cb((resolve, reject) => {
+            console.log('arr_items', arr_items);
+
+            let ops = arr_items.map(item => {
+                console.log('item', item);
+
+                if (item instanceof B_Record) {
+                    return {
+                        'type': 'put',
+                        'key': item.kvp_bufs[0],
+                        'value': item.kvp_bufs[1]
+                    }
+                }
+
+                /*
+                return {
+                    'type': 'put',
+                    'key': item[0],
+                    'value': item[1]
+                }
+                */
+            });
+
+            console.log('ops', ops);
+
+            /*
+
+            db.batch(ops, function (err) {
+                if (err) {
+                    reject(err);
+                } else {
+
+                    resolve();
+
+                }
+            });
+            */
+
+            return this.db.batch(ops);
+
+
+
+
+
+
+
+
+            //let ops = [];
+            //each()
+
+            // Could load it up into a Record_List to ensure the format
+            //  
+
+
+
+        }, callback);
+
+    }
+
 
     batch_put(buf, callback) {
 
@@ -4037,6 +4339,9 @@ if (require.main === module) {
 } else {
     //console.log('required as a module');
 }
+
+let p = NextLevelDB_Core_Server.prototype;
+p.get_table_records = p.ll_get_table_records;
 
 
 module.exports = NextLevelDB_Core_Server;
