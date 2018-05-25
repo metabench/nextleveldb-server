@@ -327,7 +327,7 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
 
             if (map_remote_subdivisions[data[0].toString('hex')]) {
                 res.raise('next', [data[0],
-                    [data[1], map_remote_subdivisions[data[0].toString('hex')]]
+                [data[1], map_remote_subdivisions[data[0].toString('hex')]]
                 ])
             }
         })
@@ -337,7 +337,7 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
             if (map_local_subdivisions[data[0].toString('hex')]) {
                 //console.log('found match');
                 res.raise('next', [data[0],
-                    [map_local_subdivisions[data[0].toString('hex')], data[1]]
+                [map_local_subdivisions[data[0].toString('hex')], data[1]]
                 ])
             }
         });
@@ -426,7 +426,7 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
 
 
                 let diff = Model_Database.diff_model_rows(local_table_records, remote_table_records);
-                console.log('diff', diff);
+                //console.log('diff', diff);
                 //throw 'stop';
 
                 callback(null, diff);
@@ -438,7 +438,7 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
 
         // decode and remove the key prefixes
 
-        console.log('local this.get_table_records');
+        //console.log('local this.get_table_records');
 
         this.get_table_records(table_name, true, true, (err, _local_table_records) => {
 

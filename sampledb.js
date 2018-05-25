@@ -17,7 +17,7 @@ const path = require('path');
 // db of countries
 
 
-// Unique indexes on both
+// (Unique) indexes on both
 let def_table_countries = [['+id'], ['!name', '!code']];
 
 // then have regions
@@ -28,11 +28,7 @@ console.log('OS User Directory:', user_dir);
 var path_dbs = path.join(user_dir + '/NextLevelDB/dbs');
 console.log('path_dbs', path_dbs);
 
-
-
 //const nextleveldb_active = require('nextleveldb-active');
-
-
 
 
 let server = new NextLevelDB_Server({
@@ -71,12 +67,33 @@ let server = new NextLevelDB_Server({
     // 
     console.log('countries values active_table_countries.records', (await active_table_countries.records).map(x => x.decoded[1]));
 
+
+    // 
+
     let us_record = await active_table_countries.put(['United States of America', 'US']);
     console.log('us_record', us_record);
+    // Should raise a problem on the unique constraint.
+    //  No unique constraint so far.
+    //  Better to use 'ensure' that does a lookup on the indexed field.
+    //  Will likely need to change db definitions.
+
+
+
+
+
 
 
     //because it's a unique field, will only get one record.
     let record_us = await active_table_countries.get_by_field('code', 'us');
+    console.log('record_us', record_us);
+
+
+
+
+
+    // active_table.ensure(...);
+    //  will lookup the id (look for the record)
+    //  if it finds it, we are OK, if not will need to put the record in place.
 
 
 

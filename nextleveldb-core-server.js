@@ -1160,6 +1160,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
         // only loads the core system db rows for the moment.
         var that = this;
 
+        // 
 
 
         this.get_system_db_rows((err, system_db_rows) => {
@@ -1168,13 +1169,18 @@ class NextLevelDB_Core_Server extends Evented_Class {
             if (err) {
                 callback(err);
             } else {
-                console.log('system_db_rows', system_db_rows);
+                //console.log('system_db_rows', system_db_rows);
+
+                // Looks like it did not add the incrementors when ensuring the db.
+
+
+
                 //throw 'atop';
                 // The table incrementor value should be at least about 4.
 
                 //let decoded_system_db_rows = Model_Database.decode_model_rows(system_db_rows);
                 //console.log('system_db_rows', system_db_rows);
-                console.log('system_db_rows.length', system_db_rows.length);
+                //console.log('system_db_rows.length', system_db_rows.length);
                 //throw 'stop';
                 //throw 'stop';
 
@@ -1188,7 +1194,11 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 //   If the model is not in initialisation mode, or early_init mode, we add the table records and index records as the tables get added
 
 
+                // Not reading those rows in the same way?
+                //  Some db rows not loaded into the model properly....
 
+
+                // Null rather than an empty array being better everywhere?
 
 
                 this.model = Model_Database.load(system_db_rows);
@@ -1198,21 +1208,29 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
                 // Leaving out the index of incrementors.??
                 // 
+                let model_rows = this.model.rows;
+                //  getting the model rows missing some of them out for some reason?
 
-                let model_rows = this.model.get_model_rows();
-                //console.log('system_db_rows.length', system_db_rows.length);
-                //console.log('model_rows.length', model_rows.length);
+
+
 
                 if (model_rows.length !== system_db_rows.length) {
                     //console.log('system_db_rows.length', system_db_rows.length);
-                    console.log('model_rows.length', model_rows.length);
+                    //console.log('model_rows.length', model_rows.length);
 
                     // 13/03/2018 - This is a newly discovered bug where the model does not make every table (missing the native types table) when it gets reconstructed.
 
                     // do a diff here?
 
-                    //console.log('model_rows', Model_Database.decode_model_rows(model_rows));
+
                     //console.log('system_db_rows', Model_Database.decode_model_rows(system_db_rows));
+                    console.log('system_db_rows');
+                    each(system_db_rows, row => console.log('row.decoded', row.decoded));
+                    console.log('model_rows', Model_Database.decode_model_rows(model_rows));
+
+                    // I think the model is not generating the index rows.
+
+                    //throw 'stop';
 
 
                     // Not so sure that an index of incrementors is that useful....
@@ -1229,8 +1247,14 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
                     //
 
-                    let diff = Model_Database.diff_model_rows(Model_Database.decode_model_rows(model_rows), Model_Database.decode_model_rows(system_db_rows));
-                    console.log('diff', JSON.stringify(diff, null, 2));
+                    //console.log('Model_Database.decode_model_rows(system_db_rows)', Model_Database.decode_model_rows(system_db_rows));
+
+
+                    //let diff = Model_Database.diff_model_rows(Model_Database.decode_model_rows(system_db_rows), Model_Database.decode_model_rows(model_rows));
+
+                    let diff = Model_Database.diff_model_rows(system_db_rows, model_rows);
+
+                    //console.log('diff', JSON.stringify(diff, null, 2));
 
                     console.log('diff.changed.length', diff.changed.length);
                     console.log('diff.added.length', diff.added.length);
@@ -1238,17 +1262,24 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
                     //each(diff.changed, changed => console.log('changed', changed));
 
-                    each(diff.changed, changed => {
-                        console.log('changed[0]', changed[0]);
-                        console.log('changed[1]', changed[1]);
-
-
-
+                    each(diff.added, added => {
+                        console.log('added', added.decoded);
                     });
 
+                    each(diff.changed, changed => {
+                        console.log('changed[0]', changed[0].decoded);
+                        console.log('changed[1]', changed[1].decoded);
+                    });
+
+                    each(diff.deleted, deleted => {
+                        console.log('deleted', deleted.decoded);
+                    });
 
                     // Though this error is very annoying, it will help to keep things in sync and prevent it from getting worse.
                     //  This checks that the model rows have been loaded properly from the DB
+
+                    console.log('system_db_rows.length', system_db_rows.length);
+                    console.log('model_rows.length', model_rows.length);
 
                     callback(new Error('Mismatch between core db rows and core rows obtained from model. '));
 
@@ -1277,6 +1308,8 @@ class NextLevelDB_Core_Server extends Evented_Class {
         // Shouldn't use the batch put system I think?
         //  If it did, listeners would be able to respond to the events.
 
+        // row_diffs will now deal with the buffer backed row and record types.
+
 
         return prom_or_cb((resolve, reject) => {
             let ops = [];
@@ -1284,24 +1317,43 @@ class NextLevelDB_Core_Server extends Evented_Class {
             // For the moment, will batch it up into ops.
 
             each(row_diffs.deleted, record => {
+
+                // these records map have kvp_bufs
+
+                //console.log('del record', record.decoded);
+
                 ops.push({
                     'type': 'del',
-                    'key': record[0]
+                    'key': record[0] || record.kvp_bufs[0]
                 });
             })
             each(row_diffs.added, record => {
+
+                //console.log('put record', record.decoded);
+
                 ops.push({
                     'type': 'put',
-                    'key': record[0],
-                    'value': record[1]
+                    'key': record[0] || record.kvp_bufs[0],
+                    'value': record[1] || record.kvp_bufs[1]
                 });
             })
             each(row_diffs.changed, record_pair => {
+
+                //console.log('changed record \nbefore', record_pair[0].decoded, '\nafter', record_pair[1].decoded);
+
                 let new_record = record_pair[1];
+
+                // delete at the old keys
+
+                ops.push({
+                    'type': 'del',
+                    'key': record_pair[0][0] || record_pair[0].kvp_bufs[0]
+                });
+
                 ops.push({
                     'type': 'put',
-                    'key': new_record[0],
-                    'value': new_record[1]
+                    'key': new_record[0] || new_record.kvp_bufs[0],
+                    'value': new_record[1] || new_record.kvp_bufs[1]
                 });
             });
 
@@ -1369,7 +1421,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
     //  could get other observables on the way to 
 
     ensure_table(arr_table, callback) {
-        console.log('ensure_table');
+        //console.log('ensure_table');
 
         let table_name, table_def;
 
@@ -1382,34 +1434,30 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
         return sig_obs_or_cb(arguments, (a, sig, next, complete, error, l) => {
             // not sure 
-
-            console.log('sig', sig);
-
+            //console.log('sig', sig);
             if (sig === '[s,a]') {
                 [table_name, table_def] = a;
             } else {
+                console.log('a', a);
+                console.trace();
                 throw 'NYI';
             }
 
             (async () => {
                 let exists = !!this.model.map_tables[table_name];
-                console.log('exists', exists);
-                if (exists) {
+                //console.log('exists', exists);
 
+                if (exists) {
                     // but this result is maybe not ready yet.
                     //  as in the 'then' has not been called.
                     // a small delay before calling this?
-
-
-
                     console.log('pre complete');
                     // could check its structure is the same
                     //complete();
                     setImmediate(complete);
-
                     //complete();
                 } else {
-                    console.log('does not exist');
+                    //console.log('does not exist');
 
                     // let old_model_rows = this.model.get_model_rows();
 
@@ -1418,43 +1466,58 @@ class NextLevelDB_Core_Server extends Evented_Class {
                     // a rows property / iterator would be useful.
                     //  nice if rows were an iterable object.
                     //  just an array will be fine.
-
-
                     let old_model_rows = this.model.rows;
+
+
+
                     //console.log('model.rows', this.model.rows);
 
                     // that works OK now, at least externally.
                     //  will use this kind of buffer-backed row more, and as a default.
                     //  allows use of both encoded and decoded data, decode on demand.
-
-                    console.log('table_name, table_def', table_name, table_def);
+                    //console.log('table_name, table_def', table_name, table_def);
                     //throw 'stop';
 
                     let new_table = this.model.add_table(table_name, table_def);
-                    console.log('new_table.id', new_table.id);
-
-                    console.log('new_table.indexes.length', new_table.indexes.length);
+                    //console.log('new_table.id', new_table.id);
+                    //console.log('new_table.indexes.length', new_table.indexes.length);
                     //throw 'stop';
 
-
-                    let new_model_rows = this.model.get_model_rows();
-
+                    //let new_model_rows = this.model.get_model_rows();
+                    let new_model_rows = this.model.rows;
                     let diff = Model_Database.diff_model_rows(old_model_rows, new_model_rows);
                     //console.log('diff ' + JSON.stringify(diff, null, 4));
                     //console.log('diff ', diff);
-                    console.log('diff.changed.length', diff.changed.length);
-                    console.log('diff.added.length', diff.added.length);
+                    //console.log('diff.deleted.length', diff.deleted.length);
+                    //console.log('diff.changed.length', diff.changed.length);
+                    //console.log('diff.changed.length', diff.changed.length);
+                    // then each of the changes...
+
+
+                    //console.log('diff.added.length', diff.added.length);
+
+                    each(diff.added, x => console.log('added', x.decoded));
+
+                    each(diff.changed, x => console.log('changed', x[0].decoded, x[1].decoded));
+
+                    //throw 'stop';
 
                     // then persist that diff.
-
                     // The table indexes...
 
-                    let persisted = await this.persist_row_diffs(diff);
 
+                    //console.log('pre persist');
+                    let persisted = await this.persist_row_diffs(diff);
+                    //console.log('post persist');
+                    //throw 'stop';
 
                     // //complete(new Active_Table())
                     // complete(this.active_table(table_name));
 
+                    // Should not need to reload the model, as work is done in the model here.
+
+
+                    //let reloaded_model = await this.load_model();
 
                     complete();
 
@@ -1677,7 +1740,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
             let fns = Fns();
             each(arr_tables, arr_table => {
                 console.log('arr_table', arr_table);
-                fns.push([this, this.ensure_table, [arr_table]]);
+                fns.push([this, this.ensure_table, arr_table]);
             });
             fns.go((err, res_all) => {
                 if (err) {
@@ -2470,7 +2533,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
         // Make this use an Observable(...)
 
         return sig_obs_or_cb(arguments, (a, sig, next, complete, error, l) => {
-            console.log('get_records_in_range sig', sig);
+            //console.log('get_records_in_range sig', sig);
             //console.log('a', a);
             let buf_l, buf_u;
             if (sig === '[a]') {
@@ -3452,6 +3515,16 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
     put_table_record(table, record, callback) {
 
+        // Seems like a problem with ensuring unique indexes while putting the record.
+
+        // Want to be able to put a record while being sure it does not make a collision.
+        //  Would also need a client-side version of this, as it is core.
+
+
+
+
+
+
 
         // ensure model is up-to-date
         //  at least in the section concerning the table
@@ -3484,11 +3557,18 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
             let indexes = model_table.indexes;
 
+            // So it's worked out the record from the Model.
+
+
             console.log('put_table_record', record);
+            console.log('record instanceof B_Record', record instanceof B_Record);
+            console.log('Array.isArray(record)', Array.isArray(record));
 
             if (record instanceof B_Record) {
                 // may need to put index records too
 
+                console.log('indexes.length', indexes.length);
+                console.trace();
                 throw 'NYI';
 
                 if (indexes.length > 0) {
@@ -3519,7 +3599,16 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 //  fail to overwrite if any unique fields are already there.
 
 
+                // Can't get the unique fields from the table.
+                //  Unique field constraints not implemented.
+
+
+                // Could make ensure_record
+                //  it looks it up using indexes info (not relying on unique constraint)
+
+                console.log('pre look for unique fields');
                 console.log('model_table.unique_fields', model_table.unique_fields);
+                console.log('post look for unique fields');
 
                 // type_id
 
@@ -3647,7 +3736,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
 
 
-                console.log('model_table.fields', model_table.fields.map(x => x.type_id));
+                //console.log('model_table.fields', model_table.fields.map(x => x.type_id));
 
 
                 //throw 'stop';
@@ -3874,10 +3963,10 @@ class NextLevelDB_Core_Server extends Evented_Class {
     //  can it read the arguments (being an arrow function)
     ll_batch_put(arr_items, callback) {
         return prom_or_cb((resolve, reject) => {
-            console.log('arr_items', arr_items);
+            //console.log('arr_items', arr_items);
 
             let ops = arr_items.map(item => {
-                console.log('item', item);
+                //console.log('item', item);
 
                 if (item instanceof B_Record) {
                     return {
@@ -3896,7 +3985,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 */
             });
 
-            console.log('ops', ops);
+            //console.log('ops', ops);
 
             /*
 

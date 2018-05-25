@@ -1406,7 +1406,6 @@ if (require.main === module) {
     const options = commandLineArgs(option_definitions);
 
     console.log('options', options);
-
     //throw 'stop';
 
     var user_dir = os.homedir();
@@ -1476,8 +1475,6 @@ if (require.main === module) {
                                 }, 3000);
                             }
 
-
-
                             let test_get_malformed_index_records = () => {
                                 console.log('test_get_malformed_index_records');
                                 // but that's in safety.
@@ -1494,10 +1491,19 @@ if (require.main === module) {
                                     console.log('get_all_index_records data', data);
 
                                 })
+                            }
+                            //test_get_all_index_records();
+
+
+                            // view tables and fields
+                            let show_tables = () => {
+
+
+
+                                console.log('ls.model.description', ls.model.description);
 
                             }
-                            test_get_all_index_records();
-
+                            show_tables();
 
 
 

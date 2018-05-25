@@ -11,8 +11,8 @@
         "lang-mini": "^0.0.6",
         "level": "^3.0.01",
         "my-config": "^2.0.0",
-        "nextleveldb-client": "^0.0.58",
-        "nextleveldb-model": "^0.0.51",
+        "nextleveldb-client": "^0.0.59",
+        "nextleveldb-model": "^0.0.54",
         "recursive-readdir": "^2.2.2",
         "rimraf": "^2.6.2",
         "single-line-log": "^1.1.2",
@@ -28,5 +28,5 @@
         "type": "git",
         "url": "https://github.com/metabench/nextleveldb-server.git"
     },
-    "version": "0.0.45"
+    "version": "0.0.46"
 }
