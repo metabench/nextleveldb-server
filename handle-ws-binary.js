@@ -318,9 +318,16 @@ const LL_FIND_COUNT_TABLE_RECORDS_INDEX_MATCH = 11;
 //const LL_PUT_RECORD_INDEX_IT = 12;
 
 
+
+// Change to 'Put'?
 // Could make 12 polymorphic so it checks if it is given an array?
 const INSERT_TABLE_RECORD = 12;
 const INSERT_RECORDS = 13;
+
+
+const ENSURE_RECORD = 14;
+
+
 
 
 // Definitely want it taking in plenty of records per second, and saving them to the DB.
@@ -3222,6 +3229,27 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     }
 
 
+    // This is a way around not having unique constraints right now.
+    //   Checks if the record exists based on indexed info.
+    if (i_query_type === ENSURE_RECORD) {
+        console.log('ENSURE_RECORD');
+
+        // Does the record already exist based on index lookups
+
+        // Is the key complete?
+
+        // Use the oo Command_Message class
+
+        let cm = new Command_Message(message_binary);
+        console.log('cm', cm);
+
+
+
+
+
+    }
+
+
 
     if (i_query_type === TABLE_EXISTS) {
         // Decode the table name
@@ -3239,7 +3267,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
                 let msg_response = [buf_msg_id, buf_binary_paging_none, xas2(exists).buffer];
                 connection.sendBytes(Buffer.concat(msg_response));
-
             }
         })
 

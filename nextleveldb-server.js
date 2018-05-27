@@ -1364,12 +1364,8 @@ class NextLevelDB_Server extends NextlevelDB_Core_Server {
         }
         // Maybe a where condition too?
     }
-
-
-
     // WIP
     //  Reads from the server-side model db.
-
 }
 
 // Run it from the command line with a path?
@@ -1404,10 +1400,8 @@ if (require.main === module) {
     }]
 
     const options = commandLineArgs(option_definitions);
-
     console.log('options', options);
     //throw 'stop';
-
     var user_dir = os.homedir();
     console.log('OS User Directory:', user_dir);
     //var docs_dir =
@@ -1426,9 +1420,7 @@ if (require.main === module) {
                     //var db_path = 'db';
                     var port = 420;
                     // Is the first one the node executable?
-
                     console.log('db_path', db_path);
-
                     //console.log('process.argv.length', process.argv.length);
                     //console.log('process.argv', process.argv);
                     /*
@@ -1489,7 +1481,6 @@ if (require.main === module) {
                                 obs_ir = ls.get_all_index_records();
                                 obs_ir.on('next', data => {
                                     console.log('get_all_index_records data', data);
-
                                 })
                             }
                             //test_get_all_index_records();
@@ -1497,9 +1488,6 @@ if (require.main === module) {
 
                             // view tables and fields
                             let show_tables = () => {
-
-
-
                                 console.log('ls.model.description', ls.model.description);
 
                             }
