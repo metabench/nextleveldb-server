@@ -326,7 +326,7 @@ const INSERT_RECORDS = 13;
 
 
 const ENSURE_RECORD = 14;
-
+const ENSURE_TABLE_RECORD = 15;
 
 
 
@@ -670,8 +670,9 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     [message_id, pos] = x.read(message_binary, pos);
     [i_query_type, pos] = x.read(message_binary, pos);
 
-    console.log('message_id', message_id);
-    console.log('i_query_type', i_query_type);
+    //console.log('message_id', message_id);
+    //console.log('i_query_type', i_query_type);
+
 
     var buf_the_rest = Buffer.alloc(message_binary.length - pos);
     message_binary.copy(buf_the_rest, 0, pos);
@@ -3242,6 +3243,53 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
         let cm = new Command_Message(message_binary);
         console.log('cm', cm);
+
+
+
+
+
+    }
+
+
+    if (i_query_type === ENSURE_TABLE_RECORD) {
+        console.log('ENSURE_TABLE_RECORD');
+
+        // Does the record already exist based on index lookups
+
+        // Is the key complete?
+
+        // Use the oo Command_Message class
+
+        let cm = new Command_Message(message_binary);
+        console.log('cm', cm);
+
+        // decode the command message.
+        console.log('cm.id', cm.id);
+        console.log('cm.command_id', cm.command_id);
+
+        // then thes are the params.
+        //  any buffers in there will need to be decoded too.
+
+        // worth having this in Command_Message.
+
+
+
+
+
+        console.log('cm.inner', cm.inner);
+
+
+        // Then these buffers will be some kind of encoded buffer-backed types
+        // Their xas2 prefix indicates what type they are.
+
+
+
+
+
+        // inner
+
+        // decode inner buffer.
+        //  more like we want the command args.
 
 
 

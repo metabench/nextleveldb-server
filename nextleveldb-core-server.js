@@ -963,7 +963,9 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
                     //console.log('system_db_rows', Model_Database.decode_model_rows(system_db_rows));
                     //console.log('system_db_rows');
-                    each(system_db_rows, row => console.log('row.decoded', row.decoded));
+
+                    //each(system_db_rows, row => console.log('row.decoded', row.decoded));
+
                     //console.log('model_rows', Model_Database.decode_model_rows(model_rows));
                     // I think the model is not generating the index rows.
                     //throw 'stop';
@@ -983,8 +985,13 @@ class NextLevelDB_Core_Server extends Evented_Class {
                     console.log('diff.changed.length', diff.changed.length);
                     console.log('diff.added.length', diff.added.length);
                     console.log('diff.deleted.length', diff.deleted.length);
+
+
+                    //console.log('diff.added', diff.added);
+
                     //each(diff.changed, changed => console.log('changed', changed));
                     each(diff.added, added => {
+                        console.log('added', added);
                         console.log('added', added.decoded);
                     });
 
@@ -1156,6 +1163,178 @@ class NextLevelDB_Core_Server extends Evented_Class {
         }, callback);
     }
 
+
+    // May get more complicated?
+    //  ensure_table_record
+
+    // where we are told what table its for.
+
+
+    // Table record lookup
+
+    table_record_lookup(table_id, data, callback) {
+        return prom_or_cb((resolve, reject) => {
+
+            console.log('table_record_lookup table_id, data', table_id, data);
+
+            let model_table = this.model.map_tables_by_id[table_id];
+
+
+            // calculate lookups from model table and data
+            //  could be in the Model even.
+
+
+
+
+            let kv_fields = model_table.kv_fields;
+            console.log('new_active_record kv_fields', kv_fields);
+
+            // then make a map of these
+
+            let map_fields = {};
+            each(kv_fields[0], ((x, i) => map_fields[x] = [0, i]));
+            each(kv_fields[1], ((x, i) => map_fields[x] = [1, i]));
+
+            console.log('map_fields', map_fields);
+
+            // Then are there any fields in the kv that are not used in the data
+            //  Could that be all the fields missing from the PK?
+
+
+            //let map_fields_missing_from_data = {};
+            let map_fields_from_data = {};
+
+            each(data, (value, name) => {
+                // look for the name
+
+                let ref = map_fields[name];
+                console.log('name ' + name + ' ref', ref);
+
+                map_fields_from_data[name] = true;
+            });
+
+            // key fields missing
+
+            let key_fields_missing = [];
+            let value_fields_missing = [];
+
+            each(kv_fields[0], (x, i) => {
+                if (!map_fields_from_data[x]) {
+                    key_fields_missing.push(x);
+                }
+            })
+
+            each(kv_fields[1], (x, i) => {
+                if (!map_fields_from_data[x]) {
+                    value_fields_missing.push(x);
+                }
+            })
+
+            console.log('key_fields_missing', key_fields_missing);
+            console.log('value_fields_missing', value_fields_missing);
+
+
+            // get indexed field names from the model table as an operation.
+
+            //let single_indexed_field_names = 
+
+            let indexed_field_names_and_ids = model_table.indexed_field_names_and_ids;
+            // indexed fields names and ids
+
+            console.log('indexed_field_names_and_ids', indexed_field_names_and_ids);
+            //  
+
+
+            // then do two separate lookups by that field.
+
+
+
+
+            // Then if there is just one key field missing, it's an autoincrementing id.
+
+            // Active_Record is a place that can handle some complexities of changing between JS data and DB data.
+            //
+
+
+            //  Also, check for indexed fields present.
+            //  Lookup according to these index fields, using OR.
+            //   Treat them as though they are unique, despite that not having been specified.
+
+            // then get the field values to lookup
+
+            let to_lookup = {};
+            let to_lookup_kv = {};
+
+            if (key_fields_missing.length === 1 && value_fields_missing.length === 0) {
+                // Check that the single missing key field is an autoincrementing primary key
+                each(indexed_field_names_and_ids, ifnid => {
+                    if (typeof data[ifnid[0]] !== 'undefined') {
+                        //to_lookup[ifnids[0]] = data[ifn];
+                        to_lookup[ifnid[1]] = data[ifnid[0]];
+                        to_lookup_kv[ifnid[0]] = data[ifnid[0]];
+
+                    }
+                })
+            } else {
+                throw 'new_active_record NYI';
+            }
+
+            console.log('to_lookup', to_lookup);
+
+            // not sure about the lookup function.
+            //  more a case for the core db.
+
+            // multiple searches by different (unique) indexes
+            //  though resistant to putting more into core now.
+            //  maybe table_index_lookup
+
+
+            let arr_lookups = [];
+            each(to_lookup, (v, i) => {
+                arr_lookups.push([i, v]);
+            })
+            console.log('arr_lookups', arr_lookups);
+
+
+
+
+        }, callback);
+    }
+
+
+    /*
+    table_record_exists(table_id, b_record, callback) {
+        return prom_or_cb((resolve, reject) => {
+
+            // if it's 
+
+
+        })
+    }
+    */
+
+
+    // Maybe more checking / lookups will be done here rather than in Active_Record.
+
+
+    ensure_table_record(table_id, b_record, callback) {
+        return prom_or_cb((resolve, reject) => {
+            // the record maybe won't have a key.
+
+            //  may need to find or generate the key.
+
+            // table_record_exists
+            //  will search based on the indexes.
+
+
+
+
+            // 
+
+        }, callback);
+    }
+
+
     ensure(record, callback) {
         return prom_or_cb((resolve, reject) => {
             //let key = record_or_key.key;
@@ -1172,6 +1351,10 @@ class NextLevelDB_Core_Server extends Evented_Class {
             })();
         }, callback);
     }
+
+
+
+
 
     // db.fields(record);
 
