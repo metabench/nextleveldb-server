@@ -3046,6 +3046,8 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     if (i_query_type === ENSURE_TABLES) {
         console.log('ENSURE_TABLES');
 
+        //console.log('buf_the_rest', buf_the_rest);
+
         let def = Binary_Encoding.decode_buffer(buf_the_rest)[0];
         // For some reason, decoding of the buffer puts it all into a new array.
 
