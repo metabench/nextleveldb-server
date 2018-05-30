@@ -991,7 +991,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
                     //each(diff.changed, changed => console.log('changed', changed));
                     each(diff.added, added => {
-                        console.log('added', added);
+                        //console.log('added', added);
                         console.log('added', added.decoded);
                     });
 
@@ -1170,132 +1170,223 @@ class NextLevelDB_Core_Server extends Evented_Class {
     // where we are told what table its for.
 
 
+    // table index lookup
+    //  table id, index id, data
+
     // Table record lookup
 
     table_record_lookup(table_id, data, callback) {
         return prom_or_cb((resolve, reject) => {
 
-            console.log('table_record_lookup table_id, data', table_id, data);
+            (async () => {
+                console.log('table_record_lookup table_id, data', table_id, data);
 
-            let model_table = this.model.map_tables_by_id[table_id];
-
-
-            // calculate lookups from model table and data
-            //  could be in the Model even.
+                let model_table = this.model.map_tables_by_id[table_id];
 
 
-
-
-            let kv_fields = model_table.kv_fields;
-            console.log('new_active_record kv_fields', kv_fields);
-
-            // then make a map of these
-
-            let map_fields = {};
-            each(kv_fields[0], ((x, i) => map_fields[x] = [0, i]));
-            each(kv_fields[1], ((x, i) => map_fields[x] = [1, i]));
-
-            console.log('map_fields', map_fields);
-
-            // Then are there any fields in the kv that are not used in the data
-            //  Could that be all the fields missing from the PK?
-
-
-            //let map_fields_missing_from_data = {};
-            let map_fields_from_data = {};
-
-            each(data, (value, name) => {
-                // look for the name
-
-                let ref = map_fields[name];
-                console.log('name ' + name + ' ref', ref);
-
-                map_fields_from_data[name] = true;
-            });
-
-            // key fields missing
-
-            let key_fields_missing = [];
-            let value_fields_missing = [];
-
-            each(kv_fields[0], (x, i) => {
-                if (!map_fields_from_data[x]) {
-                    key_fields_missing.push(x);
-                }
-            })
-
-            each(kv_fields[1], (x, i) => {
-                if (!map_fields_from_data[x]) {
-                    value_fields_missing.push(x);
-                }
-            })
-
-            console.log('key_fields_missing', key_fields_missing);
-            console.log('value_fields_missing', value_fields_missing);
-
-
-            // get indexed field names from the model table as an operation.
-
-            //let single_indexed_field_names = 
-
-            let indexed_field_names_and_ids = model_table.indexed_field_names_and_ids;
-            // indexed fields names and ids
-
-            console.log('indexed_field_names_and_ids', indexed_field_names_and_ids);
-            //  
-
-
-            // then do two separate lookups by that field.
+                // calculate lookups from model table and data
+                //  could be in the Model even.
 
 
 
 
-            // Then if there is just one key field missing, it's an autoincrementing id.
+                let kv_fields = model_table.kv_fields;
+                console.log('new_active_record kv_fields', kv_fields);
 
-            // Active_Record is a place that can handle some complexities of changing between JS data and DB data.
-            //
+                // then make a map of these
+
+                let map_fields = {};
+                each(kv_fields[0], ((x, i) => map_fields[x] = [0, i]));
+                each(kv_fields[1], ((x, i) => map_fields[x] = [1, i]));
+
+                console.log('map_fields', map_fields);
+
+                // Then are there any fields in the kv that are not used in the data
+                //  Could that be all the fields missing from the PK?
 
 
-            //  Also, check for indexed fields present.
-            //  Lookup according to these index fields, using OR.
-            //   Treat them as though they are unique, despite that not having been specified.
+                //let map_fields_missing_from_data = {};
+                let map_fields_from_data = {};
 
-            // then get the field values to lookup
+                each(data, (value, name) => {
+                    // look for the name
 
-            let to_lookup = {};
-            let to_lookup_kv = {};
+                    let ref = map_fields[name];
+                    console.log('name ' + name + ' ref', ref);
 
-            if (key_fields_missing.length === 1 && value_fields_missing.length === 0) {
-                // Check that the single missing key field is an autoincrementing primary key
-                each(indexed_field_names_and_ids, ifnid => {
-                    if (typeof data[ifnid[0]] !== 'undefined') {
-                        //to_lookup[ifnids[0]] = data[ifn];
-                        to_lookup[ifnid[1]] = data[ifnid[0]];
-                        to_lookup_kv[ifnid[0]] = data[ifnid[0]];
+                    map_fields_from_data[name] = true;
+                });
 
+                // key fields missing
+
+                let key_fields_missing = [];
+                let value_fields_missing = [];
+
+                each(kv_fields[0], (x, i) => {
+                    if (!map_fields_from_data[x]) {
+                        key_fields_missing.push(x);
                     }
                 })
-            } else {
-                throw 'new_active_record NYI';
-            }
 
-            console.log('to_lookup', to_lookup);
+                each(kv_fields[1], (x, i) => {
+                    if (!map_fields_from_data[x]) {
+                        value_fields_missing.push(x);
+                    }
+                })
 
-            // not sure about the lookup function.
-            //  more a case for the core db.
-
-            // multiple searches by different (unique) indexes
-            //  though resistant to putting more into core now.
-            //  maybe table_index_lookup
+                console.log('key_fields_missing', key_fields_missing);
+                console.log('value_fields_missing', value_fields_missing);
 
 
-            let arr_lookups = [];
-            each(to_lookup, (v, i) => {
-                arr_lookups.push([i, v]);
-            })
-            console.log('arr_lookups', arr_lookups);
+                // get indexed field names from the model table as an operation.
+
+                //let single_indexed_field_names = 
+
+                let indexed_field_names_and_ids = model_table.indexed_field_names_and_ids;
+                // indexed fields names and ids
+
+                console.log('indexed_field_names_and_ids', indexed_field_names_and_ids);
+                //  
 
 
+                // then do two separate lookups by that field.
+
+
+
+
+                // Then if there is just one key field missing, it's an autoincrementing id.
+
+                // Active_Record is a place that can handle some complexities of changing between JS data and DB data.
+                //
+
+
+                //  Also, check for indexed fields present.
+                //  Lookup according to these index fields, using OR.
+                //   Treat them as though they are unique, despite that not having been specified.
+
+                // then get the field values to lookup
+
+                let to_lookup = {};
+                let to_lookup_kv = {};
+
+                if (key_fields_missing.length === 1 && value_fields_missing.length === 0) {
+                    // Check that the single missing key field is an autoincrementing primary key
+                    each(indexed_field_names_and_ids, ifnid => {
+                        if (typeof data[ifnid[0]] !== 'undefined') {
+                            //to_lookup[ifnids[0]] = data[ifn];
+                            to_lookup[ifnid[1]] = data[ifnid[0]];
+                            to_lookup_kv[ifnid[0]] = data[ifnid[0]];
+
+                        }
+                    })
+                } else {
+                    throw 'table_record_lookup NYI';
+                }
+
+                console.log('to_lookup', to_lookup);
+                console.log('to_lookup_kv', to_lookup_kv);
+
+                console.log('model_table.record_def.map_indexes_by_field_names', model_table.record_def.map_indexes_by_field_names);
+
+                let m = model_table.record_def.map_indexes_by_field_names;
+                let arr_lookups = [];
+
+                each(to_lookup_kv, (v, i) => {
+                    //
+                    let idx = m[JSON.stringify([i])];
+                    console.log('!!idx', !!idx);
+                    console.log('idx.id', idx.id);
+
+                    arr_lookups.push([idx.id, [v]]);
+
+                });
+                // 
+                // not sure about the lookup function.
+                //  more a case for the core db.
+
+                // multiple searches by different (unique) indexes
+                //  though resistant to putting more into core now.
+                //  maybe table_index_lookup
+                // About finding which index corresponds to which item of data we have been given.
+
+                // Map of indexes by fields definitely sounds useful.
+                //  That would be part of the Model.
+
+                // database.table.map_indexes_by_fields
+
+                // we have
+                // map_indexes_by_field_names
+
+                //each(to_lookup, (v, i) => {
+                //    arr_lookups.push([i, v]);
+                //})
+                console.log('arr_lookups', arr_lookups);
+
+
+                // iterate the indexes?
+                //  Want to see which indexes to use for which fields we have the data for.
+
+
+                //  Then will need to make sure lookup work for other types too...
+                //   Should be quite general.
+
+
+                // then do the individual field value lookups.
+
+                // would be nice to have a map of indexes by their field names.
+                //  Some indexes would only be for one field.
+
+
+                let found;
+
+                for (let lookup of arr_lookups) {
+                    console.log('lookup', lookup);
+
+
+                    let res_lookup = await this.table_index_pk_lookup(table_id, lookup[0], lookup[1]);
+                    console.log('res_lookup', res_lookup);
+
+                    if (def(res_lookup)) {
+                        if (def(found)) {
+                            // found again
+                            if (res_lookup === found) {
+                                // return two records?
+
+                                reject(new Error('More than one record matches indexes using data given'));
+                            }
+                        } else {
+                            found = res_lookup;
+                        }
+                    }
+
+
+
+
+
+
+
+
+                    // The lookup should have the index id.
+
+                    // lookup pk from index
+
+
+
+                    // (table_id, idx_id, arr_values, return_field, opt_cb)
+                    // and we return the key...
+
+                    // So maybe a different function.
+                    //  Consult a map of indexes by fields somewhere.
+                    //  Or go through the indexes.
+                    //
+                }
+
+                //if (def(found)) {
+
+                //}
+                resolve(found);
+            })();
+            // Use these to look up the fields.
 
 
         }, callback);
@@ -1318,18 +1409,248 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
 
     ensure_table_record(table_id, b_record, callback) {
+
+
+
+
         return prom_or_cb((resolve, reject) => {
-            // the record maybe won't have a key.
 
-            //  may need to find or generate the key.
+            (async () => {
+                let console = { log: () => null };
 
-            // table_record_exists
-            //  will search based on the indexes.
+                // The b_record could be missing its key.
+
+                // If it's not missing its key, we can search for it based on its primary key.
 
 
 
 
+
+                console.log('ensure_table_record table_id', table_id);
+                console.log('b_record', b_record);
+                // the record maybe won't have a key.
+                //  may need to find or generate the key.
+                // table_record_exists
+                //  will search based on the indexes.
+                // extract the data from the b_record
+                // Need to be able to decode a b_record without a key.
+                console.log('b_record.decoded', b_record.decoded);
+                let [key, value] = b_record.decoded;
+
+
+                // Then use the fields from the model table kv fields to put together the data for the lookup
+                let table = this.model.map_tables_by_id[table_id];
+                console.log('table.kv_field_names', table.kv_field_names);
+                let [key_field_names, value_field_names] = table.kv_field_names;
+                // then we put together the loookup
+
+
+                if (!def(key)) {
+                    let lookup = {};
+                    each(value, (value_item, i) => {
+                        lookup[value_field_names[i]] = value_item;
+                    });
+
+                    console.log('lookup', lookup);
+                    let res_lookup = await this.table_record_lookup(table_id, lookup);
+                    console.log('res_lookup', res_lookup);
+
+                    // So if it's not there already (has an empty key)
+                    //  Need to generate a new key for the record.
+                    //  
+
+                    // Don't want the new key in the model (only)
+                    //  Model would update its own incrementor then update the DB.
+                    // Using the model here does make sense.
+                    //  sometimes it depends on the 
+                    // model_table.generate_key()
+                    // then we need to update the incrementor.
+                    // more like
+                    // server.generate_table_key(table_id)
+
+
+                    if (!res_lookup) {
+
+                        //let new_record = new B_Record()
+
+                        //let resolve = await this.put_table_record(table_id)
+
+                        let new_key = await this.generate_table_key(table_id);
+                        console.log('new_key', new_key);
+
+                        // want to be able to set / replace the key of the record.
+                        //  maybe it's worth treating these records as immutable, and having Active_Records able to be changed.
+
+                        b_record.key = new_key._buffer;
+                        console.log('b_record.decoded', b_record.decoded);
+
+                        // Then need to put that record, including with its various index records.
+                        //  Already have that code, I think.
+
+                        let res_put = await this.put_table_record(table_id, b_record);
+                        console.log('res_put', res_put);
+
+
+
+
+
+
+
+                    } else {
+
+                    }
+                } else {
+
+                }
+            })();
             // 
+        }, callback);
+    }
+
+    // get_db_incrementor_value
+    //  does not use the Model for this, updates the Model if necessary
+
+    //get_db_table_pk_incrementor_value
+
+
+    // A whole increment function at once
+
+    // will get the new incrementor value.
+    //  does fresh read from db rather than relying on model.
+    //  I suppose this is a small part of syncing.
+
+    // Only keeping the core model in sync is necessary for most operations.
+
+
+    db_table_pk_increment(table_id, callback) {
+        return prom_or_cb((resolve, reject) => {
+
+            (async () => {
+                // get the value from the incrementor
+                const model_table = this.model.map_tables_by_id[table_id];
+
+                // Maybe a Buffer_Backed Incrementor row would help.
+                // // making use of the model incrementor at least tells us the key.
+
+                let model_pk_incrementor = model_table.pk_incrementor;
+
+                let buf_inc_key = model_pk_incrementor.key.buffer;
+                console.log('buf_inc_key', buf_inc_key);
+
+                // then get_row_value
+                //  or ll_get_row_value
+
+                // or no indirection, just use the db api itself
+                //let b_inc_value = ;
+                //console.log('b_inc_value', b_inc_value);
+
+                let inc_value = xas2.read(await this.db.get(buf_inc_key));
+                console.log('inc_value', inc_value);
+
+                // return current value, but set it to the next value first...?
+                //  or even lock that incrementor.
+
+                let next_inc_value = inc_value + 1;
+                model_pk_incrementor.value = next_inc_value;
+                let buf_next_inc_value = xas2(next_inc_value).buffer;
+                console.log('pre put');
+                let res_put_next_inc_value = await this.db.put(buf_inc_key, buf_next_inc_value);
+                console.log('res_put_next_inc_value', res_put_next_inc_value);
+
+                resolve(inc_value);
+
+            })();
+
+
+
+        });
+    }
+
+
+    // Others would have their keys made out of their data
+    //  Will be easier to find as well.
+    //  Or at least not need index lookups to find them.
+
+    // Then will have facility to ensure / lookup multiple records at once / quickly
+    //  Active_Record in the crypto-data-collector will mean it knows when the records are in the DB.
+    //  Records that are referred to in foreign keys will have 
+
+
+    // table record key
+    //  but not giving a record. It's just generating another key.
+
+    generate_table_key(table_id, callback) {
+        return prom_or_cb((resolve, reject) => {
+            (async () => {
+                const model_table = this.model.map_tables_by_id[table_id];
+
+                // then in the pk.
+
+                const pk = model_table.pk;
+                console.log('pk.fields.length', pk.fields.length);
+
+                if (pk.fields.length === 1) {
+                    // need to see if its autoincrementing.
+                    console.log('pk.fields[0]', pk.fields[0]);
+
+                    if (model_table.pk_incrementor) {
+                        // An active incrementor may be of use.
+                        //   But not here.
+
+                        // Would be worth using a table_pk_increment function.
+                        //  Need to be cautious about race conditions in the db.
+                        //  Try with the model incrementor.
+
+                        // Best to do this quickly...
+                        ///  And set the model incrementor value to what it should be.
+
+
+                        let new_id = await this.db_table_pk_increment(table_id);
+                        console.log('new_id', new_id);
+
+                        // then we can use that to encode the key for the record
+
+                        console.log('model_table.kp', model_table.kp);
+
+                        let encoded_key = encoding.encode_key(model_table.kp, [new_id]);
+                        console.log('encoded_key', encoded_key);
+
+
+                        resolve(new B_Key(encoded_key));
+
+
+
+
+
+
+
+
+
+
+                    }
+
+                    // Maybe it's the type_if of the field.
+                    //  What exactly the type_id means depends on the model.
+
+                    // Type 0 is xas2
+
+                    // look at pk_incrementor:
+
+
+
+
+
+                } else {
+                    reject(new Error('generate_table_key only works on tables with a single PK field'))
+                }
+            })();
+
+            // If the table just has one autoincrementing id in the key
+
+
+
+
+            // Otherwise I think we are out of luck.
 
         }, callback);
     }
@@ -1553,6 +1874,69 @@ class NextLevelDB_Core_Server extends Evented_Class {
         //  observable function sequence
     }
 
+
+    table_index_pk_lookup(table_id, idx_id, arr_values, callback) {
+        return prom_or_cb((resolve, reject) => {
+
+
+            (async () => {
+                let table_kp = table_id * 2 + 2;
+                let table_ikp = table_kp + 1;
+
+                var buf_key_beginning = Model_Database.encode_index_key(
+                    table_ikp,
+                    idx_id, arr_values
+                );
+                console.log('buf_key_beginning', buf_key_beginning);
+
+                let arr_buf_idx_res = await this.ll_get_records_with_kp(buf_key_beginning);
+                console.log('arr_buf_idx_res', arr_buf_idx_res);
+
+                if (!arr_buf_idx_res) {
+                    resolve(undefined);
+                } else {
+                    if (arr_buf_idx_res.length === 0) {
+                        // Callback with a new error saying 'Table Not Found'.
+                        //callback(new Error(''));
+
+                        resolve(undefined);
+                    } else {
+
+
+                        let decoded_key = arr_buf_idx_res[0].decoded[0];
+
+                        console.log('table_index_pk_lookup decoded_key', decoded_key);
+                        //console.log('3) decoded', decoded);
+
+                        //throw 'stop';
+
+                        /*
+    
+                        let t_return_field = tof(return_field);
+                        if (t_return_field === 'number') {
+                            let res = decoded_key[return_field];
+                            callback(null, res);
+                        }
+                        */
+                    }
+                }
+
+            })();
+
+
+
+
+
+        }, callback);
+    }
+
+
+    // an array of values, not a single one?
+    //  Can be multiple items, so array makes sense.
+    //  Possibly make this handle single value too?
+
+
+    // Need more of a look at this.
     table_index_value_lookup(table_id, idx_id, arr_values, return_field, opt_cb) {
         // Change to Promise
         //console.log('table_index_value_lookup');
@@ -1592,12 +1976,14 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
                         callback(null, undefined);
                     } else {
+
                         let decoded_key = arr_buf_idx_res[0].decoded[0];
 
                         //console.log('decoded_key', decoded_key);
                         //console.log('3) decoded', decoded);
 
                         //throw 'stop';
+
                         let t_return_field = tof(return_field);
                         if (t_return_field === 'number') {
                             let res = decoded_key[return_field];
@@ -2377,12 +2763,58 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 // may need to put index records too
 
                 console.log('indexes.length', indexes.length);
+                //console.trace();
+
+
+                // Can we use a B_Record (fully with key) to add a record to the Model_Table?
+                //  This way we can use the already existing get_b_records()
+                //  Otherwise it's more algorythm work on getting multiple b_records from a single one.
+                //   Also, clarifying / distinguishing between records and rows may help.
+                //    Not sure it would always make things easier.
+                //     Or the rows are ll records.
+                //     Easier to call them db rows or just rows right now.
+                //     Higher level items are called records.
+
+
+
+
+
+
+                let m_record = model_table.new_record(record);
+                //  Needs to get the data better from the B_Record.
+
+
+
+                //console.log('m_record', m_record);
+
+                let b_records = m_record.to_b_records();
+                console.log('b_records', b_records);
+
+                each(b_records, x => console.log('decoded b_record', x.decoded));
+
+                // Don't update the DB incrementor.
+
+                let res = await this.ll_batch_put(b_records);
+                resolve(res);
+
+
+
+                /*
                 console.trace();
                 throw 'NYI';
 
                 if (indexes.length > 0) {
 
                 } else {
+
+                    // If we have the record already, with nothing missing, then it's fine to add it
+                    //  but get the index records too
+
+                    // Seems like creating a model record is necessary
+
+
+
+
                     // Put that single record.
 
                     // ll_put makes sense.
@@ -2393,6 +2825,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
                     //resolve()
                 }
+                */
             } else if (Array.isArray(record)) {
                 //let b_records = model_table.
 
@@ -2416,7 +2849,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 //  it looks it up using indexes info (not relying on unique constraint)
 
                 console.log('pre look for unique fields');
-                console.log('model_table.unique_fields', model_table.unique_fields);
+                //console.log('model_table.unique_fields', model_table.unique_fields);
                 console.log('post look for unique fields');
 
                 // type_id
@@ -2424,13 +2857,16 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
 
 
+
+
+
                 let old_model_pk_inc_val = model_table.pk_incrementor.value;
 
-                console.log('m_record.pk_incrementor', model_table.pk_incrementor);
+                //console.log('m_record.pk_incrementor', model_table.pk_incrementor);
                 let m_record = model_table.add_record(record);
-                console.log('m_record', m_record);
+                //console.log('m_record', m_record);
 
-                console.log('m_record.pk_incrementor', model_table.pk_incrementor);
+                //console.log('m_record.pk_incrementor', model_table.pk_incrementor);
 
                 let new_model_pk_inc_val = model_table.pk_incrementor.value;
 
@@ -2439,22 +2875,21 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
                 let b_records = m_record.to_b_records();
 
+                // Can we do this without decoding the record?
+                //  Not really sure it's worth trying to do that right now.
+
+
+
+
+
 
                 if (old_model_pk_inc_val !== new_model_pk_inc_val) {
                     b_records.push(model_table.pk_incrementor.record);
                 }
 
-                console.log('b_records', b_records);
-
-                // Could use the type id to represent if the field is unique as well as the type.
-                //  if type_id > 128  subtract 128 and say it's a unique field.
-
-                // This lack of unique field status is a challenge right now.
-                //  don't want to assume all indexed fields have to be unique.
+                //console.log('b_records', b_records);
 
 
-                // Getting unique fields (and unique indexes) right seems important.
-                //  The distinction between unique and non-unique indexes.
 
                 // Could have multiple crypto-trades at the same timestamp on the same exchange.
                 //  May want to index them in a way that does not assume uniqueness.
@@ -2772,7 +3207,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
     //  can it read the arguments (being an arrow function)
     ll_batch_put(arr_items, callback) {
         return prom_or_cb((resolve, reject) => {
-            //console.log('arr_items', arr_items);
+            console.log('ll_batch_put arr_items', arr_items);
             let ops = arr_items.map(item => {
                 //console.log('item', item);
                 if (item instanceof B_Record) {

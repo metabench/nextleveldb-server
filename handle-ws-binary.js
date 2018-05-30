@@ -3278,6 +3278,16 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
         console.log('cm.inner', cm.inner);
 
+        let [table_id, record] = cm.inner;
+
+        // then we do ensure table record, sending the result.
+
+        (async () => {
+            console.log('pre ensure_table_record');
+            let res_ensure_table_record = await nextleveldb_server.ensure_table_record(table_id, record);
+            console.log('res_ensure_table_record', res_ensure_table_record);
+        })();
+
 
         // Then these buffers will be some kind of encoded buffer-backed types
         // Their xas2 prefix indicates what type they are.

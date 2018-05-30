@@ -1489,12 +1489,8 @@ if (require.main === module) {
                             // view tables and fields
                             let show_tables = () => {
                                 console.log('ls.model.description\n', ls.model.description);
-
                             }
                             show_tables();
-
-
-
 
 
 
