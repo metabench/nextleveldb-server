@@ -1806,8 +1806,8 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             [page_size, pos] = x.read(buf_the_rest, pos);
         }
 
-        console.log('paging_option', paging_option);
-        console.log('page_size', page_size);
+        //console.log('paging_option', paging_option);
+        //console.log('page_size', page_size);
         // Could feed through a paging function that batches the results.
         // batch_put
 
@@ -2041,7 +2041,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         //   How to compose the whole thing in memory reasonably efficiently?
         //   Put the buffers in a vector...
 
-        console.log('paging_option', paging_option);
+        //console.log('paging_option', paging_option);
 
         var b_l, b_u;
 
@@ -3244,7 +3244,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         // Use the oo Command_Message class
 
         let cm = new Command_Message(message_binary);
-        console.log('cm', cm);
+        //console.log('cm', cm);
 
 
 
@@ -3263,11 +3263,11 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         // Use the oo Command_Message class
 
         let cm = new Command_Message(message_binary);
-        console.log('cm', cm);
+        //console.log('cm', cm);
 
         // decode the command message.
-        console.log('cm.id', cm.id);
-        console.log('cm.command_id', cm.command_id);
+        //console.log('cm.id', cm.id);
+        //console.log('cm.command_id', cm.command_id);
 
         // then thes are the params.
         //  any buffers in there will need to be decoded too.
@@ -3278,16 +3278,37 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
 
 
-        console.log('cm.inner', cm.inner);
+        //console.log('cm.inner', cm.inner);
 
         let [table_id, record] = cm.inner;
 
         // then we do ensure table record, sending the result.
 
         (async () => {
-            console.log('pre ensure_table_record');
+            //console.log('pre ensure_table_record');
             let res_ensure_table_record = await nextleveldb_server.ensure_table_record(table_id, record);
-            console.log('res_ensure_table_record', res_ensure_table_record);
+
+            //console.log('res_ensure_table_record', res_ensure_table_record);
+
+            // then send the record back in the Command_Response_Message
+
+            // Give it an observable and it would make multiple pages?
+            //  Or a different class for that?
+
+            // 
+            //console.log('message_id', message_id);
+
+            let cmr = new Command_Response_Message(message_id, res_ensure_table_record);
+            //console.log('cmr', cmr);
+            //console.log('cmr.buffer', cmr.buffer);
+            //console.log('cmr.value', cmr.value);
+            connection.sendBytes(cmr.buffer);
+
+
+
+            // then just a command 
+
+            // 
         })();
 
 

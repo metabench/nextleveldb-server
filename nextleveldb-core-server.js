@@ -1163,7 +1163,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
         }, callback);
     }
 
-
     // May get more complicated?
     //  ensure_table_record
 
@@ -1179,19 +1178,13 @@ class NextLevelDB_Core_Server extends Evented_Class {
         return prom_or_cb((resolve, reject) => {
 
             (async () => {
-                console.log('table_record_lookup table_id, data', table_id, data);
-
+                //console.log('table_record_lookup table_id, data', table_id, data);
                 let model_table = this.model.map_tables_by_id[table_id];
-
-
                 // calculate lookups from model table and data
                 //  could be in the Model even.
 
-
-
-
                 let kv_fields = model_table.kv_fields;
-                console.log('new_active_record kv_fields', kv_fields);
+                //console.log('new_active_record kv_fields', kv_fields);
 
                 // then make a map of these
 
@@ -1199,7 +1192,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 each(kv_fields[0], ((x, i) => map_fields[x] = [0, i]));
                 each(kv_fields[1], ((x, i) => map_fields[x] = [1, i]));
 
-                console.log('map_fields', map_fields);
+                //console.log('map_fields', map_fields);
 
                 // Then are there any fields in the kv that are not used in the data
                 //  Could that be all the fields missing from the PK?
@@ -1212,7 +1205,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
                     // look for the name
 
                     let ref = map_fields[name];
-                    console.log('name ' + name + ' ref', ref);
+                    //console.log('name ' + name + ' ref', ref);
 
                     map_fields_from_data[name] = true;
                 });
@@ -1234,8 +1227,8 @@ class NextLevelDB_Core_Server extends Evented_Class {
                     }
                 })
 
-                console.log('key_fields_missing', key_fields_missing);
-                console.log('value_fields_missing', value_fields_missing);
+                //console.log('key_fields_missing', key_fields_missing);
+                //console.log('value_fields_missing', value_fields_missing);
 
 
                 // get indexed field names from the model table as an operation.
@@ -1245,7 +1238,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 let indexed_field_names_and_ids = model_table.indexed_field_names_and_ids;
                 // indexed fields names and ids
 
-                console.log('indexed_field_names_and_ids', indexed_field_names_and_ids);
+                //console.log('indexed_field_names_and_ids', indexed_field_names_and_ids);
                 //  
 
 
@@ -1283,10 +1276,10 @@ class NextLevelDB_Core_Server extends Evented_Class {
                     throw 'table_record_lookup NYI';
                 }
 
-                console.log('to_lookup', to_lookup);
-                console.log('to_lookup_kv', to_lookup_kv);
+                //console.log('to_lookup', to_lookup);
+                //console.log('to_lookup_kv', to_lookup_kv);
 
-                console.log('model_table.record_def.map_indexes_by_field_names', model_table.record_def.map_indexes_by_field_names);
+                //console.log('model_table.record_def.map_indexes_by_field_names', model_table.record_def.map_indexes_by_field_names);
 
                 let m = model_table.record_def.map_indexes_by_field_names;
                 let arr_lookups = [];
@@ -1294,8 +1287,8 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 each(to_lookup_kv, (v, i) => {
                     //
                     let idx = m[JSON.stringify([i])];
-                    console.log('!!idx', !!idx);
-                    console.log('idx.id', idx.id);
+                    //console.log('!!idx', !!idx);
+                    //console.log('idx.id', idx.id);
 
                     arr_lookups.push([idx.id, [v]]);
 
@@ -1320,19 +1313,14 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 //each(to_lookup, (v, i) => {
                 //    arr_lookups.push([i, v]);
                 //})
-                console.log('arr_lookups', arr_lookups);
-
-
+                //console.log('arr_lookups', arr_lookups);
                 // iterate the indexes?
                 //  Want to see which indexes to use for which fields we have the data for.
 
 
                 //  Then will need to make sure lookup work for other types too...
                 //   Should be quite general.
-
-
                 // then do the individual field value lookups.
-
                 // would be nice to have a map of indexes by their field names.
                 //  Some indexes would only be for one field.
 
@@ -1340,11 +1328,9 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 let found;
 
                 for (let lookup of arr_lookups) {
-                    console.log('lookup', lookup);
-
-
+                    //console.log('lookup', lookup);
                     let res_lookup = await this.table_index_pk_lookup(table_id, lookup[0], lookup[1]);
-                    console.log('res_lookup', res_lookup);
+                    //console.log('res_lookup', res_lookup);
 
                     if (def(res_lookup)) {
                         if (def(found)) {
@@ -1409,6 +1395,8 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
 
     ensure_table_record(table_id, b_record, callback) {
+        //console.log('core ensure_table_record');
+
 
 
 
@@ -1416,7 +1404,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
         return prom_or_cb((resolve, reject) => {
 
             (async () => {
-                let console = { log: () => null };
+                //let console = { log: () => null };
 
                 // The b_record could be missing its key.
 
@@ -1426,23 +1414,26 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
 
 
-                console.log('ensure_table_record table_id', table_id);
-                console.log('b_record', b_record);
+                //console.log('ensure_table_record table_id', table_id);
+                //console.log('b_record', b_record);
                 // the record maybe won't have a key.
                 //  may need to find or generate the key.
                 // table_record_exists
                 //  will search based on the indexes.
                 // extract the data from the b_record
                 // Need to be able to decode a b_record without a key.
-                console.log('b_record.decoded', b_record.decoded);
+                //console.log('b_record.decoded', b_record.decoded);
                 let [key, value] = b_record.decoded;
 
 
                 // Then use the fields from the model table kv fields to put together the data for the lookup
                 let table = this.model.map_tables_by_id[table_id];
-                console.log('table.kv_field_names', table.kv_field_names);
+                //console.log('table.kv_field_names', table.kv_field_names);
                 let [key_field_names, value_field_names] = table.kv_field_names;
                 // then we put together the loookup
+
+
+
 
 
                 if (!def(key)) {
@@ -1451,9 +1442,9 @@ class NextLevelDB_Core_Server extends Evented_Class {
                         lookup[value_field_names[i]] = value_item;
                     });
 
-                    console.log('lookup', lookup);
+                    //console.log('lookup', lookup);
                     let res_lookup = await this.table_record_lookup(table_id, lookup);
-                    console.log('res_lookup', res_lookup);
+                    //console.log('res_lookup', res_lookup);
 
                     // So if it's not there already (has an empty key)
                     //  Need to generate a new key for the record.
@@ -1476,19 +1467,23 @@ class NextLevelDB_Core_Server extends Evented_Class {
                         //let resolve = await this.put_table_record(table_id)
 
                         let new_key = await this.generate_table_key(table_id);
-                        console.log('new_key', new_key);
+                        //console.log('new_key', new_key);
 
                         // want to be able to set / replace the key of the record.
                         //  maybe it's worth treating these records as immutable, and having Active_Records able to be changed.
 
                         b_record.key = new_key._buffer;
-                        console.log('b_record.decoded', b_record.decoded);
+                        //console.log('b_record.decoded', b_record.decoded);
 
                         // Then need to put that record, including with its various index records.
                         //  Already have that code, I think.
 
                         let res_put = await this.put_table_record(table_id, b_record);
-                        console.log('res_put', res_put);
+
+                        //console.log('res_put', res_put);
+
+
+                        resolve(res_put);
 
 
 
@@ -1497,10 +1492,14 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
 
                     } else {
-
+                        resolve(res_lookup);
                     }
                 } else {
+                    // or just put the record
 
+                    //let res_put = await this.put_record(b_record);
+                    //console.log('res_put', res_put);
+                    //resolve(res_put);
                 }
             })();
             // 
@@ -1528,13 +1527,10 @@ class NextLevelDB_Core_Server extends Evented_Class {
             (async () => {
                 // get the value from the incrementor
                 const model_table = this.model.map_tables_by_id[table_id];
-
                 // Maybe a Buffer_Backed Incrementor row would help.
                 // // making use of the model incrementor at least tells us the key.
-
-                let model_pk_incrementor = model_table.pk_incrementor;
-
-                let buf_inc_key = model_pk_incrementor.key.buffer;
+                const model_pk_incrementor = model_table.pk_incrementor;
+                const buf_inc_key = model_pk_incrementor.key.buffer;
                 console.log('buf_inc_key', buf_inc_key);
 
                 // then get_row_value
@@ -1544,21 +1540,19 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 //let b_inc_value = ;
                 //console.log('b_inc_value', b_inc_value);
 
-                let inc_value = xas2.read(await this.db.get(buf_inc_key));
-                console.log('inc_value', inc_value);
+                const inc_value = xas2.read(await this.db.get(buf_inc_key));
+                //console.log('inc_value', inc_value);
 
                 // return current value, but set it to the next value first...?
                 //  or even lock that incrementor.
 
-                let next_inc_value = inc_value + 1;
+                const next_inc_value = inc_value + 1;
                 model_pk_incrementor.value = next_inc_value;
-                let buf_next_inc_value = xas2(next_inc_value).buffer;
-                console.log('pre put');
-                let res_put_next_inc_value = await this.db.put(buf_inc_key, buf_next_inc_value);
-                console.log('res_put_next_inc_value', res_put_next_inc_value);
-
+                const buf_next_inc_value = xas2(next_inc_value).buffer;
+                //console.log('pre put');
+                const res_put_next_inc_value = await this.db.put(buf_inc_key, buf_next_inc_value);
+                //console.log('res_put_next_inc_value', res_put_next_inc_value);
                 resolve(inc_value);
-
             })();
 
 
@@ -1587,11 +1581,11 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 // then in the pk.
 
                 const pk = model_table.pk;
-                console.log('pk.fields.length', pk.fields.length);
+                //console.log('pk.fields.length', pk.fields.length);
 
                 if (pk.fields.length === 1) {
                     // need to see if its autoincrementing.
-                    console.log('pk.fields[0]', pk.fields[0]);
+                    //console.log('pk.fields[0]', pk.fields[0]);
 
                     if (model_table.pk_incrementor) {
                         // An active incrementor may be of use.
@@ -1606,14 +1600,14 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
 
                         let new_id = await this.db_table_pk_increment(table_id);
-                        console.log('new_id', new_id);
+                        //console.log('new_id', new_id);
 
                         // then we can use that to encode the key for the record
 
-                        console.log('model_table.kp', model_table.kp);
+                        //console.log('model_table.kp', model_table.kp);
 
                         let encoded_key = encoding.encode_key(model_table.kp, [new_id]);
-                        console.log('encoded_key', encoded_key);
+                        //console.log('encoded_key', encoded_key);
 
 
                         resolve(new B_Key(encoded_key));
@@ -1662,7 +1656,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
             //let buf_key = key.buffer;
             (async () => {
                 let exists = await this.has(record);
-                console.log('exists', exists);
+                //console.log('exists', exists);
                 if (!exists) {
                     let put_res = await this.put(record);
                     resolve(put_res); // Which should be the record.
@@ -1887,10 +1881,10 @@ class NextLevelDB_Core_Server extends Evented_Class {
                     table_ikp,
                     idx_id, arr_values
                 );
-                console.log('buf_key_beginning', buf_key_beginning);
+                //console.log('buf_key_beginning', buf_key_beginning);
 
                 let arr_buf_idx_res = await this.ll_get_records_with_kp(buf_key_beginning);
-                console.log('arr_buf_idx_res', arr_buf_idx_res);
+                //console.log('arr_buf_idx_res', arr_buf_idx_res);
 
                 if (!arr_buf_idx_res) {
                     resolve(undefined);
@@ -1905,10 +1899,10 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
                         let decoded_key = arr_buf_idx_res[0].decoded[0];
 
-                        console.log('table_index_pk_lookup decoded_key', decoded_key);
+                        //console.log('table_index_pk_lookup decoded_key', decoded_key);
                         //console.log('3) decoded', decoded);
 
-                        //throw 'stop';
+                        throw 'stop';
 
                         /*
     
@@ -2762,7 +2756,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
             if (record instanceof B_Record) {
                 // may need to put index records too
 
-                console.log('indexes.length', indexes.length);
+                //console.log('indexes.length', indexes.length);
                 //console.trace();
 
 
@@ -2788,14 +2782,19 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 //console.log('m_record', m_record);
 
                 let b_records = m_record.to_b_records();
-                console.log('b_records', b_records);
+                //console.log('b_records', b_records);
 
-                each(b_records, x => console.log('decoded b_record', x.decoded));
+                //each(b_records, x => console.log('decoded b_record', x.decoded));
 
                 // Don't update the DB incrementor.
 
                 let res = await this.ll_batch_put(b_records);
-                resolve(res);
+
+
+                //console.log('res ll_batch_put', res);
+
+
+                resolve(b_records[0]);
 
 
 
@@ -3206,8 +3205,9 @@ class NextLevelDB_Core_Server extends Evented_Class {
     // With invisible callbacks too here....
     //  can it read the arguments (being an arrow function)
     ll_batch_put(arr_items, callback) {
-        return prom_or_cb((resolve, reject) => {
-            console.log('ll_batch_put arr_items', arr_items);
+
+        return prom_or_cb(async (resolve, reject) => {
+            //console.log('ll_batch_put arr_items', arr_items);
             let ops = arr_items.map(item => {
                 //console.log('item', item);
                 if (item instanceof B_Record) {
@@ -3218,7 +3218,10 @@ class NextLevelDB_Core_Server extends Evented_Class {
                     }
                 }
             });
-            return this.db.batch(ops);
+            resolve(await this.db.batch(ops));
+
+
+            //return this.db.batch(ops);
         }, callback);
     }
 
