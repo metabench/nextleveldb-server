@@ -68,105 +68,8 @@ const Index_Record_Key = Model.Index_Record_Key;
 const CORE_MIN_PREFIX = 0;
 const CORE_MAX_PREFIX = 9;
 
-// looks like this can go in fnl
-//  but it maybe changed and generalised and optimised in some ways.
-//  may have a call function
-
-// promise => observable
-
-
-// observables list
-//  This may be tough to generalise, but could try.
-
-// A queue of observables, exewcuted sequentially.
-
-// seq_obs
-// seq
-
-
-/*
-
-module.exports = {
-    'observable': observable,
-    'seq': seq,
-    'sequence': seq,
-    'sig_obs_or_cb': sig_obs_or_cb,
-    'cb_to_prom_or_cb': cb_to_prom_or_cb,
-    'prom_or_cb': prom_or_cb
-}
-
-
-
-*/
-
-
-
-
 
 const NextlevelDB_Core_Server = require('./nextleveldb-core-server');
-
-// Private system DBs could be useful - they could best be used by subclasses of this.
-//  Could provide auth.
-//  Could keep log data on what maintenance / some other operations such as syncing have taken place
-//  Could keep a table of the sync processes that are going on at present. This table could then be queried to give sync updates.
-
-
-
-
-
-// Authentication is the next core feature of the server.
-//  Could make it so that there is just an admin user for the moment with full permissions.
-//  For some DB things, could also open it up so that any user can read, and there is a rate limiter and / or DOS protector.
-
-// Authentication would enable this DB to run a CMS website.
-
-// For the moment, need to get this deployed onto remote servers
-//  Could also work on error logging in case of failure.
-//  Possibly logging the errors to the DB itself.
-
-
-// Then a multi-client would be useful, to monitor the status of these various servers.
-//  Get servers better at tracking number of records put/got per second again.
-
-// Need to separate out different collectors.
-
-// Bittrex -> DB
-// Others -> DB
-
-// Crypto-Data-Collector seems OK for one machine.
-//  Maybe for coordinating a network too.
-
-// Try collecting data for about 5 or so exchanges soon.
-// Need it so that the collectors can be coded separately, and then started up to collect data for the given DB.
-
-// A&A is probably the highest priority though.
-
-
-
-
-// The database server will start by loading its Model, or creating a new one if there are no records in the database.
-
-
-// In general will unload code and complexity from the client-side.
-//  Will make use of observables, and flexible functions with optional callbacks.
-//  Will also have decoding options in a variety of places. Sometimes the data that gets processed on the server will need to be decoded. 
-
-
-
-// Got plenty more to do on the server level to ensure smooth data acquisition and sharing.
-
-
-// Want to have server-side re-encoding of records, where it takes the records in one format, and if necessary reencodes them so that they go into the DB well.
-//  That could involve foreign -> primary key lookups for some records, eg live asset data.
-//  
-
-
-
-// Crypto data collector should ensure a few tables according to some definitions.
-//  Doing that when it starts up would be an effective way of doing it, and adding new tables will be incremental.
-
-
-
 
 
 const obs_to_cb = (obs, callback) => {
@@ -867,12 +770,8 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
         let a = arguments,
             sig = get_a_sig(a);
-
-
         let decode = false;
         //console.log('ll_get_table_index_records sig', sig);
-
-
         if (sig === '[n,b]') {
             decode = a[1];
             opt_cb = null;
@@ -883,15 +782,9 @@ class NextLevelDB_Core_Server extends Evented_Class {
         let ikp = kp + 1;
 
         let obs = this.ll_get_records_with_kp(xas2(ikp).buffer);
-
         //console.log('obs', obs);
-
         //console.log('decode', decode);
         return obs_or_cb(obs, opt_cb);
-
-
-        //throw 'stop';
-        // Observe them, having got the kp right for the indexes
 
     }
 
@@ -924,35 +817,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
             if (err) {
                 callback(err);
             } else {
-                //console.log('system_db_rows', system_db_rows);
-                // Looks like it did not add the incrementors when ensuring the db.
-
-                //throw 'atop';
-                // The table incrementor value should be at least about 4.
-
-                //let decoded_system_db_rows = Model_Database.decode_model_rows(system_db_rows);
-                //console.log('system_db_rows', system_db_rows);
-                //console.log('system_db_rows.length', system_db_rows.length);
-                //throw 'stop';
-                //throw 'stop';
-
-                // Seems the model db had not loaded all the right info.
-                //  Misses the new table definitions. It has put the new incrementors in.
-                //   Seems like the added table rows need to specifically be generated and added to the model.
-                //   Could / should have this automatic upon making new tables that get (successfully) added to the model.
-
-                // Then it won't be long until we are able to store a large amount of data, with high performance.
-                //  It's the part where new tables get added to the model.
-                //   If the model is not in initialisation mode, or early_init mode, we add the table records and index records as the tables get added
-
-
-                // Not reading those rows in the same way?
-                //  Some db rows not loaded into the model properly....
-                // Null rather than an empty array being better everywhere?
                 this.model = Model_Database.load(system_db_rows);
-                // Check that the model rows from the db are the same length as those re-obtained from the model db.
-                // Leaving out the index of incrementors.??
-                // 
                 let model_rows = this.model.rows;
                 //  getting the model rows missing some of them out for some reason?
                 if (true || model_rows.length !== system_db_rows.length) {
@@ -1017,11 +882,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
                         console.log('model_rows.length', model_rows.length);
                         callback(new Error('Mismatch between core db rows and core rows obtained from model. '));
                     }
-
-
-
-
-
                 } else {
                     callback(null, that.model);
                 }
@@ -1107,7 +967,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
     // Will also have ensure_record check against indexes.
 
-
+    /*
     ensure_record(record, callback) {
         return prom_or_cb((resolve, reject) => {
 
@@ -1124,21 +984,13 @@ class NextLevelDB_Core_Server extends Evented_Class {
             // need to get the table id from the record.
 
             let table_id = record.table_id;
-
             let model_table = this.model.map_tables_by_id[table_id];
-
             // Then the number of autoincrementing fields in the pk.
-
             let model_pk = model_table.pk;
-
-
-
-
-
-
 
         }, callback);
     }
+    */
 
 
     has(record_or_key, callback) {
@@ -1344,37 +1196,9 @@ class NextLevelDB_Core_Server extends Evented_Class {
                             found = res_lookup;
                         }
                     }
-
-
-
-
-
-
-
-
-                    // The lookup should have the index id.
-
-                    // lookup pk from index
-
-
-
-                    // (table_id, idx_id, arr_values, return_field, opt_cb)
-                    // and we return the key...
-
-                    // So maybe a different function.
-                    //  Consult a map of indexes by fields somewhere.
-                    //  Or go through the indexes.
-                    //
                 }
-
-                //if (def(found)) {
-
-                //}
                 resolve(found);
             })();
-            // Use these to look up the fields.
-
-
         }, callback);
     }
 
@@ -1396,11 +1220,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
     ensure_table_record(table_id, b_record, callback) {
         //console.log('core ensure_table_record');
-
-
-
-
-
         return prom_or_cb((resolve, reject) => {
 
             (async () => {
@@ -1411,17 +1230,8 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 // If it's not missing its key, we can search for it based on its primary key.
 
 
-
-
-
                 //console.log('ensure_table_record table_id', table_id);
                 //console.log('b_record', b_record);
-                // the record maybe won't have a key.
-                //  may need to find or generate the key.
-                // table_record_exists
-                //  will search based on the indexes.
-                // extract the data from the b_record
-                // Need to be able to decode a b_record without a key.
                 //console.log('b_record.decoded', b_record.decoded);
                 let [key, value] = b_record.decoded;
 
@@ -1510,10 +1320,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
                     } else {
                         resolve(b_record);
                     }
-
-                    //let res_put = await this.put_record(b_record);
-                    //console.log('res_put', res_put);
-                    //resolve(res_put);
                 }
             })();
             // 
@@ -1602,52 +1408,10 @@ class NextLevelDB_Core_Server extends Evented_Class {
                     //console.log('pk.fields[0]', pk.fields[0]);
 
                     if (model_table.pk_incrementor) {
-                        // An active incrementor may be of use.
-                        //   But not here.
-
-                        // Would be worth using a table_pk_increment function.
-                        //  Need to be cautious about race conditions in the db.
-                        //  Try with the model incrementor.
-
-                        // Best to do this quickly...
-                        ///  And set the model incrementor value to what it should be.
-
-
                         let new_id = await this.db_table_pk_increment(table_id);
-                        //console.log('new_id', new_id);
-
-                        // then we can use that to encode the key for the record
-
-                        //console.log('model_table.kp', model_table.kp);
-
                         let encoded_key = encoding.encode_key(model_table.kp, [new_id]);
-                        //console.log('encoded_key', encoded_key);
-
-
                         resolve(new B_Key(encoded_key));
-
-
-
-
-
-
-
-
-
-
                     }
-
-                    // Maybe it's the type_if of the field.
-                    //  What exactly the type_id means depends on the model.
-
-                    // Type 0 is xas2
-
-                    // look at pk_incrementor:
-
-
-
-
-
                 } else {
                     reject(new Error('generate_table_key only works on tables with a single PK field'))
                 }
@@ -2318,11 +2082,8 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
 
     get_first_key_in_range(arr_range, callback) {
-
-
         return prom_or_cb((resolve, reject) => {
             let res;
-
             this.db.createKeyStream({
                 'gte': arr_range[0],
                 'lte': arr_range[1],
@@ -2330,20 +2091,15 @@ class NextLevelDB_Core_Server extends Evented_Class {
             }).on('data', function (key) {
                 //console.log('key', key);
                 res = key;
-            })
-                //.on('error', reject(err))
-                .on('close', function () {
-                    //console.log('Stream closed');
-                })
-                .on('end', function () {
-                    if (res) {
-                        resolve(B_Key(res));
-                    } else {
-                        //callback(null, undefined);
-                        // key not found.
-                        reject();
-                    }
-                });
+            }).on('error', reject(err)).on('close', function () {
+                //console.log('Stream closed');
+            }).on('end', function () {
+                if (res) {
+                    resolve(B_Key(res));
+                } else {
+                    reject();
+                }
+            });
         }, callback);
     }
 
@@ -2717,299 +2473,33 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
 
     put_table_record(table, record, callback) {
-
-        // Seems like a problem with ensuring unique indexes while putting the record.
-
-        // Want to be able to put a record while being sure it does not make a collision.
-        //  Would also need a client-side version of this, as it is core.
-
-
-
-
-
-
-
-        // ensure model is up-to-date
-        //  at least in the section concerning the table
-
-
-        // 
-
-        // 
-
-
-        // For the moment, could assume all indexes are unique indexes
-        //  Later on, completely get rid of that, and use unique constraints, by table.
-        //   Any valid record needs to satisfy the constraints, and those constraints are stored as constraints.
-
-
         let model_table;
         if (typeof table === 'number') {
             model_table = this.model.map_tables_by_id[table];
         }
-
-
-
-        //console.log('table', table);
-
-        // model table
-
-        // Will deal with the indexing as expected.
-
         return prom_or_cb(async (resolve, reject) => {
-
             let indexes = model_table.indexes;
-
             // So it's worked out the record from the Model.
-
 
             //console.log('put_table_record', record);
             //console.log('record instanceof B_Record', record instanceof B_Record);
             //console.log('Array.isArray(record)', Array.isArray(record));
 
             if (record instanceof B_Record) {
-                // may need to put index records too
-
-                //console.log('indexes.length', indexes.length);
-                //console.trace();
-
-
-                // Can we use a B_Record (fully with key) to add a record to the Model_Table?
-                //  This way we can use the already existing get_b_records()
-                //  Otherwise it's more algorythm work on getting multiple b_records from a single one.
-                //   Also, clarifying / distinguishing between records and rows may help.
-                //    Not sure it would always make things easier.
-                //     Or the rows are ll records.
-                //     Easier to call them db rows or just rows right now.
-                //     Higher level items are called records.
-
-
-
-
-
-
                 let m_record = model_table.new_record(record);
-                //  Needs to get the data better from the B_Record.
-
-
-
-                //console.log('m_record', m_record);
-
                 let b_records = m_record.to_b_records();
-                //console.log('b_records', b_records);
-
-                //each(b_records, x => console.log('decoded b_record', x.decoded));
-
-                // Don't update the DB incrementor.
-
                 let res = await this.ll_batch_put(b_records);
-
-
-                //console.log('res ll_batch_put', res);
-
-
                 resolve(b_records[0]);
-
-
-
-                /*
-                console.trace();
-                throw 'NYI';
-
-                if (indexes.length > 0) {
-
-                } else {
-
-                    // If we have the record already, with nothing missing, then it's fine to add it
-                    //  but get the index records too
-
-                    // Seems like creating a model record is necessary
-
-
-
-
-                    // Put that single record.
-
-                    // ll_put makes sense.
-
-                    // want a smallish number of ll_functions, doing some essential tasks relatively simply.
-
-
-
-                    //resolve()
-                }
-                */
             } else if (Array.isArray(record)) {
-                //let b_records = model_table.
-
-
-                // get the pk inc value directly from the db?
-                //  ensure that part of the model is up-to-date.
-
-                // Active incrementors will help considerably.
-                //  Better if increment happens on the DB, synced quickly
-
-
-                // do an index lookup on the unique fields.
-                //  fail to overwrite if any unique fields are already there.
-
-
-                // Can't get the unique fields from the table.
-                //  Unique field constraints not implemented.
-
-
-                // Could make ensure_record
-                //  it looks it up using indexes info (not relying on unique constraint)
-
-                //console.log('pre look for unique fields');
-                //console.log('model_table.unique_fields', model_table.unique_fields);
-                //console.log('post look for unique fields');
-
-                // type_id
-
-
-
-
-
-
-
                 let old_model_pk_inc_val = model_table.pk_incrementor.value;
-
-                //console.log('m_record.pk_incrementor', model_table.pk_incrementor);
                 let m_record = model_table.add_record(record);
-                //console.log('m_record', m_record);
-
-                //console.log('m_record.pk_incrementor', model_table.pk_incrementor);
-
                 let new_model_pk_inc_val = model_table.pk_incrementor.value;
-
-                //console.log('old_model_pk_inc_val', old_model_pk_inc_val);
-                //console.log('new_model_pk_inc_val', new_model_pk_inc_val);
-
                 let b_records = m_record.to_b_records();
-
-                // Can we do this without decoding the record?
-                //  Not really sure it's worth trying to do that right now.
-
-
-
-
-
-
                 if (old_model_pk_inc_val !== new_model_pk_inc_val) {
                     b_records.push(model_table.pk_incrementor.record);
                 }
-
-                //console.log('b_records', b_records);
-
-
-
-                // Could have multiple crypto-trades at the same timestamp on the same exchange.
-                //  May want to index them in a way that does not assume uniqueness.
-
-                // Uniqueness could be done as a constraint.
-                //  Not sure how much internal change to the DB it would require.
-
-                // Unique constraints may be the way to go about it.
-                //  loads the constraints from a field constraints table
-                //  says which field it applies to.
-                // Old DBs simply would not support or have any unique constraints that way.
-                //  However, may need to have / make some reserved system space in the DBs.
-
-                // Mass-shifting records + indexes would be useful.
-                //  Being able to move a record's id.
-
-
-                // Not doing unique record / constraint checking on put.
-                //  For the moment no constraint checking makes sense, as there are no constraints to check.
-
-
-                // Being able to move a table would make sense.
-                //  Indexes refer to a table by id, so would need to change all index records that point towards it.
-                //  The records themselves. FKs that make reference to 
-
-                // Changing a whole bunch of records at once...
-                //  Key definitions refer to the table.
-
-                // Being able to shift tables (all) along would make sense.
-                //  Seems like a somewhat complicated / involved function.
-
-                // May be best just to use indexes as they are for the moment.
-                //  Don't have a way to mark / check if fields are unique though.
-
-                // Going through every LL record, parsing it, interpreting it will help to be able to change the index values.
-                //  LL_Active_Record? So it refers to a row in the DB?
-
-                // Row - low level leveldb row
-                // Record - logical unit including its row, and all indexes.
-                //  Shifting KPs will be part of it.
-
-                // Could change a table id in the model, then see how it is reflected in the core rows.
-                //  
-
-                // Getting back on with the saving of crypto data...
-                //  Could be done without unique constraints.
-
-                // The next big change to the DB will have further space for system tables.
-                //  Reserving space (by id) for 6 more system tables would be of use.
-
-                // Need to save the crypto data properly now.
-                //  Looks like the crypto saving system broke, it was not collecting data.
-
-                // Seems like going for the crypto collecing reliability is important.
-                //  Very likely to have lost some data from the last few daya (not collected it in the first place).
-
-
-                // Really this should be simple logging, but it's turned into a quite complex DB project.
-                //  Getting info about movement over the last few hours will certainly be useful.
-                //  Really need to have this sitting there gathering info.
-
-                // Actually, saved data collection so far seems OK.
-                //  Want to work on the crypto-data-collector to give it a nicer interface.
-                //  Bittrex watcher could do its repeated collect, and then raise events. The collector would then watch the watcher.
-
-                // worth getting running on data11, data12
-                //  data13 could even amalgamate data from the other servers.
-
-                // copying all the backup dbs would help.
-                //  should be able to sort through them and import data.
-
-
-                // Definitely worth getting another crypto collector running soon, and sync the data from it.
-                //  Being able to download a ZIP of all records? All price info records?
-                //  Getting this in a normalised form?
-                //  Records grouped together by month and by exchange?
-
-                // Making graphs of the data will definitely help to tell if it's full / valid.
-
-                // Worth setting up data11 with improved collector.
-                //  Then get the data back from it.
-
-                // 
-
-
-
-
-
-
-
-                //console.log('model_table.fields', model_table.fields.map(x => x.type_id));
-
-
-                //throw 'stop';
-
                 let res = await this.ll_batch_put(b_records);
                 resolve(res);
-
-
-                // get the incrementor record for the table id.
-                //  worth getting that from the model,
-                //  checking that it matches the server's current value
-                //  
-
-                //console.log('Object.keys(model_table)' + Object.keys(model_table));
-
-
             }
 
         }, callback);
