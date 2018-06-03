@@ -2834,8 +2834,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             throw 'NYI'
 
         }
-
-
     }
 
 
@@ -2882,7 +2880,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             //console.log('buf_res', buf_res);
             connection.sendBytes(buf_res);
         });
-
         // then store the unsubscribe function.
         // 
 
@@ -2908,7 +2905,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             }
             // both buffer puts and individual record puts
             // Also handle buffering / debouncing of recodrd puts.
-
             //console.log('msg_response', msg_response);
 
             buf_res = Buffer.concat(msg_response);
@@ -2931,9 +2927,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     if (i_query_type === LL_UNSUBSCRIBE_SUBSCRIPTION) {
         console.log('LL_UNSUBSCRIBE_SUBSCRIPTION');
         //console.log('connection.id', connection.id);
-
         //console.log('buf_the_rest', buf_the_rest);
-
         //var pos = 0, subscription_id;
         //[subscription_id, pos] = x.read(buf_the_rest, pos);
 
@@ -2943,19 +2937,13 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         var fn_unsubscribe = client_subscriptions[connection.id][subscription_id].unsubscribe;
         //console.log('fn_unsubscribe', typeof fn_unsubscribe);
         var sub_msg_id = fn_unsubscribe();
-
         // Send a subscription event.
-
         // We don't have a sub message id for unsubscribe.
-
         // 
 
         var msg_response = [buf_msg_id, xas2(sub_msg_id).buffer, xas2(BOOL_TRUE).buffer];
         buf_res = Buffer.concat(msg_response);
         connection.sendBytes(buf_res);
-
-
-
 
     }
 
@@ -2988,16 +2976,11 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
     if (i_query_type === ENSURE_TABLE) {
         console.log('ENSURE_TABLE');
-
         let def = Binary_Encoding.decode_buffer(buf_the_rest);
-        console.log('def', def);
-
+        //console.log('def', def);
         // A callback usage of ensure_table should be OK.
         //  Though logging / checking data could be returned when using an observable.
-
         // overwrite / modify / error if exists already.
-
-
 
         nextleveldb_server.ensure_table(def, (err, res_ensure) => {
             // If there is an error, need to use error encoding.
@@ -3006,65 +2989,39 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             //   Should send status codes back in the websocket messages.
 
             // send a message back encapsulating the result.
-
             //  should be true or an error.
             //   need to be able to send back error messages.
 
             if (err) {
                 throw 'NYI'
             } else {
-
                 // Maybe something saying the table already exists, or was created.
                 //  Not keen on overwriting existing table structure.
                 //   Could have an error for if it already exists.
                 //   Though in some conditions could change fields, including going through records doing that.
 
-
-
-
                 var msg_response = [buf_msg_id, xas2(BOOL_TRUE).buffer];
                 buf_res = Buffer.concat(msg_response);
                 connection.sendBytes(buf_res);
             }
-
-
-
-
-
         });
-
-
-
-
-
         // Won't have a paged response
-
         throw 'stop';
-
     }
 
     if (i_query_type === ENSURE_TABLES) {
         console.log('ENSURE_TABLES');
-
         //console.log('buf_the_rest', buf_the_rest);
-
         let def = Binary_Encoding.decode_buffer(buf_the_rest)[0];
         // For some reason, decoding of the buffer puts it all into a new array.
-
         //console.log('def', def);
-
-
         // When we use an observable but have no paging as an option...
-
-
         // A callback usage of ensure_table should be OK.
         //  Though logging / checking data could be returned when using an observable.
-
         // overwrite / modify / error if exists already.
         // This may be better with an observer, where it sends back multiple reply messages.
 
         // An observable for all the tables would be better.
-
         // Get an observable for it, and use a wrapper to output it to the response.
 
         nextleveldb_server.ensure_tables(def, (err, res_ensure) => {
@@ -3079,22 +3036,17 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             //   need to be able to send back error messages.
 
             // Could look to see what paging is requsted.
-
-
             if (err) {
                 console.trace();
                 throw 'NYI'
             } else {
-
                 // Maybe something saying the table already exists, or was created.
                 //  Not keen on overwriting existing table structure.
                 //   Could have an error for if it already exists.
                 //   Though in some conditions could change fields, including going through records doing that.
-
                 // 
-
                 // Something in the return to say there is no paging in the message too?
-                //console.log('ENSURE_TABLES res_ensure', res_ensure);
+                //  console.log('ENSURE_TABLES res_ensure', res_ensure);
                 var msg_response = [buf_msg_id, buf_binary_paging_none, xas2(BOOL_TRUE).buffer];
                 buf_res = Buffer.concat(msg_response);
                 connection.sendBytes(buf_res);

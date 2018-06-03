@@ -1425,6 +1425,11 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 //console.log('b_record.decoded', b_record.decoded);
                 let [key, value] = b_record.decoded;
 
+                //console.log('[key, value]', [key, value]);
+
+
+
+
 
                 // Then use the fields from the model table kv fields to put together the data for the lookup
                 let table = this.model.map_tables_by_id[table_id];
@@ -1481,21 +1486,30 @@ class NextLevelDB_Core_Server extends Evented_Class {
                         let res_put = await this.put_table_record(table_id, b_record);
 
                         //console.log('res_put', res_put);
-
-
                         resolve(res_put);
-
-
-
-
-
-
-
                     } else {
                         resolve(res_lookup);
                     }
                 } else {
                     // or just put the record
+
+                    // Yup... need to write simple code for this.
+
+                    // try has by key
+                    //console.log('have been given the key');
+
+                    let exists = await this.has(b_record.key);
+                    //console.log('exists', exists);
+
+                    if (!exists) {
+
+                        let res_put = await this.put_table_record(table_id, b_record);
+
+                        //console.log('res_put', res_put);
+                        resolve(res_put);
+                    } else {
+                        resolve(b_record);
+                    }
 
                     //let res_put = await this.put_record(b_record);
                     //console.log('res_put', res_put);
@@ -1531,7 +1545,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 // // making use of the model incrementor at least tells us the key.
                 const model_pk_incrementor = model_table.pk_incrementor;
                 const buf_inc_key = model_pk_incrementor.key.buffer;
-                console.log('buf_inc_key', buf_inc_key);
+                //console.log('buf_inc_key', buf_inc_key);
 
                 // then get_row_value
                 //  or ll_get_row_value
@@ -2847,9 +2861,9 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 // Could make ensure_record
                 //  it looks it up using indexes info (not relying on unique constraint)
 
-                console.log('pre look for unique fields');
+                //console.log('pre look for unique fields');
                 //console.log('model_table.unique_fields', model_table.unique_fields);
-                console.log('post look for unique fields');
+                //console.log('post look for unique fields');
 
                 // type_id
 
@@ -2869,8 +2883,8 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
                 let new_model_pk_inc_val = model_table.pk_incrementor.value;
 
-                console.log('old_model_pk_inc_val', old_model_pk_inc_val);
-                console.log('new_model_pk_inc_val', new_model_pk_inc_val);
+                //console.log('old_model_pk_inc_val', old_model_pk_inc_val);
+                //console.log('new_model_pk_inc_val', new_model_pk_inc_val);
 
                 let b_records = m_record.to_b_records();
 
