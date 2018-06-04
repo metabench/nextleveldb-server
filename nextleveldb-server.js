@@ -48,7 +48,7 @@ const levelup = require('level');
 
 const Model = require('nextleveldb-model');
 
-const fnl = require('../fnl/fnl');
+const fnl = require('fnl');
 const observable = fnl.observable;
 
 const B_Record_List = Model.Record_List;

@@ -29,7 +29,7 @@ const database_encoding = Model.encoding;
 
 
 
-const fnl = require('../fnl/fnl');
+const fnl = require('fnl');
 const observable = fnl.observable;
 const execute_q_obs = fnl.seq;
 const sig_obs_or_cb = fnl.sig_obs_or_cb;

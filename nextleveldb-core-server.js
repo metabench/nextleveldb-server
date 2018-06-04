@@ -49,7 +49,7 @@ const B_Record = Model.BB_Record;
 const B_Key = Model.BB_Key;
 const Key_List = Model.Key_List;
 
-const fnl = require('../fnl/fnl');
+const fnl = require('fnl');
 const observable = fnl.observable;
 const execute_q_obs = fnl.seq;
 const sig_obs_or_cb = fnl.sig_obs_or_cb;
