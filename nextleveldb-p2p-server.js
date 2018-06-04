@@ -1561,7 +1561,6 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                                             }
                                             process();
                                         }
-
                                         //throw 'stop';
                                     })
 
@@ -1592,28 +1591,11 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                                                     console.log('client_subdivisions', client_subdivisions);
                                                     // These will be encoded as binary rather than keys.
 
-
-
-
-
-
                                                 }
                                             });
-
-
-
-
-
-
-
-
                                         }
-
                                     })
                                     */
-
-
-
                                 }
                             }
 
@@ -1621,17 +1603,11 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
 
 
                         } else {
-
                             // do a table digest comparison.
-
                             // want to be able to do functions comparing and syncing local and a variety of remote machines.
                             //  Could get the ranges to start with, then sync based on that. In the future, resuming would check progress of ongoing operations.
 
-
-
-
                             sync_all_records();
-
                         }
 
 
@@ -1647,14 +1623,6 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                         //  It may be possible to get big blocks of data back quicker, especially if the blocks have already been prepared.
                         //   Want to do more with just the main current architecture, but having a local system db will prove useful.
                         //    It will be especially useful for recording progress of syncing operations.
-
-
-
-
-
-
-
-
                     }
                 });
 
@@ -1671,37 +1639,15 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                     console.log('complete count', count);
 
 
-                    
-
-
-
-
 
 
                 });
                 */
-
-
-
-
-
-
                 // Decoding them this way.
-
                 //let obs_table_records = client.get_table_records(table_name, true);
-
-
-
-
-
                 // paged download of the table rows
-
                 // just sync by getting all of the records for the moment.
-
-
                 // Syncing by keys...
-
-
             }
         })
 
@@ -1763,7 +1709,6 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
 
         // Queue up the observables fn calls.
         each(this.model.non_core_table_names, table_name => {
-
             q_obs.push([this, this.sync_db_table_data, [db_name, table_name]]);
         });
 
@@ -1832,60 +1777,11 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
         //    arr_obs.push(this.sync_db_table(db_name, table_name));
         //});
 
-
-
-
-
-
-
         return obs_all;
 
     }
 
-    // When it starts up, it will sync from other database(s).
-    //  Will look at the sync_from peers.
 
-    // When for every peer, it establishes a connection.
-
-    // When it first connects, it will attempt to sync all records.
-    //  Want it to do so with the current db if possible.
-    //  Keeping the same structure tables / key values looks important.
-
-
-
-
-    // More complex sharding:
-    //  Will be able to know which server to send any request over to when the data is sharded.
-    //  When receiving data, will split it up to the relevant machines.
-
-    // Does not seem possible / easy at all to keep grouped records together.
-
-    // Want flow control likely improved so that when we receive keys, we can then check for them in the db, and send off for them if we don't have them.
-
-    // Also, get_table_rows_hash would be useful for checking some tables are the same.
-    //  or table_model_hash
-    //  or db_core_hash
-
-    // table_records_hash
-
-    // the table_model_hash would be nice if it included index rows too.
-    //  Should quickly tell if syncing the core is possible.
-    //   Direct sync
-    //   Otherwise would need to do some value translation / get in denormalised forms. Could be slower.
-    //   Want good progress updates.
-    //    Would need to sync upon start.
-
-    // Soon, want to work on a sharded db, have it running on 8 servers.
-    // Could try 4 server shard processes on 1 node. Does not increase storage that way, would increase throughput, and be a way to test it.
-
-    // Separate machines would be better for the moment.
-    //  Would definitely be nice to go wide for storage and speed.
-    //  Could make it so that any server then sends on storage operations to the relevant servers.
-    //   It would use a formula to work out from the binary key which of the shards it goes to.
-
-    // System could seamlessly change between sharding modes.
-    //  Different nodes could have different sharding rules.
-    //   Would know which machine to send any data to.
 
 
 

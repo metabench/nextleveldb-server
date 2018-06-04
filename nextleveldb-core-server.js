@@ -11,19 +11,16 @@ const def = jsgui.is_defined;
 
 
 const Evented_Class = jsgui.Evented_Class;
-
 const crypto = require('crypto');
-
 const http = require('http');
 const url = require('url');
 const os = require('os');
 const path = require('path');
 const rimraf = require('rimraf');
-var WebSocket = require('websocket');
-var WebSocketServer = WebSocket.server;
+const WebSocket = require('websocket');
+const WebSocketServer = WebSocket.server;
 
 const commandLineArgs = require('command-line-args');
-
 const deep_diff = require('deep-diff').diff;
 
 let xas2;
@@ -353,17 +350,12 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
                     var arr_core = Binary_Encoding.split_length_item_encoded_buffer_to_kv(buf);
                     //console.log('arr_core', arr_core);
-
-
                     // 13/03/2018 The table incremntor is OK here.
-
                     //throw 'stop';
 
                     // Now, since we have it serialised as binary from the Model_Database, we should be able to use a (new) low level function to put a binary ll record block/array into the DB.
                     //  This is getting on for a very large amount of functionality since the last update.
                     //  Moving more functionality from the client side into the db server, then will make it available through appropriate APIs.
-                    //  
-
 
 
                     this.batch_put(buf, () => {
@@ -377,7 +369,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
                             } else {
                                 //console.log('all_db_rows', all_db_rows);
                                 this.model = model;
-
                                 proceed_2();
                             }
                         })
@@ -1343,29 +1334,11 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
     db_table_pk_increment(table_id, callback) {
         return prom_or_cb((resolve, reject) => {
-
             (async () => {
-                // get the value from the incrementor
                 const model_table = this.model.map_tables_by_id[table_id];
-                // Maybe a Buffer_Backed Incrementor row would help.
-                // // making use of the model incrementor at least tells us the key.
                 const model_pk_incrementor = model_table.pk_incrementor;
                 const buf_inc_key = model_pk_incrementor.key.buffer;
-                //console.log('buf_inc_key', buf_inc_key);
-
-                // then get_row_value
-                //  or ll_get_row_value
-
-                // or no indirection, just use the db api itself
-                //let b_inc_value = ;
-                //console.log('b_inc_value', b_inc_value);
-
                 const inc_value = xas2.read(await this.db.get(buf_inc_key));
-                //console.log('inc_value', inc_value);
-
-                // return current value, but set it to the next value first...?
-                //  or even lock that incrementor.
-
                 const next_inc_value = inc_value + 1;
                 model_pk_incrementor.value = next_inc_value;
                 const buf_next_inc_value = xas2(next_inc_value).buffer;
@@ -1374,9 +1347,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 //console.log('res_put_next_inc_value', res_put_next_inc_value);
                 resolve(inc_value);
             })();
-
-
-
         });
     }
 
@@ -1397,9 +1367,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
         return prom_or_cb((resolve, reject) => {
             (async () => {
                 const model_table = this.model.map_tables_by_id[table_id];
-
-                // then in the pk.
-
                 const pk = model_table.pk;
                 //console.log('pk.fields.length', pk.fields.length);
 
@@ -1416,14 +1383,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
                     reject(new Error('generate_table_key only works on tables with a single PK field'))
                 }
             })();
-
-            // If the table just has one autoincrementing id in the key
-
-
-
-
-            // Otherwise I think we are out of luck.
-
         }, callback);
     }
 
@@ -1444,44 +1403,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
             })();
         }, callback);
     }
-
-
-
-
-
-    // db.fields(record);
-
-
-
-
-    // And will use buffer-backed record.
-
-    /*
-
-    ensure_record(arr_record, callback) {
-
-        // an inner promise / observable
-
-        // will work differently when the key is automatically generated.
-        //  Is the key / id data that is intrinsic to the record?
-        //  Normalisation means we want small keys that are ints, using small amount of data in many cases with xas2.
-        //   A single-int-key could be a special format in the future.
-        //    It could know to use/accept it with autoincrementing tables.
-        //     Would leave out the xas2 or type notation.
-
-
-
-
-
-
-        throw 'NYI';
-        let table_pk = arr_record[0][0];
-        let table_id = (table_pk - 2) / 2
-
-
-    }
-    */
-
 
     // would be nice to make an observable
     //  could send log-level updates about what it is doing
@@ -1560,16 +1481,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
                     //console.log('diff.added.length', diff.added.length);
 
                     each(diff.added, x => console.log('added', x.decoded));
-
                     each(diff.changed, x => console.log('changed', x[0].decoded, x[1].decoded));
-
-                    //throw 'stop';
-
-                    // then persist that diff.
-                    // The table indexes...
-
-
-                    //console.log('pre persist');
                     let persisted = await this.persist_row_diffs(diff);
                     //console.log('post persist');
                     //throw 'stop';
@@ -1885,6 +1797,9 @@ class NextLevelDB_Core_Server extends Evented_Class {
     }
 
     // No paging on this one.
+
+    // Would be nice to make observable, standard. Stoppable, pausable.
+
     get_all_db_keys(callback) {
         var res = [];
         this.db.createKeyStream({}).on('data', function (key) {
@@ -1944,12 +1859,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
             })
             return [];
         }, callback);
-        // tables ids 0, 1, 2, 3
-        // tables, native types, table fields, table indexes
-
-        // so, the very start of the key space between 0 and 7 (1 + 2 * 3)  1 being a 0 indexed 2
-        //  tables key space starts at 2, each table has got 2 key spaces
-
     }
 
     get_first_and_last_keys_in_buf_range(buf_l, buf_u, remove_kp, decode, callback) {
@@ -2109,7 +2018,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
         // again, promisify, remove remove_kp, decode, cb optional
         //console.log('buf_l', buf_l);
         //console.log('buf_u', buf_u);
-
 
         return prom_or_cb((resolve, reject) => {
             let res;
@@ -2330,11 +2238,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
 
     get_table_fields_info(table, callback) {
-
-
         let _table = this.model.map_tables_by_id[this.model.table_id(table)];
-
-
         if (callback) {
             callback(null, table.fields_info);
         } else {
@@ -2362,22 +2266,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
     // get_records_by_keys
 
     obs_get_records(key_list) {
-        // would be nice to do for of with key list
-        //console.log('obs_get_records key_list', key_list);
-        // But keys that are not there?
-
-        // Could return an Observable result.
-
-
-        // for of the key list
-
-
-
-        //return observable(())
-
-
-
-
         return observable((next, complete, error) => {
             (async () => {
                 for (key of key_list) {
@@ -2393,7 +2281,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
             })();
         });
     }
-
 
     // maintain / scan
     obs_records_not_found(records) {
@@ -2455,7 +2342,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 });
             }
         });
-
         //var that = this;
         db.batch(ops, (err) => {
             if (err) {
@@ -2470,7 +2356,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
             }
         })
     }
-
 
     put_table_record(table, record, callback) {
         let model_table;
@@ -2510,6 +2395,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
     // This one splices the kp into it.
     //  Decoding the records has removed the kp.
 
+    // This is about batch putting rows
     batch_put_table_records(table_name, records, callback) {
         var ops = [],
             db = this.db,
@@ -2723,8 +2609,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 }
             });
             resolve(await this.db.batch(ops));
-
-
             //return this.db.batch(ops);
         }, callback);
     }
