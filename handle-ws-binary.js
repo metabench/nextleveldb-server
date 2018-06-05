@@ -298,6 +298,10 @@ const LL_COUNT_KEYS_IN_RANGE_UP_TO = 9;
 const LL_GET_RECORDS_IN_RANGE_UP_TO = 10;
 
 
+
+const GET_TABLE_RECORD_BY_KEY = 16;
+const GET_TABLE_RECORDS_BY_KEYS = 16;
+
 // Or have further handlers in other files?
 
 
@@ -748,9 +752,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     //    It will make for simpler code that encompases needed functionality in a middleware kind of way.
 
     let page_binary_stream = (paging_option, page_size, obs_call) => {
-
         //console.log('page binary stream paging_option', paging_option);
-
         if (paging_option === PAGING_RECORD_COUNT) {
 
 
@@ -784,13 +786,11 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     //  Encode all the arrays to binary.
                     //   Send to the client.
 
-
                     // Not sure about having to put the buffer in an array here.
 
 
                     // Want simple syntax here... need to be careful about when we have a page of data, and when we have a single item.
                     //console.log('arr_page', arr_page);
-
 
                     let buf_page_data = Binary_Encoding.encode_to_buffer([arr_page]);
                     //console.log('flow buf_page_data.length', buf_page_data.length);
@@ -833,10 +833,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
                     // Encoding for results sets...
                     //  Don't say the results contain buffers, we need to encode an array of buffers 
-
-
-
-
                     console.log('last buf_page_data.length', buf_page_data.length);
 
                     // Not so sure about getting back the 0th item?
@@ -850,16 +846,15 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         } else {
             throw 'page_binary_stream: Unsupported paging_option ' + paging_option;
         }
-
     }
 
+
+    // A version of send that delays / pauses if the messages are not known to have been received too.
 
     let send = (communication_options, obs_call) => {
 
         // Comm options may well hold quite a bit.
         //  KP stripping could happen here.
-
-
 
         //console.log('send communication_options', communication_options);
         let paging_option = communication_options.paging_type;
@@ -1020,10 +1015,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                         let buf_message = Buffer.concat([buf_msg_id, buf_record_paging_last, xas2(page_number).buffer, buf_page_data]);
                         connection.sendBytes(buf_message);
                     }
-
-
                 });
-
             } else {
                 throw 'response_type ' + response_type + ' unsupported';
             }
@@ -1849,8 +1841,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     //  Having a return message type seems essential for error handling.
                     //   Though could have some binary sequence which would only be for errors, eg [!ERROR!], and check for that in the messages when not using return_message_type
 
-
-
                     callback(err);
                 })
                 .on('close', function () {
@@ -1878,9 +1868,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             // This needs backpressure handling too.
             //  Well connected servers can send data out faster than clients can receive.
             //   This is one reason compression will speed up the client experience if done right.
-
-
-
 
 
             page_records_max = page_size;
@@ -1965,15 +1952,11 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
                     // The last page with no data?????
 
-
                     //buf_res = Buffer.concat(arr_res);
                     //connection.sendBytes(buf_res);
                 })
         }
     }
-
-
-
 
     var read_l_buffer = (buffer, pos) => {
         var l, pos2;
@@ -1983,8 +1966,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         buffer.copy(buf_res, 0, pos2, pos3);
         return [buf_res, pos3];
     }
-
-
 
 
     // LL_GET_KEYS_IN_RANGE
@@ -2003,7 +1984,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         pos = 0;
         [paging_option, pos] = x.read(buf_the_rest, pos);
         //if (paging_option > 0) {
-
 
         // let [paging, pos] = Paging.read(buf_the_rest, pos);
 
@@ -2047,10 +2027,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
         if (paging_option === NO_PAGING) {
             // read a couple more buffers.
-
             // want to read a buffer with the length first.
-
-
             [b_l, pos] = read_l_buffer(buf_the_rest, pos);
             [b_u, pos] = read_l_buffer(buf_the_rest, pos);
 
@@ -2077,7 +2054,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 //var buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
                 // key is a buffer.
 
-                //console.log('buf_combined', buf_combined);
+                // console.log('buf_combined', buf_combined);
 
                 // A keys paging return type?
                 //  Could just use Binary_Encoding.
@@ -2120,10 +2097,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
                 //arr_page.push(xas2(key.length).buffer);
                 //arr_page.push(key);
-
-
                 // This needs to slow down sending if a receipt backlog builds up.
-
 
                 arr_page[c++] = (Buffer.concat([xas2(key.length).buffer, key]));
 
@@ -2173,17 +2147,12 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 //  be a bit tricky to coordinate, but possible. Could get some to slow down or pause if they get ahead. Then merge results and send them to a client.
                 //   Or the client could stream results from multiple servers.
 
-
-
-
-
                 if (c === page_size) {
 
                     let latest_received_page = map_received_page[message_id];
                     //console.log('map_received_page', map_received_page);
                     let delay = 0,
                         pages_diff = 0;
-
 
                     if (typeof latest_received_page !== 'undefined') {
                         pages_diff = page_number - latest_received_page;
@@ -2199,9 +2168,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                         if (pages_diff > 8) {
                             delay = 2000;
                         }
-
-
-
                     }
 
                     if (pages_diff > 20) {
@@ -2223,7 +2189,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     // Could empty that array, would that be faster than GC?
                     arr_page = new Array(page_size);
                 }
-
                 //Binary_Encoding.join_buffer_pair([data.key, data.value])
                 //arr_res.push(x(key.length).buffer);
                 //arr_res.push(key);
@@ -2241,8 +2206,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     //buf_res = Buffer.concat(arr_res);
                     //connection.sendBytes(buf_res);
                     //connection.sendBytes(Buffer.concat([buf_msg_id, buf_key_paging_last, xas2(page_number).buffer].concat(arr_page.slice(0, c))));
-
-
                     arr_res = [buf_msg_id, buf_key_paging_last, xas2(page_number).buffer].concat(arr_page.slice(0, c));
                     buf_res = Buffer.concat(arr_res);
                     connection.sendBytes(buf_res);
@@ -2250,7 +2213,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 })
         }
     }
-
 
     // Could move some of the paging handling / processing out of this level, and into the nextleveldb-server.
     //  Having observables in there would be useful.
@@ -2279,7 +2241,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         }
     }
 
-
     // Seems like it's worth redoing this so it calls a get_records_in_range db function
     //  Then output those results accordingly.
     //  That would help with other pieces of functionality?
@@ -2294,226 +2255,271 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     //  Want both pause and stop in that observable.
 
     if (i_query_type === LL_GET_RECORDS_IN_RANGE) {
-
         // Better if this used the server function, and wrapped it in a message and paging encoder / sender.
         //  Read the message (or Command_Message), then process it.
 
-
-
-
-
-
         console.log('LL_GET_RECORDS_IN_RANGE');
 
+        let cm = new Command_Message(message_binary);
+        //console.log('cm', cm);
+        //console.log('cm.inner', cm.inner);
+        //console.log('cm.paging', cm.paging);
 
-        // Should probably be changed to use the server's get_records_in_range function.
-
-        // when there are 0 records?
-        // Maybe not returning data OK.
-
-        var paging_option, page_size;
-
-        pos = 0;
-        [paging_option, pos] = x.read(buf_the_rest, pos);
-
-        //console.log('paging_option', paging_option);
-        if (paging_option > 0) {
-            [page_size, pos] = x.read(buf_the_rest, pos);
-        }
-
-        var b_l, b_u;
-
-        if (paging_option === NO_PAGING) {
-            // read a couple more buffers.
-
-            // want to read a buffer with the length first.
+        // Observe the data.
+        //  
 
 
-            [b_l, pos] = read_l_buffer(buf_the_rest, pos);
-            [b_u, pos] = read_l_buffer(buf_the_rest, pos);
+        // let send = (communication_options, obs_call)
 
-            //console.log('b_l', b_l);
-            //console.log('b_u', b_u);
+        // This is a somewhat specialised send that has delays added if the messages are not noted to have been received.
 
-            if (return_message_type) {
-                // Though paging is an option, this is not a paged or pagable response.
-                var arr_res = [buf_msg_id, buf_record_paging_none];
-            } else {
-                var arr_res = [buf_msg_id];
+
+        // send back data using command_response message
+
+
+
+
+        // want an obs_send
+        //  or send_obs
+
+        // We run the query inside an observable.
+        //  Then we use paged return of results.
+        //  The old way could be faster though...
+
+
+        // Now that the other parts are working, can try a new way.
+        //  Will use the core DB function.
+        //   Best to avoid direct DB calls here.
+
+
+        // A LL - superfast API may be of use too.
+        //  could be tricky to use correctly though.
+
+        // Could save on a lot of code here
+
+
+
+
+
+        let the_old_way = () => {
+            //console.log('paging_option', paging_option);
+
+
+            // Should probably be changed to use the server's get_records_in_range function.
+
+            // when there are 0 records?
+            // Maybe not returning data OK.
+
+            var paging_option, page_size;
+
+            pos = 0;
+            [paging_option, pos] = x.read(buf_the_rest, pos);
+
+            //console.log('paging_option', paging_option);
+            if (paging_option > 0) {
+                [page_size, pos] = x.read(buf_the_rest, pos);
             }
 
-            //var res = [];
-            db.createReadStream({
-                'gt': b_l,
-                'lt': b_u
-            }).on('data', function (data) {
-                //arr_page[c++] = (Buffer.concat([xas2(key.length).buffer, key]));
-
-                // will be both the key and the value
-                // will need to combine them as buffers.
-                var buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
-                //arr_page[c++] = buf_combined;
-                //console.log('buf_combined', buf_combined);
-                arr_res.push(buf_combined);
-                //arr_res.push(x(key.length).buffer);
-                //arr_res.push(key);
-
-            })
-                .on('error', function (err) {
-                    //console.log('Oh my!', err)
-                    callback(err);
-                })
-                .on('close', function () {
-                    //console.log('Stream closed')
-                })
-                .on('end', function () {
-                    //callback(null, res);
-                    //console.log('arr_res', arr_res);
-                    buf_res = Buffer.concat(arr_res);
-                    connection.sendBytes(buf_res);
-                })
-        } else if (paging_option === PAGING_RECORD_COUNT) {
-
-            //[page_size, pos] = x.read(buf_the_rest, pos);
-
-            //console.log('page_size', page_size);
-
-            [b_l, pos] = read_l_buffer(buf_the_rest, pos);
-            [b_u, pos] = read_l_buffer(buf_the_rest, pos);
-            let c = 0;
-            let arr_page = new Array(page_size);
-            let page_number = 0;
-
-            var arr_res = [buf_msg_id, buf_record_paging_flow];
-            // Send back flow pages when the data is being got.
-
-            let buf_combined;
-
-            // And need to put the results into pages.
-
-            // Can we slow down this stream if it's reading too fast for the client?
-
-            // Can use stream.pause to pause the reading.
-            //  Could do this in response to a message?
-            //  
-
-            let read_stream = db.createReadStream({
-                'gt': b_l,
-                'lt': b_u
-            }).on('data', function (data) {
-
-                // will be both the key and the value
-                // will need to combine them as buffers.
-                buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
-                //console.log('buf_combined', buf_combined);
-                //arr_res.push(buf_combined);
-                arr_page[c++] = buf_combined;
-
-                if (c === page_size) {
-
-                    //console.log('sending page', page_number);
-                    //console.log('pre read_stream.pause');
-
-                    // Check the current page number to see how far behind it is.
-
-                    let latest_received_page = map_received_page[message_id];
-                    //console.log('map_received_page', map_received_page);
-                    let delay = 0,
-                        pages_diff = 0;
-                    if (typeof latest_received_page !== 'undefined') {
-                        pages_diff = page_number - latest_received_page;
-
-                        if (pages_diff > 2) {
-                            delay = 250;
-                        }
-                        if (pages_diff > 4) {
-                            delay = 500;
-                        }
-                        if (pages_diff > 6) {
-                            delay = 1000;
-                        }
-                        if (pages_diff > 8) {
-                            delay = 2000;
-                        }
-
-                        // if it gets too high, then stop the stream?
-                        //  ie the client has 
-
-                    }
-                    //console.log('pages_diff', pages_diff);
-
-                    read_stream.pause();
-                    setTimeout(() => {
-                        read_stream.resume();
-                    }, delay);
-
-                    // Possibility of applying a compression algorythm to the arr_page?
-                    //  Compressing the data could raise the throughput to the client.
-                    //   Currently data seems about 5 times the size when over the wire rather than in the DB.
-
-                    // Could have a compressed data format for record paging.
-                    //  Maybe use Binary_Encoding's buffer compression?
-
-                    // Or have a different Buffer_Compression module available.
-                    //  Don't want streaming compression, as we compress parts of the stream, ie some messages within it.
-
-                    // record paging flow, with compression?
-                    //  then read another xas2 number, or maybe read a CompressionInfo object.
-
-                    // For the moment could have most basic compression options, with sensible defaults.
-
-                    //  The client could request compression too.
-                    //  Reading compression info from the request would be sensible.
+            let [b_l, b_u] = cm.inner;
 
 
+            //[b_l, pos] = read_l_buffer(buf_the_rest, pos);
+            //[b_u, pos] = read_l_buffer(buf_the_rest, pos);
 
 
-                    connection.sendBytes(Buffer.concat([buf_msg_id, buf_record_paging_flow, xas2(page_number++).buffer].concat(arr_page)));
-                    c = 0;
-                    // Could empty that array, would that be faster than GC?
-                    arr_page = new Array(page_size);
+            if (paging_option === NO_PAGING) {
+                // read a couple more buffers.
+                // want to read a buffer with the length first.
 
+                //[b_l, pos] = read_l_buffer(buf_the_rest, pos);
+                //[b_u, pos] = read_l_buffer(buf_the_rest, pos);
 
-                    // On the client-side, don't want to pause the whole socket.
+                //console.log('b_l', b_l);
+                //console.log('b_u', b_u);
 
-                    // Try pausing the reading of the stream for 1s.
-                    //  Will be able to pause streams when the client-side receive buffer becomes too large.
-                    //   Could have a client-side message to say which is the last message received and processed.
-                    //    Then if it gets out of sync by more than n (ie 4), it waits until the client has caught up.
-
-                    // Would need client-side acknowledgement of receiving the messages.
-                    //  Client-side and server-side pause commands would be useful.
-
-                    // Important to be able to correctly sync large amounts of data, fast, or at least fast enough while also reliably.
-                    //  The sender's internet connection may be much faster than the receiver's.
-
-                    // Some small messages in the protocol to say the last message number in a message chain could help.
-                    //  Small receive packets would be sent back to the server.
+                if (return_message_type) {
+                    // Though paging is an option, this is not a paged or pagable response.
+                    var arr_res = [buf_msg_id, buf_record_paging_none];
+                } else {
+                    var arr_res = [buf_msg_id];
                 }
-                //arr_res.push(x(key.length).buffer);
-                //arr_res.push(key);
 
-            })
-                .on('error', function (err) {
-                    //console.log('Oh my!', err)
-                    callback(err);
-                })
-                .on('close', function () {
-                    //console.log('Stream closed')
-                })
-                .on('end', function () {
-                    //callback(null, res);
-                    //buf_res = Buffer.concat(arr_res);
-                    //connection.sendBytes(buf_res);
+                //var res = [];
+                db.createReadStream({
+                    'gt': b_l,
+                    'lt': b_u
+                }).on('data', function (data) {
+                    //arr_page[c++] = (Buffer.concat([xas2(key.length).buffer, key]));
 
-                    arr_res = [buf_msg_id, buf_record_paging_last, xas2(page_number).buffer].concat(arr_page.slice(0, c));
-                    buf_res = Buffer.concat(arr_res);
-                    connection.sendBytes(buf_res);
-                })
+                    // will be both the key and the value
+                    // will need to combine them as buffers.
+                    var buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
+                    //arr_page[c++] = buf_combined;
+                    //console.log('buf_combined', buf_combined);
+                    arr_res.push(buf_combined);
+                    //arr_res.push(x(key.length).buffer);
+                    //arr_res.push(key);
 
-        } else {
-            throw 'Unexpected paging option'
+                })
+                    .on('error', function (err) {
+                        //console.log('Oh my!', err)
+                        callback(err);
+                    })
+                    .on('close', function () {
+                        //console.log('Stream closed')
+                    })
+                    .on('end', function () {
+                        //callback(null, res);
+                        //console.log('arr_res', arr_res);
+                        buf_res = Buffer.concat(arr_res);
+                        connection.sendBytes(buf_res);
+                    })
+            } else if (paging_option === PAGING_RECORD_COUNT) {
+
+                //[page_size, pos] = x.read(buf_the_rest, pos);
+                //console.log('page_size', page_size);
+                //console.log('buf_the_rest', buf_the_rest);
+
+                // decode the rest?
+
+                // Could put the whole thing in a Command_Message and use that to parse.
+
+                //[b_l, pos] = read_l_buffer(buf_the_rest, pos);
+                //[b_u, pos] = read_l_buffer(buf_the_rest, pos);
+
+                let c = 0;
+                let arr_page = new Array(page_size);
+                let page_number = 0;
+
+                var arr_res = [buf_msg_id, buf_record_paging_flow];
+                // Send back flow pages when the data is being got.
+
+                //console.log('b_l', b_l);
+                //console.log('b_u', b_u);
+
+                let buf_combined;
+
+                // And need to put the results into pages.
+                // Can we slow down this stream if it's reading too fast for the client?
+                // Can use stream.pause to pause the reading.
+                //  Could do this in response to a message?
+                //  
+
+                let read_stream = db.createReadStream({
+                    'gt': b_l,
+                    'lt': b_u
+                }).on('data', function (data) {
+
+                    // will be both the key and the value
+                    // will need to combine them as buffers.
+                    buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
+                    //console.log('buf_combined', buf_combined);
+                    //arr_res.push(buf_combined);
+                    arr_page[c++] = buf_combined;
+
+                    if (c === page_size) {
+
+                        //console.log('sending page', page_number);
+                        //console.log('pre read_stream.pause');
+
+                        // Check the current page number to see how far behind it is.
+
+                        let latest_received_page = map_received_page[message_id];
+                        //console.log('map_received_page', map_received_page);
+                        let delay = 0,
+                            pages_diff = 0;
+                        if (typeof latest_received_page !== 'undefined') {
+                            pages_diff = page_number - latest_received_page;
+
+                            if (pages_diff > 2) {
+                                delay = 250;
+                            }
+                            if (pages_diff > 4) {
+                                delay = 500;
+                            }
+                            if (pages_diff > 6) {
+                                delay = 1000;
+                            }
+                            if (pages_diff > 8) {
+                                delay = 2000;
+                            }
+
+                            // if it gets too high, then stop the stream?
+                            //  ie the client has 
+
+                        }
+                        //console.log('pages_diff', pages_diff);
+
+                        read_stream.pause();
+                        setTimeout(() => {
+                            read_stream.resume();
+                        }, delay);
+
+                        // Possibility of applying a compression algorythm to the arr_page?
+                        //  Compressing the data could raise the throughput to the client.
+                        //   Currently data seems about 5 times the size when over the wire rather than in the DB.
+
+                        // Could have a compressed data format for record paging.
+                        //  Maybe use Binary_Encoding's buffer compression?
+
+                        // Or have a different Buffer_Compression module available.
+                        //  Don't want streaming compression, as we compress parts of the stream, ie some messages within it.
+
+                        // record paging flow, with compression?
+                        //  then read another xas2 number, or maybe read a CompressionInfo object.
+
+                        // For the moment could have most basic compression options, with sensible defaults.
+
+                        //  The client could request compression too.
+                        //  Reading compression info from the request would be sensible.
+
+                        connection.sendBytes(Buffer.concat([buf_msg_id, buf_record_paging_flow, xas2(page_number++).buffer].concat(arr_page)));
+                        c = 0;
+                        // Could empty that array, would that be faster than GC?
+                        arr_page = new Array(page_size);
+
+
+                        // On the client-side, don't want to pause the whole socket.
+
+                        // Try pausing the reading of the stream for 1s.
+                        //  Will be able to pause streams when the client-side receive buffer becomes too large.
+                        //   Could have a client-side message to say which is the last message received and processed.
+                        //    Then if it gets out of sync by more than n (ie 4), it waits until the client has caught up.
+
+                        // Would need client-side acknowledgement of receiving the messages.
+                        //  Client-side and server-side pause commands would be useful.
+
+                        // Important to be able to correctly sync large amounts of data, fast, or at least fast enough while also reliably.
+                        //  The sender's internet connection may be much faster than the receiver's.
+
+                        // Some small messages in the protocol to say the last message number in a message chain could help.
+                        //  Small receive packets would be sent back to the server.
+                    }
+                    //arr_res.push(x(key.length).buffer);
+                    //arr_res.push(key);
+
+                })
+                    .on('error', function (err) {
+                        //console.log('Oh my!', err)
+                        callback(err);
+                    })
+                    .on('close', function () {
+                        //console.log('Stream closed')
+                    })
+                    .on('end', function () {
+                        //callback(null, res);
+                        //buf_res = Buffer.concat(arr_res);
+                        //connection.sendBytes(buf_res);
+
+                        arr_res = [buf_msg_id, buf_record_paging_last, xas2(page_number).buffer].concat(arr_page.slice(0, c));
+                        buf_res = Buffer.concat(arr_res);
+                        connection.sendBytes(buf_res);
+                    })
+            } else {
+                throw 'Unexpected paging option'
+            }
         }
+        the_old_way();
     }
 
     // also will have select from table?
@@ -2544,12 +2550,9 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         // message.inner
 
         console.log('LL_GET_RECORDS_IN_RANGES');
-
         let command_message = new Command_Message(message_binary);
-
         let communication_options = command_message.paging;
         console.log('communication_options', communication_options);
-
         let msg_params = command_message.inner;
 
         console.log('msg_params', msg_params);
@@ -2646,16 +2649,9 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         let arr_selection_fields = Binary_Encoding.decode_buffer(buf_the_rest, 0, pos);
 
 
-
-
         if (paging_option === NO_PAGING) {
-
             // Use the callback version of the function.
-
-            nldb.select_from_records_in_range()
-
-
-
+            nldb.select_from_records_in_range();
 
         }
         // Then it will use Binary Paging, not record paging. It's not returning records.
@@ -2665,11 +2661,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
             // An output page bufferer may help.
             //  The pager has the rosponse stream, and gets given the data, makes its own choices about when to page.
-
-
         }
-
-
     }
 
     if (i_query_type === LL_GET_RECORD) {
@@ -2726,18 +2718,12 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
             }
         })
-
     }
 
-
     // LL_GET_RECORDS_IN_RANGE_UP_TO
-
     // Could just use a limit property.
-
     // The limit property, incorportated into the protocol, will make this method obselete.
     //  Would just set a limit property to the db query.
-
-
 
     if (i_query_type === LL_GET_RECORDS_IN_RANGE_UP_TO) {
         console.log('LL_GET_RECORDS_IN_RANGE_UP_TO');
@@ -2836,13 +2822,8 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         }
     }
 
-
     // TODO: Make subscriptions return the response type number.
     //  Says paging info, whether it is to be decoded using record decode, or by using Binary_Encoding standard decode.
-
-
-
-
 
     if (i_query_type === LL_SUBSCRIBE_ALL) {
         console.log('LL_SUBSCRIBE_ALL');
@@ -3209,9 +3190,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         console.log('ENSURE_TABLE_RECORD');
 
         // Does the record already exist based on index lookups
-
         // Is the key complete?
-
         // Use the oo Command_Message class
 
         let cm = new Command_Message(message_binary);
@@ -3226,30 +3205,18 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
         // worth having this in Command_Message.
 
-
-
-
-
         //console.log('cm.inner', cm.inner);
-
         let [table_id, record] = cm.inner;
-
         // then we do ensure table record, sending the result.
-
         (async () => {
             //console.log('pre ensure_table_record');
             let res_ensure_table_record = await nextleveldb_server.ensure_table_record(table_id, record);
-
             //console.log('res_ensure_table_record', res_ensure_table_record);
-
             // then send the record back in the Command_Response_Message
-
             // Give it an observable and it would make multiple pages?
             //  Or a different class for that?
-
             // 
             //console.log('message_id', message_id);
-
             let cmr = new Command_Response_Message(message_id, res_ensure_table_record);
             //console.log('cmr', cmr);
             //console.log('cmr.buffer', cmr.buffer);

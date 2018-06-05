@@ -263,38 +263,25 @@ class NextLevelDB_Server extends NextlevelDB_Core_Server {
     //   different ways of doing this I'm sure.
 
 
-
-
-
-
-
-
+    // get table records by keys
+    //  not giving the full key.
+    //   need to be able to give an undefined key prefix.
+    //   sending keys to the server - if they are binary, they lack a kp. Or it encodes it to an array, they lack KPs.
+    //   The command_message could decode them OK as buffers.
 
 
     // A variety of ll functions will have a lot more complexity involving observable results, flexible calling, polymorphism, calling of optimised inner functions.
-
-
-
     // Then get records by prefix limit....
-
 
     // Maybe we would want to specify limit = 0 meaning it's -1 in level terms.
     //  We just won't use limit of actually 0 records... just don't do the query.
-
-
-
-
-
 
     maintain_table_indexes(table_name) {
 
         // Not sure what this should return - callback, observer, promise.
 
         // promise would work well with await.
-
         // obs_maintain_table_indexes for more detail with an observable?
-
-
         // promise version of the function that gets the 
 
         // for the moment, could use promise / callback flexible system.
@@ -302,11 +289,8 @@ class NextLevelDB_Server extends NextlevelDB_Core_Server {
         // For every table record, will generate its index records, and check that they are in the DB.
         //  This will be server-side, so the process will not take many requests from the client.
 
-
         // A basic server function, with the API, to lookup the table id would be very useful.
         //  Could have that as a basic server function.
-
-
 
 
         let inner = () => {
@@ -352,7 +336,6 @@ class NextLevelDB_Server extends NextlevelDB_Core_Server {
         let res = new Evented_Class();
         // Tell the result if it's encoded or not.
 
-
         if (decode) {
             res.response_type = 'array';
         } else {
@@ -378,7 +361,7 @@ class NextLevelDB_Server extends NextlevelDB_Core_Server {
                 pk_fk_count++;
                 pk_fks.push(pk_field);
             }
-        })
+        });
 
         //console.log('pk_fk_count', pk_fk_count);
         if (pk_fk_count > 0) {
@@ -718,10 +701,8 @@ class NextLevelDB_Server extends NextlevelDB_Core_Server {
                 table_id = table;
                 opt_cb = null;
                 callback(null, true);
-
             }
         }
-
 
         parameterise((err, ready) => {
             if (err) {
@@ -743,11 +724,7 @@ class NextLevelDB_Server extends NextlevelDB_Core_Server {
     }
 
     // ll_count with progress / observable
-
     // observable would be the best API for this.
-
-
-
 
 
 
@@ -780,10 +757,8 @@ class NextLevelDB_Server extends NextlevelDB_Core_Server {
         // first : is ok.
 
         let log_file_path = path.join(this.db_path, 'logs', sutc + '-' + name + '.log');
-
         let dirname = path.dirname(log_file_path);
         console.log('log_file_path', log_file_path);
-
         console.log('dirname', dirname);
 
         fs2.ensure_directory_exists(dirname, (err, res_exists) => {
@@ -851,20 +826,7 @@ class NextLevelDB_Server extends NextlevelDB_Core_Server {
 
         // an observable that one by one checks if records are found would be nice.
         //  or even just checking for records not found and raising them
-
-
-
-
-        //let rl = 
-
-
-
-
     }
-
-
-
-
 
     // increment_incrementor (incrementor_id)
 

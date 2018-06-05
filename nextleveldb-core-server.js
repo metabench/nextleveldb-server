@@ -2182,33 +2182,60 @@ class NextLevelDB_Core_Server extends Evented_Class {
         });
     }
 
+
+
     get_table_record_by_key(table, key, callback) {
-        let table_id = this.model.table_id(table);
-        let table_kp = table_id * 2 + 2;
+        return prom_or_cb((resolve, reject) => {
+            let table_id = this.model.table_id(table);
+            let table_kp = table_id * 2 + 2;
+            // get single record in range?
+            // 
+            let arr_record_key = [table_kp].concat(key);
+            // seems we don't have a simple get call in use
 
-        // get single record in range?
-
-        // 
-
-        let arr_record_key = [table_kp].concat(key);
-
-        // seems we don't have a simple get call in use
-
-        let buf_key = Binary_Encoding.encode_to_buffer_use_kps(arr_record_key, 1);
-        this.db.get(buf_key, (err, res) => {
-            if (err) {
-                if (err.notFound) {
-                    // handle a 'NotFoundError' here
-                    callback(null, undefined);
+            let buf_key = Binary_Encoding.encode_to_buffer_use_kps(arr_record_key, 1);
+            this.db.get(buf_key, (err, res) => {
+                if (err) {
+                    if (err.notFound) {
+                        // handle a 'NotFoundError' here
+                        //callback(null, undefined);
+                        resolve(undefined);
+                    } else {
+                        reject(err);
+                    }
                 } else {
-                    callback(err);
+                    //console.log('db.get res', res);
+                    // With an OO record?
+                    resolve(new B_Record([buf_key, res]));
                 }
-            } else {
-                //console.log('db.get res', res);
-                callback(null, [buf_key, res]);
+            })
+        });
+    }
+
+
+    // Then make it callable through the client.
+    get_table_records_by_keys(table, keys, callback) {
+        return obs_or_cb(async (next, complete, error) => {
+            for (let key of keys) {
+                next(await this.get_table_record_by_key(table, key));
             }
+            complete();
+            return []; // stop, pause, resume
         })
     }
+
+
+
+    // get_table_records_by_keys
+
+
+    // get multiple records by keys.
+    //  for the moment, can't page the sending.
+    //   maybe best not to.
+
+    // an arrayify server type function.
+
+
 
 
     get_table_records(table, callback) {
@@ -2232,8 +2259,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
             obs_records.on('complete', () => resolve(hash.digest('hex')));
         });
     }
-
-
     // table.fields_info
 
 
@@ -2246,10 +2271,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
         }
     }
 
-
-
-
-
     // could use an observable creator function.
     //  the handler gets called with 3 functions available for it to call.
 
@@ -2258,10 +2279,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
     //  observable is becoming more standard.
 
     // Could just use 'get' command.
-
     // Want some kind of functional optimised fp.
-
-
 
     // get_records_by_keys
 
@@ -2390,11 +2408,8 @@ class NextLevelDB_Core_Server extends Evented_Class {
         }, callback);
     }
 
-
-
     // This one splices the kp into it.
     //  Decoding the records has removed the kp.
-
     // This is about batch putting rows
     batch_put_table_records(table_name, records, callback) {
         var ops = [],
@@ -2623,10 +2638,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
     table_exists(table_name, callback) {
         // Does not need to be async when checking the model.
 
-
-
-
-
         // Should probably consult the index records??? Error was not there.
         //console.log('table_name', table_name);
         //console.log('this.model.map_tables', this.model.map_tables);
@@ -2793,14 +2804,8 @@ if (require.main === module) {
                                     let keys = await ls.get_table_keys('tables');
                                     console.log('awaited keys', keys);
                                 })();
-
-
                             }
                             test_get_table_keys();
-
-
-
-
 
 
 
