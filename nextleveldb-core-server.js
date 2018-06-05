@@ -2215,11 +2215,16 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
     // Then make it callable through the client.
     get_table_records_by_keys(table, keys, callback) {
-        return obs_or_cb(async (next, complete, error) => {
-            for (let key of keys) {
-                next(await this.get_table_record_by_key(table, key));
-            }
-            complete();
+        return obs_or_cb((next, complete, error) => {
+
+            (async () => {
+                for (let key of keys) {
+                    next(await this.get_table_record_by_key(table, key));
+                }
+                complete();
+            })();
+
+
             return []; // stop, pause, resume
         })
     }
