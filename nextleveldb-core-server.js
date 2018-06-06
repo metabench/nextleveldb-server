@@ -1410,13 +1410,10 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
     ensure_table(arr_table, callback) {
         //console.log('ensure_table');
-
         let table_name, table_def;
-
 
         // observable with last
         //  so can be used with await
-
 
         // and get the sig
 
@@ -1439,7 +1436,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
                     // but this result is maybe not ready yet.
                     //  as in the 'then' has not been called.
                     // a small delay before calling this?
-                    console.log('pre complete');
+                    //console.log('pre complete');
                     // could check its structure is the same
                     //complete();
                     setImmediate(complete);
@@ -1557,7 +1554,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
         // using an observable to return all the results along the way would be useful.
         //  observable function sequence
     }
-
 
     table_index_pk_lookup(table_id, idx_id, arr_values, callback) {
         return prom_or_cb((resolve, reject) => {

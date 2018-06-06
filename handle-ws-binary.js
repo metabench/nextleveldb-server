@@ -1,3 +1,5 @@
+const logging_enabled = false;
+
 /**
  * Created by james on 27/12/2016.
  * 
@@ -48,7 +50,12 @@ The core of the DB could do with a nice bit of improvement, allowing for functio
  
  */
 
-
+let log;
+if (!logging_enabled) {
+    log = () => { };
+} else {
+    log = console.log;
+}
 
 
 var jsgui = require('lang-mini');
@@ -667,8 +674,8 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     [message_id, pos] = x.read(message_binary, pos);
     [i_query_type, pos] = x.read(message_binary, pos);
 
-    //console.log('message_id', message_id);
-    //console.log('i_query_type', i_query_type);
+    //log('message_id', message_id);
+    //log('i_query_type', i_query_type);
 
     var buf_the_rest = Buffer.alloc(message_binary.length - pos);
     message_binary.copy(buf_the_rest, 0, pos);
@@ -692,8 +699,8 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             paging;
         [paging, pos] = Paging.read(buf_the_rest);
 
-        //console.log('pos', pos);
-        //console.log('buf_the_rest', buf_the_rest);
+        //log('pos', pos);
+        //log('buf_the_rest', buf_the_rest);
 
 
         //let args = Binary_Encoding.decode_buffer(buf_the_rest, 0, pos);
@@ -710,19 +717,19 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
 
         //let message_type_id = BINARY_PAGING_NONE;
-        //console.log('cb_send message_id', message_id);
+        //log('cb_send message_id', message_id);
 
-        //console.log('*** res', res);
+        //log('*** res', res);
 
         // The result could already be a buffer.
         //  It won't always be.
 
-        //console.log('Binary_Encoding.encode_to_buffer(res)', Binary_Encoding.encode_to_buffer([res]));
+        //log('Binary_Encoding.encode_to_buffer(res)', Binary_Encoding.encode_to_buffer([res]));
 
 
         //let message = new Command_Response_Message(message_id, BINARY_PAGING_NONE, Binary_Encoding.encode_to_buffer(res));
         let message = new Command_Response_Message(message_id, BINARY_PAGING_NONE, Binary_Encoding.encode_to_buffer([res]));
-        //console.log('message', message);
+        //log('message', message);
         connection.sendBytes(message.buffer);
         //let encoded = Binary_Encoding.encode_to_buffer(res);
         // the message id
@@ -740,7 +747,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     //    It will make for simpler code that encompases needed functionality in a middleware kind of way.
 
     let page_binary_stream = (paging_option, page_size, obs_call) => {
-        //console.log('page binary stream paging_option', paging_option);
+        //log('page binary stream paging_option', paging_option);
         if (paging_option === PAGING_RECORD_COUNT) {
 
 
@@ -749,7 +756,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             let page_number = 0;
 
             obs_call.on('next', data => {
-                //console.log('obs_call next data', data);
+                //log('obs_call next data', data);
 
                 // Want to keep the internal data, but say it is an array of data.
                 //  Encode it as if it's an array.
@@ -774,10 +781,10 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
 
                     // Want simple syntax here... need to be careful about when we have a page of data, and when we have a single item.
-                    //console.log('arr_page', arr_page);
+                    //log('arr_page', arr_page);
 
                     let buf_page_data = Binary_Encoding.encode_to_buffer([arr_page]);
-                    //console.log('flow buf_page_data.length', buf_page_data.length);
+                    //log('flow buf_page_data.length', buf_page_data.length);
                     // message id, binary flow response, page number, the encoded arr_page
 
                     let buf_message = Buffer.concat([buf_msg_id, buf_binary_paging_flow, xas2(page_number).buffer, buf_page_data]);
@@ -790,11 +797,11 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             })
             obs_call.on('complete', () => {
                 // Send the incomplete page as flow last
-                //console.log('obs_call complete');
+                //log('obs_call complete');
 
                 if (c > 0) {
 
-                    //console.log('arr_page', arr_page);
+                    //log('arr_page', arr_page);
 
                     // A different method of encoding?
                     //let buf_page_data = Binary_Encoding.encode_to_buffer([arr_page.slice(0, c)]);
@@ -811,7 +818,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
                     // Encoding for results sets...
                     //  Don't say the results contain buffers, we need to encode an array of buffers 
-                    console.log('last buf_page_data.length', buf_page_data.length);
+                    log('last buf_page_data.length', buf_page_data.length);
 
                     // Not so sure about getting back the 0th item?
 
@@ -832,13 +839,13 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         // Comm options may well hold quite a bit.
         //  KP stripping could happen here.
 
-        //console.log('send communication_options', communication_options);
+        //log('send communication_options', communication_options);
         let paging_option = communication_options.paging_type;
 
         let limit = communication_options.limit || -1;
-        //console.log('limit', limit);
+        //log('limit', limit);
 
-        //console.log('paging_option', paging_option);
+        //log('paging_option', paging_option);
 
         if (paging_option === PAGING_COUNT) {
             let c = 0;
@@ -856,16 +863,16 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
 
                 obs_call.on('next', data => {
-                    console.log('!response_type binary send has data ' + data);
+                    log('!response_type binary send has data ' + data);
 
-                    console.log('data', data);
+                    log('data', data);
 
                     arr_page[c++] = data;
 
 
                     //let crm = new Command_Response_Message(message_id, data);
 
-                    //console.log('crm', crm);
+                    //log('crm', crm);
 
                     // RECORD_PAGING_FLOW
                     if (c === page_size) {
@@ -888,14 +895,14 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 });
 
                 obs_call.on('complete', () => {
-                    //console.log('obs_call complete');
+                    //log('obs_call complete');
                     if (c > 0) {
                         let small_page = arr_page.slice(0, c);
 
                         let crm = new Command_Response_Message(message_id, RECORD_PAGING_LAST, page_number++, small_page);
-                        //console.log('last buf_page_data.length', buf_page_data.length);
+                        //log('last buf_page_data.length', buf_page_data.length);
                         //let buf_message = Buffer.concat([buf_msg_id, buf_binary_paging_last, xas2(page_number).buffer, buf_page_data]);
-                        console.log('crm', crm);
+                        log('crm', crm);
 
                         connection.sendBytes(crm.buffer);
                     }
@@ -906,13 +913,13 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
 
                 //console.trace();
-                //console.log('send communication_options', communication_options);
+                //log('send communication_options', communication_options);
                 //throw 'response_type needs to be set in the observable returned previously. Acceptable values are "keys", "records", "array"';
             } else {
 
                 // The old way, should remove this.
 
-                console.log('response_type', response_type);
+                log('response_type', response_type);
 
                 // Need to do this differently depending on response type, it seems.
                 //  Since they are records, need to encode and send them as records.
@@ -922,7 +929,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
                 if (response_type === 'array') {
                     obs_call.on('next', data => {
-                        console.log('binary send has data ' + send);
+                        log('binary send has data ' + send);
 
                         let buf_arr_page_item = Buffer.concat([xas2(ARRAY).buffer, xas2(data.length).buffer, data]);
                         arr_page[c++] = buf_arr_page_item;
@@ -934,10 +941,10 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                         }
                     })
                     obs_call.on('complete', () => {
-                        //console.log('obs_call complete');
+                        //log('obs_call complete');
                         if (c > 0) {
                             let buf_page_data = Buffer.concat(arr_page.slice(0, c));
-                            //console.log('last buf_page_data.length', buf_page_data.length);
+                            //log('last buf_page_data.length', buf_page_data.length);
                             let buf_message = Buffer.concat([buf_msg_id, buf_binary_paging_last, xas2(page_number++).buffer, buf_page_data]);
                             connection.sendBytes(buf_message);
                         }
@@ -954,17 +961,17 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                         // The data could be as an array.
                         //  If so, need to join them up
                         let t_data = tof(data);
-                        //console.log('t_data', t_data);
+                        //log('t_data', t_data);
                         if (t_data === 'array') {
                             throw '8 stop';
                             buf_data = Binary_Encoding.array_join_encoded_buffers([Binary_Encoding.array_join_encoded_buffers(data)]);
                         } else {
                             // It would already be an array buffer, I think
-                            //console.log('** data', data);
+                            //log('** data', data);
 
                             buf_data = data;
 
-                            //console.log('pre try stop');
+                            //log('pre try stop');
                             //throw 'stop';
 
                             //buf_data = Binary_Encoding.encode_buffer_as_array_buffer(data);
@@ -976,7 +983,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                             // join encoded buffers, but don't specifically say it's encoded as an array
                             //  it's encoded as an array by default if it's not contained within anything else.
 
-                            //console.log('arr_page', arr_page);
+                            //log('arr_page', arr_page);
                             //throw 'stop';
 
 
@@ -997,7 +1004,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                         if (c > 0) {
                             let sliced_page = arr_page.slice(0, c);
 
-                            //console.log('sliced_page', sliced_page);
+                            //log('sliced_page', sliced_page);
                             //throw 'stop';
 
 
@@ -1008,7 +1015,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
                             // Multiple buffers, all to get encoded into one buffer
 
-                            //console.log('buf_page_data', buf_page_data);
+                            //log('buf_page_data', buf_page_data);
 
                             let buf_message = Buffer.concat([buf_msg_id, buf_binary_paging_last, xas2(page_number++).buffer, buf_page_data]);
                             connection.sendBytes(buf_message);
@@ -1019,7 +1026,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
                     // 
                     obs_call.on('next', data => {
-                        console.log('records send has data ', data);
+                        log('records send has data ', data);
 
                         // Binary_Encoding.join_buffer_pair([data.key, data.value]);
 
@@ -1045,10 +1052,10 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                         }
                     })
                     obs_call.on('complete', () => {
-                        //console.log('obs_call complete');
+                        //log('obs_call complete');
                         if (c > 0) {
                             let buf_page_data = Buffer.concat(arr_page.slice(0, c));
-                            //console.log('last buf_page_data.length', buf_page_data.length);
+                            //log('last buf_page_data.length', buf_page_data.length);
                             let buf_message = Buffer.concat([buf_msg_id, buf_record_paging_last, xas2(page_number++).buffer, buf_page_data]);
                             connection.sendBytes(buf_message);
                         }
@@ -1061,7 +1068,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
         } else {
             console.trace();
-            console.log('paging_option', paging_option);
+            log('paging_option', paging_option);
             throw 'NYI';
         }
     }
@@ -1069,7 +1076,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
 
     if (i_query_type === LL_WIPE) {
-        console.log('LL_WIPE');
+        log('LL_WIPE');
         nextleveldb_server.ll_wipe((err, db) => {
             if (err) {
                 throw err;
@@ -1082,7 +1089,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 } else {
                     buf_res = Buffer.concat([xas2(message_id).buffer, xas2(BOOL_TRUE).buffer]);
                 }
-                //console.log('buf_res', buf_res);
+                //log('buf_res', buf_res);
                 connection.sendBytes(buf_res);
 
             }
@@ -1096,7 +1103,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     // Not transactional
 
     if (i_query_type === LL_WIPE_REPLACE) {
-        console.log('LL_WIPE_REPLACE');
+        log('LL_WIPE_REPLACE');
         nextleveldb_server.ll_wipe((err, db) => {
             if (err) {
                 throw err;
@@ -1119,7 +1126,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
 
 
-                        //console.log('buf_res', buf_res);
+                        //log('buf_res', buf_res);
                         connection.sendBytes(buf_res);
                     }
                 });
@@ -1132,14 +1139,14 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
     if (i_query_type === LL_COUNT_RECORDS) {
         // Count all records
-        console.log('LL_COUNT_RECORDS');
+        log('LL_COUNT_RECORDS');
 
         // Count could return ongoing counts when the paging option is selected.
         //  A paging type that returns timed ongoing responses would be nice, meaning every second or whenever, a 'page' message goes to the client, updating the status of the ongoing operation.
 
         // This can use paging options.
 
-        //console.log('buf_the_rest.length', buf_the_rest.length);
+        //log('buf_the_rest.length', buf_the_rest.length);
 
         // May contain paging option.
 
@@ -1151,8 +1158,8 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 if (err) {
                     throw err;
                 } else {
-                    //console.log('count', count);
-                    //console.log('return_message_type', return_message_type);
+                    //log('count', count);
+                    //log('return_message_type', return_message_type);
 
                     // This could be done with paging.
                     //  Could return a record with each page.
@@ -1165,20 +1172,20 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                         buf_res = Buffer.concat([xas2(message_id).buffer, xas2(count).buffer]);
                     }
 
-                    //console.log('buf_res', buf_res);
+                    //log('buf_res', buf_res);
                     connection.sendBytes(buf_res);
                 }
             });
         } else {
             // Look at the paging buffer.
-            //console.log('buf_the_rest', buf_the_rest);
+            //log('buf_the_rest', buf_the_rest);
 
             let pos = 0,
                 page_number = 0,
                 paging_option, delay;
             [paging_option, pos] = x.read(buf_the_rest, pos);
 
-            //console.log('paging_option', paging_option);
+            //log('paging_option', paging_option);
 
             if (paging_option === PAGING_TIMED) {
 
@@ -1188,16 +1195,16 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
                 // Call the server count function with callbacks (or maybe an observable.)
 
-                console.log('LL_COUNT_RECORDS, timed paging');
+                log('LL_COUNT_RECORDS, timed paging');
 
 
                 [delay, pos] = x.read(buf_the_rest, pos);
-                console.log('delay', delay);
+                log('delay', delay);
 
                 // then use the observable interface to ll_count.
 
                 let obs_count = nextleveldb_server.ll_count(delay);
-                console.log('obs_count', obs_count);
+                log('obs_count', obs_count);
 
                 let n_page = 0;
 
@@ -1207,10 +1214,10 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     //buf_res = Buffer.concat([xas2(message_id).buffer, buf_binary_paging_last, xas2(count).buffer]);
                     //connection.sendBytes(buf_res);
 
-                    console.log('count', count);
+                    log('count', count);
                 }))
                 obs_count.on('complete', (count => {
-                    console.log('complete count', count);
+                    log('complete count', count);
 
                     // Last page / complete page.
 
@@ -1246,10 +1253,10 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         //  Other queries, that make use of indexing, or look up names or other values from foreign keys, would benefit further from having a working Model instance.
 
         // batch_put
-        console.log('LL_PUT_RECORDS');
+        log('LL_PUT_RECORDS');
 
-        //console.log('buf_the_rest', buf_the_rest);
-        //console.log('buf_the_rest.length', buf_the_rest.length);
+        //log('buf_the_rest', buf_the_rest);
+        //log('buf_the_rest.length', buf_the_rest.length);
 
         //throw 'stop';
 
@@ -1269,7 +1276,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     } else {
                         buf_res = buf_res = Buffer.concat([buf_msg_id, xas2(BOOL_TRUE).buffer]);
                     }
-                    //console.log('buf_res', buf_res);
+                    //log('buf_res', buf_res);
                     connection.sendBytes(buf_res);
                 }
             })
@@ -1286,7 +1293,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
 
     if (i_query_type === LL_COUNT_KEYS_IN_RANGE) {
-        console.log('LL_COUNT_KEYS_IN_RANGE');
+        log('LL_COUNT_KEYS_IN_RANGE');
 
 
         // Doing full message parsing would give a nice advantage here.
@@ -1311,8 +1318,8 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         // Could return the ongoing count when using paging.
 
         // get the rest of the buffer.
-        //console.log('buf_the_rest', buf_the_rest);
-        //console.log('buf_the_rest.length', buf_the_rest.length);
+        //log('buf_the_rest', buf_the_rest);
+        //log('buf_the_rest.length', buf_the_rest.length);
 
         // then get these separate buffers.
 
@@ -1325,9 +1332,9 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         }
 
         // then make a new buffer, having read paging
-        //console.log('pos', pos);
+        //log('pos', pos);
 
-        //console.log('paging_option', paging_option);
+        //log('paging_option', paging_option);
 
         //var buf_2 = Buffer.from(buf_the_rest, pos);
         var buf_2 = Buffer.alloc(buf_the_rest.length - pos);
@@ -1335,10 +1342,10 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
         var s_buf = Binary_Encoding.split_length_item_encoded_buffer(buf_2);
 
-        //console.log('buf_the_rest', buf_the_rest);
-        //console.log('buf_2', buf_2);
+        //log('buf_the_rest', buf_the_rest);
+        //log('buf_2', buf_2);
 
-        //console.log('s_buf', s_buf);
+        //log('s_buf', s_buf);
 
         // then the count range query with those
 
@@ -1357,20 +1364,20 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 'lt': s_buf[1]
             }).on('data', function (key) {
                 //arr_res.push(x(key.length).buffer);
-                //console.log('key', key);
+                //log('key', key);
                 //arr_res.push(key);
                 count++;
             })
                 .on('error', function (err) {
-                    //console.log('Oh my!', err)
+                    //log('Oh my!', err)
                     callback(err);
                 })
                 .on('close', function () {
-                    //console.log('Stream closed')
+                    //log('Stream closed')
                 })
                 .on('end', function () {
                     //callback(null, res);
-                    //console.log('*** count', count);
+                    //log('*** count', count);
 
                     arr_res.push(xas2(count).buffer);
 
@@ -1379,9 +1386,9 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 });
         } else if (paging_option === PAGING_TIMED) {
             // A timed pager.
-            console.log('paging_option === PAGING_TIMED');
+            log('paging_option === PAGING_TIMED');
             let paging_delay = page_size;
-            //console.log('paging_delay', paging_delay);
+            //log('paging_delay', paging_delay);
             var arr_res = [buf_msg_id, buf_binary_paging_flow];
 
             var count = 0,
@@ -1394,21 +1401,21 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 'lt': s_buf[1]
             }).on('data', function (key) {
                 //arr_res.push(x(key.length).buffer);
-                //console.log('key', key);
+                //log('key', key);
                 //arr_res.push(key);
 
                 count++;
             })
                 .on('error', function (err) {
-                    //console.log('Oh my!', err)
+                    //log('Oh my!', err)
                     callback(err);
                 })
                 .on('close', function () {
-                    //console.log('Stream closed')
+                    //log('Stream closed')
                 })
                 .on('end', function () {
                     //callback(null, res);
-                    console.log('*** count', count);
+                    log('*** count', count);
                     clearInterval(interval);
 
                     //arr_res.push(xas2(count).buffer);
@@ -1426,10 +1433,10 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             interval = setInterval(() => {
                 // Operation stopped if 20 pages pending reception confirmation from the client.
 
-                console.log('interval count', count);
+                log('interval count', count);
 
                 let latest_received_page = map_received_page[message_id];
-                //console.log('latest_received_page', latest_received_page);
+                //log('latest_received_page', latest_received_page);
 
                 let delay = 0,
                     pages_diff = 0;
@@ -1437,7 +1444,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     pages_diff = page_number - latest_received_page;
 
                 }
-                //console.log('pages_diff', pages_diff);
+                //log('pages_diff', pages_diff);
 
                 if (pages_diff > 20) {
                     key_stream.destroy();
@@ -1498,11 +1505,11 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
     /*
     if (i_query_type === LL_COUNT_KEYS_IN_RANGE_UP_TO) {
-        console.log('LL_COUNT_KEYS_IN_RANGE_UP_TO');
+        log('LL_COUNT_KEYS_IN_RANGE_UP_TO');
 
         // get the rest of the buffer.
-        //console.log('buf_the_rest', buf_the_rest);
-        //console.log('buf_the_rest.length', buf_the_rest.length);
+        //log('buf_the_rest', buf_the_rest);
+        //log('buf_the_rest.length', buf_the_rest.length);
 
         // then get these separate buffers.
 
@@ -1524,10 +1531,10 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
         [count_limit, pos] = x.read(buf_the_rest, pos);
 
-        //console.log('count_limit', count_limit);
+        //log('count_limit', count_limit);
 
         // then make a new buffer, having read paging
-        //console.log('pos', pos);
+        //log('pos', pos);
 
         //var buf_2 = Buffer.from(buf_the_rest, pos);
         var buf_2 = Buffer.alloc(buf_the_rest.length - pos);
@@ -1535,10 +1542,10 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
         var s_buf = Binary_Encoding.split_length_item_encoded_buffer(buf_2);
 
-        //console.log('buf_the_rest', buf_the_rest);
-        //console.log('buf_2', buf_2);
+        //log('buf_the_rest', buf_the_rest);
+        //log('buf_2', buf_2);
 
-        //console.log('s_buf', s_buf);
+        //log('s_buf', s_buf);
 
 
 
@@ -1563,7 +1570,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 'lt': s_buf[1]
             }).on('data', function (key) {
                 //arr_res.push(x(key.length).buffer);
-                //console.log('key', key);
+                //log('key', key);
                 //arr_res.push(key);
 
 
@@ -1575,11 +1582,11 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 }
             })
                 .on('error', function (err) {
-                    //console.log('Oh my!', err)
+                    //log('Oh my!', err)
                     callback(err);
                 })
                 .on('close', function () {
-                    //console.log('Stream closed')
+                    //log('Stream closed')
 
                     //arr_res.push(xas2(count).buffer);
                     //buf_res = Buffer.concat(arr_res);
@@ -1593,7 +1600,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 })
                 .on('end', function () {
                     //callback(null, res);
-                    //console.log('*** count', count);
+                    //log('*** count', count);
 
                 });
         }
@@ -1608,7 +1615,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
 
     if (i_query_type === LL_GET_FIRST_KEY_BEGINNING) {
-        //console.log('LL_GET_FIRST_KEY_BEGINNING');
+        //log('LL_GET_FIRST_KEY_BEGINNING');
         //let command_message = new Command_Message(message_binary);
         //let communication_options = command_message.paging;
         //let msg_params = new Command_Message(message_binary).inner;
@@ -1621,21 +1628,21 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
     if (i_query_type === LL_GET_LAST_KEY_BEGINNING) {
 
-        console.log('LL_GET_LAST_KEY_BEGINNING');
+        log('LL_GET_LAST_KEY_BEGINNING');
 
 
         /*
         let command_message = new Command_Message(message_binary);
-        console.log('command_message', command_message);
+        log('command_message', command_message);
 
         // Messages will always parse the communications options.
 
         //let communication_options = command_message.paging;
-        //console.log('communication_options', communication_options);
+        //log('communication_options', communication_options);
         let msg_params = command_message.inner;
         // Need to decode that inner value
 
-        console.log('msg_params', msg_params);
+        log('msg_params', msg_params);
         let [buf_key_begining] = msg_params;
         // that's fine, the buffer that it begins with is decoded as a buffer.
 
@@ -1670,11 +1677,11 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     // LL_GET_FIRST_LAST_KEYS_IN_RANGE
 
     if (i_query_type === LL_GET_FIRST_LAST_KEYS_IN_RANGE) {
-        console.log('LL_GET_FIRST_LAST_KEYS_IN_RANGE');
+        log('LL_GET_FIRST_LAST_KEYS_IN_RANGE');
 
         // get the rest of the buffer.
-        //console.log('buf_the_rest', buf_the_rest);
-        //console.log('buf_the_rest.length', buf_the_rest.length);
+        //log('buf_the_rest', buf_the_rest);
+        //log('buf_the_rest.length', buf_the_rest.length);
 
         // Not so sure about leaving out the paging option on this instruction.
         //  Client could set some optimizations.
@@ -1690,14 +1697,14 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             [page_size, pos] = x.read(buf_the_rest, pos);
         }
         // then make a new buffer, having read paging
-        //console.log('pos', pos);
+        //log('pos', pos);
         //var buf_2 = Buffer.from(buf_the_rest, pos);
         var buf_2 = Buffer.alloc(buf_the_rest.length - pos);
         buf_the_rest.copy(buf_2, 0, pos);
         var s_buf = Binary_Encoding.split_length_item_encoded_buffer(buf_2);
-        //console.log('buf_the_rest', buf_the_rest);
-        //console.log('buf_2', buf_2);
-        //console.log('s_buf', s_buf);
+        //log('buf_the_rest', buf_the_rest);
+        //log('buf_2', buf_2);
+        //log('s_buf', s_buf);
         // then the count range query with those
         if (paging_option === NO_PAGING) {
             //var arr_res = [buf_msg_id];
@@ -1717,7 +1724,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 if (err) {
                     throw err;
                 } else {
-                    console.log('res_all', res_all);
+                    log('res_all', res_all);
                     throw 'stop';
                 }
 
@@ -1734,7 +1741,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
 
     if (i_query_type === LL_GET_ALL_KEYS) {
-        console.log('LL_GET_ALL_KEYS');
+        log('LL_GET_ALL_KEYS');
         // Need to parse the rest of the message as an array of records.
         //  This is where the model would be somewhat useful.
         //  Other queries, that make use of indexing, or look up names or other values from foreign keys, would benefit further from having a working Model instance.
@@ -1748,8 +1755,8 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         // Could feed through a paging function that batches the results.
         // batch_put
 
-        //console.log('buf_the_rest', buf_the_rest);
-        //console.log('buf_the_rest.length', buf_the_rest.length);
+        //log('buf_the_rest', buf_the_rest);
+        //log('buf_the_rest.length', buf_the_rest.length);
 
         // Need to encode each key separately.
         //  Say how long the key is in bytes, then write that key buffer.
@@ -1757,7 +1764,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         //   How to compose the whole thing in memory reasonably efficiently?
         //   Put the buffers in a vector...
 
-        //console.log('paging_option', paging_option);
+        //log('paging_option', paging_option);
         if (paging_option === NO_PAGING) {
             //var arr_res = [buf_msg_id];
 
@@ -1774,11 +1781,11 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 arr_res.push(key);
             })
                 .on('error', function (err) {
-                    //console.log('Oh my!', err)
+                    //log('Oh my!', err)
                     callback(err);
                 })
                 .on('close', function () {
-                    //console.log('Stream closed')
+                    //log('Stream closed')
                 })
                 .on('end', function () {
                     //callback(null, res);
@@ -1805,11 +1812,11 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 }
             })
                 .on('error', function (err) {
-                    //console.log('Oh my!', err)
+                    //log('Oh my!', err)
                     callback(err);
                 })
                 .on('close', function () {
-                    //console.log('Stream closed')
+                    //log('Stream closed')
                 })
                 .on('end', function () {
                     //arr_res = ;
@@ -1830,7 +1837,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     // Copying / streaming a DB over the network should be relatively fast.
 
     if (i_query_type === LL_GET_ALL_RECORDS) {
-        console.log('LL_GET_ALL_RECORDS');
+        log('LL_GET_ALL_RECORDS');
         // Need to parse the rest of the message as an array of records.
         //  This is where the model would be somewhat useful.
         //  Other queries, that make use of indexing, or look up names or other values from foreign keys, would benefit further from having a working Model instance.
@@ -1842,13 +1849,13 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             [page_size, pos] = x.read(buf_the_rest, pos);
         }
 
-        //console.log('paging_option', paging_option);
-        //console.log('page_size', page_size);
+        //log('paging_option', paging_option);
+        //log('page_size', page_size);
         // Could feed through a paging function that batches the results.
         // batch_put
 
-        //console.log('buf_the_rest', buf_the_rest);
-        //console.log('buf_the_rest.length', buf_the_rest.length);
+        //log('buf_the_rest', buf_the_rest);
+        //log('buf_the_rest.length', buf_the_rest.length);
 
         // Need to encode each key separately.
         //  Say how long the key is in bytes, then write that key buffer.
@@ -1858,7 +1865,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
         let page_records_max, page_bytes_max;
 
-        //console.log('paging_option', paging_option);
+        //log('paging_option', paging_option);
 
         // Option to include a 'not paged' value when we are not using paging.
         //  Currently not expecting one.
@@ -1875,11 +1882,11 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             //var res = [];
             db.createReadStream({}).on('data', function (data) {
                 let buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
-                //console.log('buf_combined', buf_combined);
+                //log('buf_combined', buf_combined);
                 arr_res.push(buf_combined);
             })
                 .on('error', function (err) {
-                    //console.log('Oh my!', err)
+                    //log('Oh my!', err)
 
                     // Should have a way of sending failure messages back to the client.
                     //  Having a return message type seems essential for error handling.
@@ -1888,7 +1895,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     callback(err);
                 })
                 .on('close', function () {
-                    //console.log('Stream closed')
+                    //log('Stream closed')
                 })
                 .on('end', function () {
                     //callback(null, res);
@@ -1907,7 +1914,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
         if (paging_option === PAGING_RECORD_COUNT) {
             //[page_records_max, pos] = x.read(buf_the_rest, pos);
-            //console.log('page_records_max', page_records_max);
+            //log('page_records_max', page_records_max);
 
             // This needs backpressure handling too.
             //  Well connected servers can send data out faster than clients can receive.
@@ -1954,7 +1961,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 arr_res, buf_combined;
             db.createReadStream({}).on('data', (data) => {
                 buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
-                //console.log('buf_combined', buf_combined);
+                //log('buf_combined', buf_combined);
                 // include it into the paged records.
                 arr_page[c++] = buf_combined;
 
@@ -1963,7 +1970,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     //  Would need to encode the page, try using binary encoding to put a bunch of records together.
                     // encoding the records together.
                     //  can concat the separate records together as with non-paging.
-                    //console.log('page_number', page_number);
+                    //log('page_number', page_number);
 
                     //arr_res = [buf_msg_id, buf_record_paging_flow, xas2(page_number++).buffer].concat(arr_page);
                     //buf_res = Buffer.concat(arr_res);
@@ -1971,7 +1978,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
                     connection.sendBytes(Buffer.concat([buf_msg_id, buf_record_paging_flow, xas2(page_number++).buffer].concat(arr_page)));
 
-                    //console.log('buf_res.length', buf_res.length);
+                    //log('buf_res.length', buf_res.length);
                     //let buf_encoded_page = Binary_Encoding.flexi_encode()
                     c = 0;
                     // Could empty that array, would that be faster than GC?
@@ -1979,11 +1986,11 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 }
             })
                 .on('error', function (err) {
-                    //console.log('Oh my!', err)
+                    //log('Oh my!', err)
                     callback(err);
                 })
                 .on('close', function () {
-                    //console.log('Stream closed')
+                    //log('Stream closed')
                 })
                 .on('end', function () {
                     arr_res = [buf_msg_id, buf_record_paging_last, xas2(page_number).buffer].concat(arr_page.slice(0, c));
@@ -2018,7 +2025,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
 
     if (i_query_type === LL_GET_KEYS_IN_RANGE) {
-        console.log('LL_GET_KEYS_IN_RANGE');
+        log('LL_GET_KEYS_IN_RANGE');
 
         // when there are 0 records?
         // Maybe not returning data OK.
@@ -2054,8 +2061,8 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         // Could feed through a paging function that batches the results.
         // batch_put
 
-        //console.log('buf_the_rest', buf_the_rest);
-        //console.log('buf_the_rest.length', buf_the_rest.length);
+        //log('buf_the_rest', buf_the_rest);
+        //log('buf_the_rest.length', buf_the_rest.length);
 
         // read two buffers from the query... greater than and less than.
 
@@ -2065,7 +2072,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         //   How to compose the whole thing in memory reasonably efficiently?
         //   Put the buffers in a vector...
 
-        //console.log('paging_option', paging_option);
+        //log('paging_option', paging_option);
 
         var b_l, b_u;
 
@@ -2075,8 +2082,8 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             [b_l, pos] = read_l_buffer(buf_the_rest, pos);
             [b_u, pos] = read_l_buffer(buf_the_rest, pos);
 
-            //console.log('b_l', b_l);
-            //console.log('b_u', b_u);
+            //log('b_l', b_l);
+            //log('b_u', b_u);
 
             //throw 'stop';
 
@@ -2098,7 +2105,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 //var buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
                 // key is a buffer.
 
-                // console.log('buf_combined', buf_combined);
+                // log('buf_combined', buf_combined);
 
                 // A keys paging return type?
                 //  Could just use Binary_Encoding.
@@ -2112,11 +2119,11 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
             })
                 .on('error', function (err) {
-                    //console.log('Oh my!', err)
+                    //log('Oh my!', err)
                     callback(err);
                 })
                 .on('close', function () {
-                    //console.log('Stream closed')
+                    //log('Stream closed')
                 })
                 .on('end', function () {
                     //callback(null, res);
@@ -2194,7 +2201,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 if (c === page_size) {
 
                     let latest_received_page = map_received_page[message_id];
-                    //console.log('map_received_page', map_received_page);
+                    //log('map_received_page', map_received_page);
                     let delay = 0,
                         pages_diff = 0;
 
@@ -2219,7 +2226,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                         clearInterval(interval);
                     } else {
                         if (delay > 0) {
-                            //console.log('pages_diff', pages_diff);
+                            //log('pages_diff', pages_diff);
                             read_stream.pause();
                             setTimeout(() => {
                                 read_stream.resume();
@@ -2228,7 +2235,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     }
 
                     connection.sendBytes(Buffer.concat([buf_msg_id, buf_key_paging_flow, xas2(page_number++).buffer].concat(arr_page)));
-                    //console.log('sent page ' + (page_number - 1));
+                    //log('sent page ' + (page_number - 1));
                     c = 0;
                     // Could empty that array, would that be faster than GC?
                     arr_page = new Array(page_size);
@@ -2238,12 +2245,12 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 //arr_res.push(key);
             })
                 .on('error', function (err) {
-                    //console.log('Oh my!', err) 
+                    //log('Oh my!', err) 
 
                     callback(err);
                 })
                 .on('close', function () {
-                    //console.log('Stream closed')
+                    //log('Stream closed')
                 })
                 .on('end', function () {
                     //callback(null, res);
@@ -2253,7 +2260,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     arr_res = [buf_msg_id, buf_key_paging_last, xas2(page_number).buffer].concat(arr_page.slice(0, c));
                     buf_res = Buffer.concat(arr_res);
                     connection.sendBytes(buf_res);
-                    console.log('sent end');
+                    log('sent end');
                 })
         }
     }
@@ -2266,15 +2273,15 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     // Seems like we will have fairly large / comprehensive changes to the core of the database operations, but not to the record structure.
 
     if (i_query_type === LL_SEND_MESSAGE_RECEIPT) {
-        //console.log('LL_SEND_MESSAGE_RECEIPT');
+        //log('LL_SEND_MESSAGE_RECEIPT');
         pos = 0;
         let message_id, page_number;
         [message_id, pos] = x.read(buf_the_rest, pos);
         [page_number, pos] = x.read(buf_the_rest, pos);
 
-        //console.log('buf_the_rest', buf_the_rest);
+        //log('buf_the_rest', buf_the_rest);
 
-        //console.log('LL_SEND_MESSAGE_RECEIPT', message_id, page_number);
+        //log('LL_SEND_MESSAGE_RECEIPT', message_id, page_number);
 
         if (!map_received_page[message_id]) {
             map_received_page[message_id] = page_number;
@@ -2302,12 +2309,12 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         // Better if this used the server function, and wrapped it in a message and paging encoder / sender.
         //  Read the message (or Command_Message), then process it.
 
-        console.log('LL_GET_RECORDS_IN_RANGE');
+        log('LL_GET_RECORDS_IN_RANGE');
 
         let cm = new Command_Message(message_binary);
-        //console.log('cm', cm);
-        //console.log('cm.inner', cm.inner);
-        //console.log('cm.paging', cm.paging);
+        //log('cm', cm);
+        //log('cm.inner', cm.inner);
+        //log('cm.paging', cm.paging);
 
         // Observe the data.
         //  
@@ -2345,7 +2352,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
 
         let the_old_way = () => {
-            //console.log('paging_option', paging_option);
+            //log('paging_option', paging_option);
 
 
             // Should probably be changed to use the server's get_records_in_range function.
@@ -2358,7 +2365,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             pos = 0;
             [paging_option, pos] = x.read(buf_the_rest, pos);
 
-            //console.log('paging_option', paging_option);
+            //log('paging_option', paging_option);
             if (paging_option > 0) {
                 [page_size, pos] = x.read(buf_the_rest, pos);
             }
@@ -2368,8 +2375,8 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
             if (paging_option === NO_PAGING) {
 
-                //console.log('b_l', b_l);
-                //console.log('b_u', b_u);
+                //log('b_l', b_l);
+                //log('b_u', b_u);
 
                 if (return_message_type) {
                     // Though paging is an option, this is not a paged or pagable response.
@@ -2389,22 +2396,22 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     // will need to combine them as buffers.
                     var buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
                     //arr_page[c++] = buf_combined;
-                    //console.log('buf_combined', buf_combined);
+                    //log('buf_combined', buf_combined);
                     arr_res.push(buf_combined);
                     //arr_res.push(x(key.length).buffer);
                     //arr_res.push(key);
 
                 })
                     .on('error', function (err) {
-                        //console.log('Oh my!', err)
+                        //log('Oh my!', err)
                         callback(err);
                     })
                     .on('close', function () {
-                        //console.log('Stream closed')
+                        //log('Stream closed')
                     })
                     .on('end', function () {
                         //callback(null, res);
-                        //console.log('arr_res', arr_res);
+                        //log('arr_res', arr_res);
                         buf_res = Buffer.concat(arr_res);
                         connection.sendBytes(buf_res);
                     })
@@ -2417,8 +2424,8 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 var arr_res = [buf_msg_id, buf_record_paging_flow];
                 // Send back flow pages when the data is being got.
 
-                //console.log('b_l', b_l);
-                //console.log('b_u', b_u);
+                //log('b_l', b_l);
+                //log('b_u', b_u);
 
                 let buf_combined;
 
@@ -2436,19 +2443,19 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     // will be both the key and the value
                     // will need to combine them as buffers.
                     buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
-                    //console.log('buf_combined', buf_combined);
+                    //log('buf_combined', buf_combined);
                     //arr_res.push(buf_combined);
                     arr_page[c++] = buf_combined;
 
                     if (c === page_size) {
 
-                        //console.log('sending page', page_number);
-                        //console.log('pre read_stream.pause');
+                        //log('sending page', page_number);
+                        //log('pre read_stream.pause');
 
                         // Check the current page number to see how far behind it is.
 
                         let latest_received_page = map_received_page[message_id];
-                        //console.log('map_received_page', map_received_page);
+                        //log('map_received_page', map_received_page);
                         let delay = 0,
                             pages_diff = 0;
                         if (typeof latest_received_page !== 'undefined') {
@@ -2471,7 +2478,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                             //  ie the client has 
 
                         }
-                        //console.log('pages_diff', pages_diff);
+                        //log('pages_diff', pages_diff);
 
                         read_stream.pause();
                         setTimeout(() => {
@@ -2523,11 +2530,11 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
                 })
                     .on('error', function (err) {
-                        //console.log('Oh my!', err)
+                        //log('Oh my!', err)
                         callback(err);
                     })
                     .on('close', function () {
-                        //console.log('Stream closed')
+                        //log('Stream closed')
                     })
                     .on('end', function () {
                         //callback(null, res);
@@ -2548,11 +2555,11 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     // also will have select from table?
 
     if (i_query_type === DELETE_RECORDS_BY_KEYS) {
-        console.log('DELETE_RECORDS_BY_KEYS');
+        log('DELETE_RECORDS_BY_KEYS');
         let command_message = new Command_Message(message_binary);
-        console.log('command_message', command_message);
+        log('command_message', command_message);
         let msg_params = command_message.inner;
-        console.log('msg_params', msg_params);
+        log('msg_params', msg_params);
         nldb.ll_delete_records_by_keys(msg_params, cb_send);
     }
 
@@ -2572,13 +2579,13 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
         // message.inner
 
-        console.log('LL_GET_RECORDS_IN_RANGES');
+        log('LL_GET_RECORDS_IN_RANGES');
         let command_message = new Command_Message(message_binary);
         let communication_options = command_message.paging;
-        console.log('communication_options', communication_options);
+        log('communication_options', communication_options);
         let msg_params = command_message.inner;
 
-        console.log('msg_params', msg_params);
+        log('msg_params', msg_params);
 
         let obs_res = nldb.get_records_in_ranges(msg_params);
 
@@ -2606,7 +2613,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
     if (i_query_type === SELECT_FROM_TABLE) {
 
-        console.log('SELECT_FROM_TABLE', SELECT_FROM_TABLE);
+        log('SELECT_FROM_TABLE', SELECT_FROM_TABLE);
         // read the instruction.
         // paging option, then the rest is the encoded instruction args
 
@@ -2617,11 +2624,11 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             [page_size, pos] = x.read(buf_the_rest, pos);
         }
 
-        //console.log('buf_the_rest', buf_the_rest);
+        //log('buf_the_rest', buf_the_rest);
         // Need to be able to decode from a starting pos.
 
         let args = Binary_Encoding.decode_buffer(buf_the_rest, 0, pos);
-        //console.log('args', args);
+        //log('args', args);
         let [table_id, fields] = args;
 
         // then want a nicer way to output a result stream from the server.
@@ -2676,7 +2683,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
     if (i_query_type === LL_GET_RECORD) {
         // Decode / get a single key
-        console.log('LL_GET_RECORD', LL_GET_RECORD);
+        log('LL_GET_RECORD', LL_GET_RECORD);
         let buf_key = buf_the_rest;
 
         db.get(buf_key, (err, buf_value) => {
@@ -2692,26 +2699,26 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 if (return_message_type) {
                     // Though paging is an option, this is not a paged or pagable response.
                     let msg_response = [buf_msg_id, xas2(RECORD_UNDEFINED).buffer];
-                    console.log('buf_msg_id', buf_msg_id);
-                    console.log('msg_response', msg_response);
+                    log('buf_msg_id', buf_msg_id);
+                    log('msg_response', msg_response);
                     connection.sendBytes(Buffer.concat(msg_response));
-                    console.log('1) sent RECORD_UNDEFINED message (it\'s own message type!) to the client.');
+                    log('1) sent RECORD_UNDEFINED message (it\'s own message type!) to the client.');
                 } else {
                     throw 'NYI';
                 }
 
 
                 //console.trace();
-                //console.log('err', err);
-                //console.log('Object.keys(err)', Object.keys(err));
-                //console.log('buf_key', buf_key);
+                //log('err', err);
+                //log('Object.keys(err)', Object.keys(err));
+                //log('buf_key', buf_key);
 
                 // error return.
 
 
 
             } else {
-                console.log('buf_value', buf_value);
+                log('buf_value', buf_value);
                 // But does get also get the key as well?
 
                 if (return_message_type) {
@@ -2734,15 +2741,15 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         // What about a promise call?
         //  Should be OK
 
-        console.log('GET_TABLE_RECORD_BY_KEY');
+        log('GET_TABLE_RECORD_BY_KEY');
 
-        console.log('cm.inner', cm.inner);
+        log('cm.inner', cm.inner);
         let table = cm.inner[0];
         let table_id = model.table_id(table);
         let key = cm.inner[1];
 
-        console.log('table_id', table_id);
-        console.log('key', key);
+        log('table_id', table_id);
+        log('key', key);
 
         // Need to test this
 
@@ -2752,16 +2759,16 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     if (i_query_type === GET_TABLE_RECORDS_BY_KEYS) {
         // What about a promise call?
         //  Should be OK
-        console.log('GET_TABLE_RECORDS_BY_KEYS');
+        log('GET_TABLE_RECORDS_BY_KEYS');
         let cm = new Command_Message(message_binary);
 
-        console.log('cm.inner', cm.inner);
+        log('cm.inner', cm.inner);
         let table = cm.inner[0];
         //let table_id = this.model.table_id(table);
         let keys = cm.inner[1];
 
-        console.log('table_id', table_id);
-        console.log('keys', keys);
+        log('table_id', table_id);
+        log('keys', keys);
 
         // Need to test this.
 
@@ -2783,7 +2790,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     //  Would just set a limit property to the db query.
 
     if (i_query_type === LL_GET_RECORDS_IN_RANGE_UP_TO) {
-        console.log('LL_GET_RECORDS_IN_RANGE_UP_TO');
+        log('LL_GET_RECORDS_IN_RANGE_UP_TO');
 
         // when there are 0 records?
         // Maybe not returning data OK.
@@ -2798,13 +2805,13 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
         [count_limit, pos] = x.read(buf_the_rest, pos);
 
-        //console.log('count_limit', count_limit);
+        //log('count_limit', count_limit);
 
         // Could feed through a paging function that batches the results.
         // batch_put
 
-        //console.log('buf_the_rest', buf_the_rest);
-        //console.log('buf_the_rest.length', buf_the_rest.length);
+        //log('buf_the_rest', buf_the_rest);
+        //log('buf_the_rest.length', buf_the_rest.length);
 
         // read two buffers from the query... greater than and less than.
 
@@ -2814,7 +2821,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         //   How to compose the whole thing in memory reasonably efficiently?
         //   Put the buffers in a vector...
 
-        //console.log('paging_option', paging_option);
+        //log('paging_option', paging_option);
 
         var b_l, b_u;
 
@@ -2827,8 +2834,8 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             [b_l, pos] = read_l_buffer(buf_the_rest, pos);
             [b_u, pos] = read_l_buffer(buf_the_rest, pos);
 
-            //console.log('b_l', b_l);
-            //console.log('b_u', b_u);
+            //log('b_l', b_l);
+            //log('b_u', b_u);
 
             //throw 'stop';
 
@@ -2849,7 +2856,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 // will be both the key and the value
                 // will need to combine them as buffers.
                 var buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
-                //console.log('buf_combined', buf_combined);
+                //log('buf_combined', buf_combined);
                 arr_res.push(buf_combined);
                 //arr_res.push(x(key.length).buffer);
                 //arr_res.push(key);
@@ -2860,11 +2867,11 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
             })
                 .on('error', err => {
-                    //console.log('Oh my!', err)
+                    //log('Oh my!', err)
                     callback(err);
                 })
                 .on('close', () => {
-                    console.log('Stream closed')
+                    log('Stream closed')
                     buf_res = Buffer.concat(arr_res);
                     connection.sendBytes(buf_res);
                 })
@@ -2883,7 +2890,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     //  Says paging info, whether it is to be decoded using record decode, or by using Binary_Encoding standard decode.
 
     if (i_query_type === LL_SUBSCRIBE_ALL) {
-        console.log('LL_SUBSCRIBE_ALL');
+        log('LL_SUBSCRIBE_ALL');
 
         // Subscriptions don't use paging
         //  Have their own subscription response handler.
@@ -2896,26 +2903,26 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 console.trace();
                 throw err;
             } else {
-                console.log('ws binary subscription_event', subscription_event);
+                log('ws binary subscription_event', subscription_event);
                 //
             }
             */
             // remove the target from the subscription event?
             //delete subscription_event.target;
-            //console.log('ws binary subscription_event', subscription_event);
+            //log('ws binary subscription_event', subscription_event);
             // then encode the message
 
             var i_response_type = map_subscription_event_types[subscription_event.type];
-            //console.log('i_response_type', i_response_type);
+            //log('i_response_type', i_response_type);
             var msg_response = [buf_msg_id, xas2(subscription_event.sub_msg_id).buffer, xas2(i_response_type).buffer];
-            //console.log('msg_response', msg_response);
+            //log('msg_response', msg_response);
 
 
             if (subscription_event.type === 'batch_put') {
                 msg_response.push(subscription_event.buffer);
             }
             buf_res = Buffer.concat(msg_response);
-            //console.log('buf_res', buf_res);
+            //log('buf_res', buf_res);
             connection.sendBytes(buf_res);
         });
         // then store the unsubscribe function.
@@ -2930,12 +2937,12 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     // LL_SUBSCRIBE_KEY_PREFIX_PUTS
 
     if (i_query_type === LL_SUBSCRIBE_KEY_PREFIX_PUTS) {
-        console.log('LL_SUBSCRIBE_KEY_PREFIX_PUTS');
+        log('LL_SUBSCRIBE_KEY_PREFIX_PUTS');
 
         var unsubscribe = nextleveldb_server.ll_subscribe_key_prefix_puts(buf_the_rest, (subscription_event) => {
-            //console.log('LL_SUBSCRIBE_KEY_PREFIX_PUTS subscription_event', subscription_event);
+            //log('LL_SUBSCRIBE_KEY_PREFIX_PUTS subscription_event', subscription_event);
             var i_response_type = map_subscription_event_types[subscription_event.type];
-            //console.log('i_response_type', i_response_type);
+            //log('i_response_type', i_response_type);
             var msg_response = [buf_msg_id, xas2(subscription_event.sub_msg_id).buffer, xas2(i_response_type).buffer];
 
             if (subscription_event.type === 'batch_put') {
@@ -2943,11 +2950,11 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             }
             // both buffer puts and individual record puts
             // Also handle buffering / debouncing of recodrd puts.
-            //console.log('msg_response', msg_response);
+            //log('msg_response', msg_response);
 
             buf_res = Buffer.concat(msg_response);
-            //console.log('buf_res', buf_res);
-            //console.log('no response sent (still developing)');
+            //log('buf_res', buf_res);
+            //log('no response sent (still developing)');
             connection.sendBytes(buf_res);
 
         });
@@ -2963,17 +2970,17 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     }
 
     if (i_query_type === LL_UNSUBSCRIBE_SUBSCRIPTION) {
-        console.log('LL_UNSUBSCRIBE_SUBSCRIPTION');
-        //console.log('connection.id', connection.id);
-        //console.log('buf_the_rest', buf_the_rest);
+        log('LL_UNSUBSCRIBE_SUBSCRIPTION');
+        //log('connection.id', connection.id);
+        //log('buf_the_rest', buf_the_rest);
         //var pos = 0, subscription_id;
         //[subscription_id, pos] = x.read(buf_the_rest, pos);
 
         var subscription_id = message_id;
-        //console.log('subscription_id', subscription_id);
+        //log('subscription_id', subscription_id);
 
         var fn_unsubscribe = client_subscriptions[connection.id][subscription_id].unsubscribe;
-        //console.log('fn_unsubscribe', typeof fn_unsubscribe);
+        //log('fn_unsubscribe', typeof fn_unsubscribe);
         var sub_msg_id = fn_unsubscribe();
         // Send a subscription event.
         // We don't have a sub message id for unsubscribe.
@@ -3004,7 +3011,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         // Just doing it a single record at a time for the moment.
 
 
-        console.log('LL_FIND_COUNT_TABLE_RECORDS_INDEX_MATCH');
+        log('LL_FIND_COUNT_TABLE_RECORDS_INDEX_MATCH');
 
         // buf_the_rest
         //  this gets decoded into the record.
@@ -3013,9 +3020,9 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     }
 
     if (i_query_type === ENSURE_TABLE) {
-        console.log('ENSURE_TABLE');
+        log('ENSURE_TABLE');
         let def = Binary_Encoding.decode_buffer(buf_the_rest);
-        //console.log('def', def);
+        //log('def', def);
         // A callback usage of ensure_table should be OK.
         //  Though logging / checking data could be returned when using an observable.
         // overwrite / modify / error if exists already.
@@ -3048,11 +3055,11 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     }
 
     if (i_query_type === ENSURE_TABLES) {
-        console.log('ENSURE_TABLES');
-        //console.log('buf_the_rest', buf_the_rest);
+        log('ENSURE_TABLES');
+        //log('buf_the_rest', buf_the_rest);
         let def = Binary_Encoding.decode_buffer(buf_the_rest)[0];
         // For some reason, decoding of the buffer puts it all into a new array.
-        //console.log('def', def);
+        //log('def', def);
         // When we use an observable but have no paging as an option...
         // A callback usage of ensure_table should be OK.
         //  Though logging / checking data could be returned when using an observable.
@@ -3084,7 +3091,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 //   Though in some conditions could change fields, including going through records doing that.
                 // 
                 // Something in the return to say there is no paging in the message too?
-                //  console.log('ENSURE_TABLES res_ensure', res_ensure);
+                //  log('ENSURE_TABLES res_ensure', res_ensure);
                 var msg_response = [buf_msg_id, buf_binary_paging_none, xas2(BOOL_TRUE).buffer];
                 buf_res = Buffer.concat(msg_response);
                 connection.sendBytes(buf_res);
@@ -3099,7 +3106,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     // Would be better to use and wrap a ll server function.
 
     if (i_query_type === INSERT_TABLE_RECORD) {
-        console.log('INSERT_TABLE_RECORD');
+        log('INSERT_TABLE_RECORD');
 
         // Won't have a paged response
 
@@ -3116,7 +3123,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         [table_id, pos] = x.read(buf_the_rest, pos);
 
         // then make a new buffer, having read paging
-        //console.log('pos', pos);
+        //log('pos', pos);
 
         //var buf_2 = Buffer.from(buf_the_rest, pos);
         var buf_2 = Buffer.alloc(buf_the_rest.length - pos);
@@ -3126,7 +3133,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
         // We should be able to tell from the model what fields there are.
         // Want the count of primary keys for that table.
-        //console.log('table_id', table_id);
+        //log('table_id', table_id);
 
         var buf_res = Buffer.concat([buf_msg_id]);
 
@@ -3137,15 +3144,15 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             var [table_id, record] = Binary_Encoding.decode_buffer(buf_the_rest);
 
             //var decoded = Model_Database.decode_model_row(buf_the_rest);
-            //console.log('decoded', decoded);
+            //log('decoded', decoded);
 
             //let [table_id, record] = decoded;
 
             // So, this way we are able to decode the record.
-            //console.log('[table_id, record]', [table_id, record]);
+            //log('[table_id, record]', [table_id, record]);
 
             let model_table = nextleveldb_server.model.tables[table_id];
-            //console.log('model_table', model_table);
+            //log('model_table', model_table);
 
             // then create a record on that table.
 
@@ -3156,7 +3163,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             let model_record = model_table.new_record(record);
             //  That model record could have funtionality to encode itself as a buffer.
 
-            //console.log('model_record', model_record);
+            //log('model_record', model_record);
 
             // Then do ll put on the model record encoded.
 
@@ -3168,7 +3175,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             // I think this does the job on the server of making index records OK.
 
             let arr_record_and_index_buffers = model_record.to_arr_buffer_with_indexes();
-            //console.log('arr_record_and_index_buffers', arr_record_and_index_buffers);
+            //log('arr_record_and_index_buffers', arr_record_and_index_buffers);
 
             // Then can ll put records.
             //  
@@ -3179,7 +3186,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 if (err) {
                     throw err;
                 } else {
-                    //console.log('res_put', res_put);
+                    //log('res_put', res_put);
 
                     // Could do this so we return the record's new ID.
 
@@ -3211,7 +3218,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     // This is a way around not having unique constraints right now.
     //   Checks if the record exists based on indexed info.
     if (i_query_type === ENSURE_RECORD) {
-        console.log('ENSURE_RECORD');
+        log('ENSURE_RECORD');
 
         // Does the record already exist based on index lookups
 
@@ -3220,47 +3227,52 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         // Use the oo Command_Message class
 
         let cm = new Command_Message(message_binary);
-        //console.log('cm', cm);
+        //log('cm', cm);
 
 
     }
 
 
     if (i_query_type === ENSURE_TABLE_RECORD) {
-        console.log('ENSURE_TABLE_RECORD');
+
+        // could suppress overall logging.
+
+
+
+        log('ENSURE_TABLE_RECORD');
 
         // Does the record already exist based on index lookups
         // Is the key complete?
         // Use the oo Command_Message class
 
         let cm = new Command_Message(message_binary);
-        //console.log('cm', cm);
+        //log('cm', cm);
 
         // decode the command message.
-        //console.log('cm.id', cm.id);
-        //console.log('cm.command_id', cm.command_id);
+        //log('cm.id', cm.id);
+        //log('cm.command_id', cm.command_id);
 
         // then thes are the params.
         //  any buffers in there will need to be decoded too.
 
         // worth having this in Command_Message.
 
-        //console.log('cm.inner', cm.inner);
+        //log('cm.inner', cm.inner);
         let [table_id, record] = cm.inner;
         // then we do ensure table record, sending the result.
         (async () => {
-            //console.log('pre ensure_table_record');
+            //log('pre ensure_table_record');
             let res_ensure_table_record = await nextleveldb_server.ensure_table_record(table_id, record);
-            //console.log('res_ensure_table_record', res_ensure_table_record);
+            //log('res_ensure_table_record', res_ensure_table_record);
             // then send the record back in the Command_Response_Message
             // Give it an observable and it would make multiple pages?
             //  Or a different class for that?
             // 
-            //console.log('message_id', message_id);
+            //log('message_id', message_id);
             let cmr = new Command_Response_Message(message_id, res_ensure_table_record);
-            //console.log('cmr', cmr);
-            //console.log('cmr.buffer', cmr.buffer);
-            //console.log('cmr.value', cmr.value);
+            //log('cmr', cmr);
+            //log('cmr.buffer', cmr.buffer);
+            //log('cmr.value', cmr.value);
             connection.sendBytes(cmr.buffer);
 
             // then just a command 
@@ -3280,10 +3292,10 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     if (i_query_type === TABLE_EXISTS) {
         // Decode the table name
         // Will send back a binary response message.
-        console.log('TABLE_EXISTS');
+        log('TABLE_EXISTS');
 
         let table_name = Binary_Encoding.decode_buffer(buf_the_rest)[0];
-        //console.log('table_name', table_name);
+        //log('table_name', table_name);
 
         nextleveldb_server.table_exists(table_name, (err, exists) => {
             if (err) {
@@ -3303,13 +3315,13 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         // Decode the table name
 
         // Will send back a binary response message.
-        console.log('TABLE_ID_BY_NAME');
+        log('TABLE_ID_BY_NAME');
 
         // Always need to fish it out of an array, because there are 0 or more items encoded into the buffer.
 
 
         let table_name = Binary_Encoding.decode_buffer(buf_the_rest)[0];
-        //console.log('table_name', table_name);
+        //log('table_name', table_name);
 
         nextleveldb_server.get_table_id_by_name(table_name, (err, table_id) => {
             if (err) {
@@ -3318,16 +3330,16 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
                 // paging flow error, so that it knows the error 
 
-                console.log('err', err);
+                log('err', err);
                 throw err;
             } else {
-                //console.log('table_id', table_id);
+                //log('table_id', table_id);
 
                 if (def(table_id)) {
                     // It seems the client needs to use Binary_Encoding's decode_bufer, which is a bit less concise.
                     let buf_encoded = Binary_Encoding.flexi_encode_item(table_id);
 
-                    //console.log('buf_encoded', buf_encoded);
+                    //log('buf_encoded', buf_encoded);
 
 
                     let msg_response = [buf_msg_id, buf_binary_paging_none, buf_encoded];
@@ -3342,7 +3354,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
                     let msg_response = [buf_msg_id, xas2(ERROR_MESSAGE).buffer];
                     connection.sendBytes(Buffer.concat(msg_response));
-                    //console.log('1) sent simple error message to the client');
+                    //log('1) sent simple error message to the client');
                     //console.trace();
 
                     // Table not found.
@@ -3361,17 +3373,17 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
     if (i_query_type === GET_TABLE_FIELDS_INFO) {
         let table_id;
-        console.log('GET_TABLE_FIELDS_INFO: ' + GET_TABLE_FIELDS_INFO);
+        log('GET_TABLE_FIELDS_INFO: ' + GET_TABLE_FIELDS_INFO);
 
         // Read the data out, just as an xas2.
         //  
 
-        //console.log('buf_the_rest', buf_the_rest);
+        //log('buf_the_rest', buf_the_rest);
 
         //let i = Binary_Encoding.decode_buffer(buf_the_rest);
 
         [table_id, pos] = x.read(buf_the_rest, 0);
-        //console.log('table_id', table_id);
+        //log('table_id', table_id);
 
 
         // Could do a result pass-through.
@@ -3384,11 +3396,11 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             if (err) {
                 throw err;
             } else {
-                //console.log('table_fields_info', table_fields_info);
+                //log('table_fields_info', table_fields_info);
                 // encode it
 
                 let buf_encoded = Binary_Encoding.flexi_encode_item(table_fields_info);
-                //console.log('buf_encoded', buf_encoded);
+                //log('buf_encoded', buf_encoded);
 
                 // Send the response back to the client.
                 let msg_response = [buf_msg_id, buf_binary_paging_none, buf_encoded];
@@ -3410,7 +3422,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     if (i_query_type === GET_TABLE_KEY_SUBDIVISIONS) {
 
 
-        console.log('GET_TABLE_KEY_SUBDIVISIONS', GET_TABLE_KEY_SUBDIVISIONS);
+        log('GET_TABLE_KEY_SUBDIVISIONS', GET_TABLE_KEY_SUBDIVISIONS);
 
         // Want to decode the key according to a reasonable standard. Little code to use here.
 
@@ -3426,7 +3438,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         //let args = Binary_Encoding.
 
         let communication_options = parse_paging_options_message(buf_the_rest);
-        console.log('communication_options', communication_options);
+        log('communication_options', communication_options);
         // communication_options could also useful hold a 'limit' optional number parameter.
         //  Then if it reaches the limit, it could call the observer's 'stop' function, it could be given that function.
         //   Would build 'stop' functions into the lower level, have also done 'pause' in some cases with a different mechanism.
@@ -3452,7 +3464,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         //  The extra, and specific function in Binary_Encoding helps to process these values.
 
         let o_res = nldb.get_table_key_subdivisions.apply(nldb, communication_options.args.concat([true, false]));
-        //console.log('o_res.responseType', o_res.responseType);
+        //log('o_res.responseType', o_res.responseType);
 
 
         // or just send
