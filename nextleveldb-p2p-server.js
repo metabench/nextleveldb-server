@@ -170,64 +170,21 @@ const path = require('path');
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 class NextLevelDB_P2P_Server extends NextLevelDB_Server {
     constructor(spec) {
         super(spec);
-
         // use some servers as full sources.
-
 
         if (spec.sync) {
             this.source_dbs = spec.sync.source;
         }
-
-
         this.peers_info = spec.peers;
-
-
 
         // then when we start it, we then copy all data from that other db.
         //  Connect to the source DB, then attempt a full_copy_from_remote
 
         this.clients = [];
         this.map_client_indexes = {};
-
-
     }
 
     get_client_by_db_name(source_db_name) {
@@ -288,23 +245,16 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
         let client = this.clients[this.map_client_indexes[db_name]];
         let local_table_id = this.model.table_id(table_name);
         let remote_table_id = client.model.table_id(table_name);
-
         let table_id;
-
         let res = new Evented_Class();
         // res.encoding_type
         // res.encoding
         //  res.decode ???
 
         // .go could return a promise or observable.
-
-
         if (local_table_id === remote_table_id) {
-
             // Observe the subdivisions from both tables
             table_id = local_table_id;
-
-
         } else {
             throw 'Table ID mismatch. Make sure both the local and remote tables have the same ID.'
         }
@@ -332,7 +282,6 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
             }
         })
         obs_remote.on('next', data => {
-
             map_remote_subdivisions[data[0].toString('hex')] = data[1];
             if (map_local_subdivisions[data[0].toString('hex')]) {
                 //console.log('found match');
@@ -396,18 +345,11 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
             // Do it on all of them
             throw 'NYI';
         }
-
-
-
         // Don't get given a remote DB name, then it's all of them.
-
-
     }
-
 
     // Will be used to check the bittrex currencies and markets are the same before syncing data.
     //  If they are not the same, we could use some specific error recovery.
-
 
     diff_local_and_remote_table(remote_db_name, table_name, callback) {
 
@@ -419,31 +361,21 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
             //console.log('proceed');
             //console.log('!!local_table_records', !!local_table_records);
             //console.log('!!remote_table_records', !!remote_table_records);
-
             if (local_table_records && remote_table_records) {
                 //console.log('local_table_records.length', local_table_records.length);
                 //console.log('remote_table_records.length', remote_table_records.length);
-
-
                 let diff = Model_Database.diff_model_rows(local_table_records, remote_table_records);
                 //console.log('diff', diff);
                 //throw 'stop';
-
                 callback(null, diff);
             }
-
-
         }
 
 
         // decode and remove the key prefixes
-
         //console.log('local this.get_table_records');
-
         this.get_table_records(table_name, true, true, (err, _local_table_records) => {
-
             // Should have kps removed.
-
             if (err) {
                 callback(err);
             } else {
@@ -469,11 +401,7 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                 proceed();
             }
         });
-
-
     }
-
-
     /*
     compare_remote_table_to_local(remote_db_name, table_name, callback) {
         // Would be more complicated to do an observable streaming comparison.
@@ -494,12 +422,7 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
 
     }
     */
-
-
     // This syncing looks like it will be somewhat complex, as there are different possibilities as to what can be directly copied over and how.
-
-
-
     copy_from_source_db(name, callback) {
         console.log('copy_from_source_db', name);
 
@@ -516,34 +439,18 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
             if (err) {
                 callback(err);
             } else {
-
                 //throw 'sto';
                 //console.log('local_model', local_model);
                 //console.log('remote_model', remote_model);
-
                 let diff = local_model.diff(remote_model);
                 //console.log('diff', JSON.stringify(diff, null, 2));
-
             }
-
         })
-
-
-
         // Compare the cores
         // Compare tables
-
-
         // A whole bunch of validation checks.
         //  Comparing one db with another.
-
         // get the core rows of the remote db.
-
-
-
-
-
-
 
     }
 
@@ -702,31 +609,16 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                 console.log('count is 0');
                 res.raise('complete');
             }
-
             // then do the actual key range copy.
             //
-
             //  Want all of the records grouped together for faster put.
-
-
-
-
-
-
 
             //res.raise('complete');
         });
 
         // Could count the keys there.
-
-
         // Count first, then sync over.
-
         // 
-
-
-
-
 
         return res;
 
@@ -738,7 +630,6 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
             fns.push([client, client.start, []]);
         });
         fns.go(callback);
-
     }
 
     connect_to_source_dbs(callback) {
@@ -761,9 +652,6 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
             let idx = this.clients.length;
             this.clients.push(client);
             this.map_client_indexes[source_db] = idx;
-
-
-
         })
 
         this.connect_all_clients((err, res) => {
@@ -897,44 +785,9 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
     //  Have the server produce results that are from the retrieval request, covering different data ranges.
     //   Syncing all at once, in some cases will mean the sync takes just a second or so.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     //  count_key_ranges
 
-
-
     // A db get_key_ranges function will be useful.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     unsafe_sync_core(db_name, callback) {
         // Does not do it by model, does it lower level by records.
@@ -948,38 +801,15 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                         res.raise('error', err);
                     } else {
                         console.log('have put record batch.');
-
                         // load the model on the local client?
                         //  And use that model to index the incoming records.
                         //   Sync the records from the tables.
-
-
-
-
-
-
-
-
-
-
-
-
                         callback(null, res_put);
                     }
                 });
             }
         })
-
     }
-
-
-
-
-
-
-
-
-
 
     sync_db_table_structure(db_name, table_name, remote_model) {
         // This is an observable too.
@@ -1003,21 +833,13 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
 
         let decoded_rbs = database_encoding.decode_model_rows(rbs);
         console.log('decoded_rbs', decoded_rbs);
-
-
-
-
         // then do the (low level) put operation upon these encoded model rows.
-
         let res = new Evented_Class();
-
 
         this.batch_put(buf_structure, (err, res_put) => {
             if (err) {
                 res.raise('error', err);
             } else {
-
-
                 //throw 'stop';
                 res.raise('complete');
             }
@@ -1050,10 +872,6 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
     //  Decoding in terms of decoding the data in the message.
 
     // Some functions may want a buffer to represent a data item, but that data item could compose of other buffers / data items.
-
-
-
-
 
     sync_db_table_data(db_name, table_name) {
 
@@ -1175,12 +993,6 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                 //    there is no very concise way to put it.
 
 
-
-
-
-
-
-
                 // Will 
 
 
@@ -1192,12 +1004,10 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                 //let obs_count = client.count_table_records(table_name, 50000);
                 //let obs_count = client.count_table_records_up_to(table_name, 50000);
 
-
                 client.count_table_records_up_to(table_name, 50000, (err, count) => {
                     if (err) {
                         res.raise('error', err);
                     } else {
-
                         //console.log('count', count);
                         let sync_all_records = () => {
                             // Could be nice to have the number of table records here.
@@ -1206,40 +1016,23 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                             //  Could more easily count the records provided in the put statement.
 
                             let obs_table_records = client.get_table_records(table_name, false);
-
                             // Not decoded....
-
-
-
                             // obs_table_records.pause(), obs_table_records.resume();
                             //  could fit that into the client and server with some lower level instructions.
-
                             // How far through the count of records is a good stat
-
 
                             let total_put = 0;
                             let prop_put, pct_put;
 
                             obs_table_records.on('next', data => {
-
                                 // A page of records, all encoded as binary.
-
-
                                 //console.log('obs_table_records data', data);
                                 //console.log('obs_table_records data.length', data.length);
-
-
                                 if (data.length > 1) {
-
                                     // Batch put table records.
                                     //  Will insert the table kp itself.
-
-
-
                                     // this.batch_put_table_records
-
                                     // try decoding the data.
-
                                     //console.log('data', data);
 
 
@@ -1248,10 +1041,6 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
 
                                     //console.log('decoded', decoded);
                                     //throw 'stop';
-
-
-
-
 
                                     this.batch_put(data, (err, put_count) => {
 
@@ -1376,7 +1165,6 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
 
                                     // Get the values from the clients, within their subdivisions, between local-last and client-last.
 
-
                                     // get local and remote table key subdivisions
                                     //  do they come back in the same order?
 
@@ -1392,10 +1180,7 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                                     // Get both local and remote subdivisions.
                                     //  Nicest if they match with each other. Is a bit of a race condition that could get in the way of that...?
 
-
                                     // So for the local subdivisions, get every value in that subdivision after the 
-
-
 
                                     // Could have a subdivisions since end of time options.
                                     //  
@@ -1405,7 +1190,6 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                                     // So, local time until last possible time.
                                     //  Or ensure the order of subdivision retrieval?
                                     //   Could be tricky / require additional buffer.
-
 
                                     // this.get_local_and_remote_table_key_subdivisions(remote_db_name, table_id, (err, subdivisions_set))
                                     // this.local_and_remote('get_table_key_subdivisions', )
@@ -1423,15 +1207,8 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
 
                                     // And a get subdivisions that will then split the results back to [key_beginning, [the_rest_1, the_rest_2]]
                                     //  Call this paired results.
-
                                     let obs_syncable_subdivisions = this.get_table_key_subdivision_sync_ranges(db_name, table_name);
-
-
-
-
                                     // May be good to sequence these calls, to do them one at a time.
-
-
                                     let arr_key_ranges = [];
 
 
@@ -1451,16 +1228,11 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
 
                                         console.log('buf_l', buf_l);
                                         console.log('buf_r', buf_r);
-
                                         //throw 'stop';
-
                                         // then copy the ranges over.
-
                                         console.log('subdivisions complete');
 
                                         arr_key_ranges.push([buf_l, buf_r]);
-
-
                                         /*
                                         let obs_copy = this.copy_key_range_to_local(db_name, buf_l, buf_r);
                                         obs_copy.on('next', data => {
@@ -1470,12 +1242,7 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
 
                                         });
                                         */
-
-
-
                                         // sync_key_ranges
-
-
                                     });
                                     obs_syncable_subdivisions.on('complete', () => {
                                         console.log('arr_key_ranges', arr_key_ranges);
@@ -1484,14 +1251,7 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                                         // fns.observe
 
                                         // copy_key_ranges_to_local
-
-
-
                                         // Server-side processing of key ranges will be of use.
-
-
-
-
                                         // count_records_in_ranges
 
                                         // Could get the overall count, then get the ranges.
@@ -1610,9 +1370,6 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                             sync_all_records();
                         }
 
-
-
-
                         // Then if it's a large count, we could break down the values to retrieve.
                         //  A table record retrieval sync could be broken down into sub-sections that only get data we don't already have in range.
                         //  That becomes more difficult when there are overlapping records.
@@ -1629,7 +1386,6 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                 // So it's not returning the final result in the last page?
                 //  With timed counts it definitely should do.
 
-
                 /*
 
                 obs_count.on('next', data => {
@@ -1637,9 +1393,7 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                 })
                 obs_count.on('complete', count => {
                     console.log('complete count', count);
-
-
-
+                    
 
                 });
                 */
@@ -1650,11 +1404,8 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                 // Syncing by keys...
             }
         })
-
         return res;
     }
-
-
 
     // For the moment, will just copy over the table data.
     //  Think we can do things in a simpler way with some ll operations.
@@ -1663,8 +1414,6 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
     //  make_local_compatable_with
     //  make_local_table_compatable_with
     //   that could then do some rearrangement if necessary.
-
-
 
     sync_db_non_core_tables_data(db_name) {
         let res = new Evented_Class();
@@ -1712,8 +1461,6 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
             q_obs.push([this, this.sync_db_table_data, [db_name, table_name]]);
         });
 
-
-
         let execute_q_obs = (q_obs) => {
             let res = new Evented_Class();
 
@@ -1753,21 +1500,17 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
                         c++;
                         process();
                     });
-
                 } else {
                     // raise an all complete?
                     res.raise('complete');
                 }
-
             }
             process();
-
             return res;
         }
 
 
         let obs_all = execute_q_obs(q_obs);
-
         obs_all.on('next', data => {
 
         });
@@ -1776,32 +1519,8 @@ class NextLevelDB_P2P_Server extends NextLevelDB_Server {
         //each(this.model.non_core_table_names, table_name => {
         //    arr_obs.push(this.sync_db_table(db_name, table_name));
         //});
-
         return obs_all;
-
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 }
 
 
@@ -1884,10 +1603,6 @@ if (require.main === module) {
     // then make them into client connection params
 
 
-
-
-
-
     //throw 'stop';
 
     // Would also be worth being able to choose db names
@@ -1910,7 +1625,6 @@ if (require.main === module) {
                     //console.log('process.argv.length', process.argv.length);
                     //console.log('process.argv', process.argv);
                     /*
-
                     if (process.argv.length === 2) {
                         //db_path = process.argv[1];
                     }
@@ -1923,7 +1637,6 @@ if (require.main === module) {
                         port = parseInt(process.argv[3]);
                     }
                     */
-
                     // Access token for itself, then to access clients.
 
                     var ls = new NextLevelDB_P2P_Server({
@@ -1935,12 +1648,10 @@ if (require.main === module) {
                             'source': config.source_dbs
                         }
                     });
-
                     // There could be a web admin interface too.
 
-                    let remote_server_name = 'data8';
+                    let remote_server_name = 'data12';
                     //let remote_server_name = 'localhost';
-
 
                     ls.start((err, res_started) => {
                         if (err) {
@@ -1948,12 +1659,6 @@ if (require.main === module) {
                             throw err;
                         } else {
                             console.log('NextLevelDB_P2P_Server Started');
-
-
-
-
-
-
 
                             // Get the diff to handle mal-formed rows?
                             //  Or log such rows, and drop them.
@@ -1968,9 +1673,6 @@ if (require.main === module) {
                                         console.log('no need to sync core');
                                         let model = diff.orig;
 
-
-
-
                                         ls.diff_local_and_remote_table(remote_server_name, 'bittrex currencies', (err, res_diff_currencies) => {
                                             if (err) {
                                                 throw err;
@@ -1978,8 +1680,6 @@ if (require.main === module) {
                                                 //console.log('res_diff_currencies', JSON.stringify(res_diff_currencies));
                                                 console.log('res_diff_currencies.added', JSON.stringify(res_diff_currencies.added));
                                                 console.log('res_diff_currencies.deleted', JSON.stringify(res_diff_currencies.deleted));
-
-
 
                                                 setTimeout(() => {
                                                     ls.diff_local_and_remote_table(remote_server_name, 'bittrex markets', (err, res_diff_markets) => {
@@ -1995,7 +1695,6 @@ if (require.main === module) {
                                                             //  At least existing markets are the same
 
                                                             if (res_diff_markets.added.length === 0 && res_diff_markets.changed.length === 0) {
-
                                                                 let obs = ls.sync_db_non_core_tables_data(remote_server_name);
                                                                 obs.on('next', data => {
                                                                     //console.log('sync_db_non_core_tables_data obs data', data);
@@ -2006,13 +1705,10 @@ if (require.main === module) {
                                                                 obs.on('complete', () => {
                                                                     console.log('sync_db_non_core_tables_data obs complete');
                                                                 })
-                                                            }
+                                                            };
 
                                                             // So locally we have a larger set of records, I think.
                                                             //  Really do need to keep the deleted currency or market records locally.
-
-
-
 
                                                             // Found Bittrex has deleted a market.
                                                             //  May be worth attaching a 'deleted' annotation to it?
@@ -2023,11 +1719,7 @@ if (require.main === module) {
                                                             //  A lower level 'record deleted' tag?
                                                             //   Don't really want to sync over the deletions.
 
-
-
-
                                                             //throw 'stop';
-
 
                                                             // sync_db_non_core_tables_data
 
@@ -2035,28 +1727,12 @@ if (require.main === module) {
                                                             //  Table that logs all db operations carried out, separate to the main db could be quite useful.
                                                             //   There would be an id for each operation, and syncing clients could download all operations since x.
                                                             //    
-
-
-
-
-
-
-
                                                         }
                                                     })
                                                 }, 0);
-
                                             }
                                         })
-
-
-
-
-
-
                                     } else {
-
-
                                         // No, not sure we want this.
                                         //  Don't just replace the core, that is haphazard.
 
@@ -2088,14 +1764,8 @@ if (require.main === module) {
 
                                         // If there is a difference, it could be a bug in one db.
                                     }
-
-                                    // 
-
-
                                 }
                             })
-
-
                         }
                     });
                 }

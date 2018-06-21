@@ -1,4 +1,4 @@
-const logging_enabled = false;
+const logging_enabled = true;
 
 /**
  * Created by james on 27/12/2016.
@@ -2377,12 +2377,12 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
                 //log('b_l', b_l);
                 //log('b_u', b_u);
+                let arr_res = [buf_msg_id];
 
                 if (return_message_type) {
                     // Though paging is an option, this is not a paged or pagable response.
-                    var arr_res = [buf_msg_id, buf_record_paging_none];
-                } else {
-                    var arr_res = [buf_msg_id];
+                    //var arr_res = [buf_msg_id, buf_record_paging_none];
+                    arr_res.push(buf_record_paging_none);
                 }
 
                 //var res = [];
@@ -3272,7 +3272,12 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             let cmr = new Command_Response_Message(message_id, res_ensure_table_record);
             //log('cmr', cmr);
             //log('cmr.buffer', cmr.buffer);
+
+            // The keys within keys are encoded as arrays.
+
             //log('cmr.value', cmr.value);
+            //log('cmr.value', cmr.value.decoded[0]);
+            //log('cmr.decoded', cmr.decoded);
             connection.sendBytes(cmr.buffer);
 
             // then just a command 

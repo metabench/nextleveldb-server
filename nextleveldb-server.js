@@ -730,100 +730,57 @@ class NextLevelDB_Server extends NextlevelDB_Core_Server {
 
     open_new_log_file_writer(name, callback) {
         // open in the db path
-
         console.log('this.db_path', this.db_path);
-
         // then a new 'logs' directory within that DB.
-
         // Then the log name with a datetimestamp
-
         // result will be the wrtiable stream.
-
         // Definitely want to get onto this using the fixed db. It's been running a while longer.
         //  Will see if we can get some working price histories.
         //  Graph them
         // See about distributing that data to other nodes. Sync between these servers.
         //  
-
         // Timestamp for right now.
         let sutc = new Date().toUTCString().split(':').join('_');
-
         // ensure the directory path.
         // Need to ensure the directory exists
-
         // fs2.ensure_directory_exists
-
-
         // first : is ok.
-
         let log_file_path = path.join(this.db_path, 'logs', sutc + '-' + name + '.log');
         let dirname = path.dirname(log_file_path);
         console.log('log_file_path', log_file_path);
         console.log('dirname', dirname);
-
         fs2.ensure_directory_exists(dirname, (err, res_exists) => {
             if (err) {
                 callback(err);
             } else {
-
                 console.log('have created log dir', dirname);
-
                 let stream = fs.createWriteStream(log_file_path);
-
                 callback(null, stream);
-
             }
         });
-
-
     }
-
-
-
-
-
-
-
-
 
     ensure_index_records(arr_index_records, callback) {
         // Put them in a buffer backed record list
-
         console.log('ensure_index_records');
-
         let obs_rnf = this.obs_records_not_found(arr_index_records);
-
         // could try using an iterator.
-
         // for (let key_not_found of this.obs_records_not_found(arr_index_records))
         //  maybe that would need a blocking queue
-
-
         obs_rnf.on('next', key_not_found => {
             console.log('key_not_found', key_not_found);
-
-
             // could pause records not found until the record has been put.
             console.log('key_not_found', key_not_found);
             obs_rnf.pause();
-
             // construct the record.
-
-
-
-
         })
         obs_rnf.on('complete', () => {
             console.log('complete');
             callback(null, true);
         })
-
         //go through each record, checking if they are there.
-
         // observe_keys_not_found?
-
         // want it so that we can get which of the keys are found, which are not found.
-
         // an observable that one by one checks if records are found would be nice.
         //  or even just checking for records not found and raising them
     }
@@ -874,7 +831,6 @@ class NextLevelDB_Server extends NextlevelDB_Core_Server {
 
     // Setting removal of kp to false here may help.
     //  It could be done in a later processing stage. May be less efficient that way.
-
 
     // selection handlers
     //  done after the records are found.
@@ -997,6 +953,9 @@ class NextLevelDB_Server extends NextlevelDB_Core_Server {
 
 
             if (decode) {
+
+                //
+
                 obs_tr.on('next', data => res.raise('next', Binary_Encoding.decode(encoding.select_indexes_buffer_from_kv_pair_buffer(data, 1, arr_field_ids))));
             } else {
                 obs_tr.on('next', data => res.raise('next', encoding.select_indexes_buffer_from_kv_pair_buffer(data, 1, arr_field_ids)));
