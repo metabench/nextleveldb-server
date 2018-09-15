@@ -299,6 +299,7 @@ const LL_GET_LAST_KEY_BEGINNING = 38;
 
 
 const LL_GET_RECORD = 8;
+const GET_RELATED_RECORDS = 26;
 const GET_TABLE_RECORD_BY_KEY = 16;
 const GET_TABLE_RECORDS_BY_KEYS = 17;
 
@@ -380,6 +381,8 @@ const TABLE_ID_BY_NAME = 23;
 // RENAME_TABLE
 const GET_TABLE_FIELDS_INFO = 24;
 const GET_TABLE_KEY_SUBDIVISIONS = 25;
+
+
 
 
 
@@ -863,9 +866,9 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
 
                 obs_call.on('next', data => {
-                    log('!response_type binary send has data ' + data);
+                    //log('!response_type binary send has data ' + data);
 
-                    log('data', data);
+                    //log('data', data);
 
                     arr_page[c++] = data;
 
@@ -1384,7 +1387,9 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     buf_res = Buffer.concat(arr_res);
                     connection.sendBytes(buf_res);
                 });
-        } else if (paging_option === PAGING_TIMED) {
+
+        // Record count being substitute for timed because it does timed counts anyway.
+        } else if (paging_option === PAGING_TIMED || paging_option === PAGING_RECORD_COUNT) {
             // A timed pager.
             log('paging_option === PAGING_TIMED');
             let paging_delay = page_size;
@@ -1459,6 +1464,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
 
         } else {
+            console.log('paging_option', paging_option);
             throw 'NYI'
         }
 
@@ -2718,7 +2724,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
 
             } else {
-                log('buf_value', buf_value);
+                //log('buf_value', buf_value);
                 // But does get also get the key as well?
 
                 if (return_message_type) {
@@ -2733,6 +2739,16 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             }
         })
     }
+
+    // GET_RELATED_RECORDS
+
+    if (i_query_type === GET_RELATED_RECORDS) {
+        console.log('GET_RELATED_RECORDS');
+
+        
+    }
+
+
 
     // const GET_TABLE_RECORD_BY_KEY = 16;
     // const GET_TABLE_RECORDS_BY_KEYS = 17;

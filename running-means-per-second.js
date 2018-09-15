@@ -2,7 +2,7 @@
  * Created by James on 26/10/2016.
  */
 
-var jsgui = require('jsgui3');
+var jsgui = require('lang-mini');
 var Evented_Class = jsgui.Evented_Class;
 var log = require('single-line-log').stdout;
 
@@ -10,10 +10,6 @@ var log = require('single-line-log').stdout;
 //  Would also be nice to subscribe to all new data that arrives t the server.
 
 // May be worth having a jsgui server status / admin page.
-
-
-
-
 
 
 
@@ -39,7 +35,6 @@ class Running_Means_Per_Second extends Evented_Class {
 		this.rotator_position = 0;
 
 		this.operating_s = 0;
-
 		this.ta_working = new Int32Array(working_size);
 		//  which way is the table arranged though?
 

@@ -30,7 +30,6 @@ console.log('path_dbs', path_dbs);
 
 //const nextleveldb_active = require('nextleveldb-active');
 
-
 let server = new NextLevelDB_Server({
     path: path_dbs + '/sample'
 });
@@ -38,6 +37,9 @@ let server = new NextLevelDB_Server({
 (async () => {
     // server
     await server.start();
+
+    // Delete the existing DB.
+    //  server.wipe();
 
     let added = await server.ensure_table('countries', def_table_countries);
 

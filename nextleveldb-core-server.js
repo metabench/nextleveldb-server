@@ -1,4 +1,4 @@
-const jsgui = require('jsgui3');
+const jsgui = require('lang-mini');
 const tof = jsgui.tof;
 const each = jsgui.each;
 const is_array = jsgui.is_array;
@@ -32,7 +32,9 @@ const deep_equal = require('deep-equal');
 // Extra fs tools?
 //  That could be worth separating.
 
-const fs2 = jsgui.fs2;
+//const fs2 = jsgui.fs2;
+
+
 const handle_ws_binary = require('./handle-ws-binary');
 //var Binary_Encoding = require('binary-encoding');
 const Binary_Encoding = require('binary-encoding');
@@ -56,7 +58,7 @@ const sig_obs_or_cb = fnl.sig_obs_or_cb;
 const prom_or_cb = fnl.prom_or_cb;
 //const
 
-
+const fnlfs = require('fnlfs');
 
 const Model_Database = Model.Database;
 const encoding = Model.encoding;
@@ -66,8 +68,12 @@ const CORE_MIN_PREFIX = 0;
 const CORE_MAX_PREFIX = 9;
 
 
-const NextlevelDB_Core_Server = require('./nextleveldb-core-server');
+//const NextlevelDB_Core_Server = require('./nextleveldb-core-server');
 
+const obs_to_cb = fnl.obs_to_cb;
+const obs_or_cb = fnl.obs_or_cb;
+
+/*
 
 const obs_to_cb = (obs, callback) => {
     let arr_all = [];
@@ -93,6 +99,8 @@ const obs_or_cb = (obs, callback) => {
         return _obs;
     }
 }
+
+*/
 
 let obs_map = (obs, fn_data) => {
     let res = new Evented_Class();
@@ -135,7 +143,7 @@ let obs_arrayified_call = (caller, fn, arr_params) => {
             if (c < l) {
                 let arr_call_params = arr_params[c];
                 c++;
-                console.log('arr_call_params', arr_call_params);
+                //console.log('arr_call_params', arr_call_params);
                 //throw 'stop';
                 let process_obs = fn.call(caller, arr_call_params);
                 process_obs.on('next', data => {
@@ -166,8 +174,6 @@ let obs_arrayified_call = (caller, fn, arr_params) => {
 }
 
 let kp_to_range = Model_Database.kp_to_range;
-
-
 let differencing = Model_Database.model_rows_diff;
 
 let get_map_cookies = request_cookies => {
@@ -188,7 +194,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
     constructor(spec) {
         super();
         this.db_path = spec.db_path || spec.path;
-        this.port = spec.port;
+        this.port = spec.port || 420;
 
         // Core / ll does not use model?
         // Would make sense for core functions to use a model?
@@ -215,6 +221,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
         return this.model.table_ids_with_indexes;
     }
     start(callback) {
+        //console.log('start');
         return prom_or_cb((resolve, reject) => {
             var options = this.db_options = {
                 'keyEncoding': 'binary',
@@ -289,7 +296,8 @@ class NextLevelDB_Core_Server extends Evented_Class {
             //console.log('this.db_path', this.db_path);
             fs.exists(this.db_path, (db_dir_exists) => {
                 if (db_dir_exists) {
-                    fs2.dir_contents(this.db_path, (err, res_contents) => {
+                    //console.log('pre dir_contents');
+                    fnlfs.dir_contents(this.db_path, (err, res_contents) => {
                         if (err) {
                             //callback(err);
                             reject(err);
@@ -312,6 +320,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
                 db = db || levelup(this.db_path, this.db_options);
                 this.db = db;
+                //console.log('db_already_exists', db_already_exists);
 
                 if (db_already_exists) {
                     // Load the model from the database.
@@ -351,7 +360,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
             var proceed_2 = () => {
 
-                wsServer.on('request', function (request) {
+                wsServer.on('request', request => {
 
                     //console.log('request', request);
                     //console.log('request.origin', request.origin);
@@ -392,7 +401,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
                         var connection = request.accept('echo-protocol', request.origin);
                         connection.id = next_connection_id++;
                         //console.log((new Date()) + ' Connection accepted.');
-                        connection.on('message', function (message) {
+                        connection.on('message', message => {
                             //console.log('message', message);
                             if (message.type === 'utf8') {
                                 throw 'deprecating utf8 interface';
@@ -400,12 +409,12 @@ class NextLevelDB_Core_Server extends Evented_Class {
                                 handle_ws_binary(connection, that, message.binaryData);
                             }
                         });
-                        connection.on('close', function (reasonCode, description) {
+                        connection.on('close', (reasonCode, description) => {
                             console.log((new Date()) + ' Peer ' + connection.remoteAddress + ' disconnected.\n');
                             console.log('reasonCode, description', reasonCode, description);
                             // Then need to unsubscribe from event handler.
                             // Cancel the subscriptions.
-                            var cancel_subscriptions = function () {
+                            var cancel_subscriptions = () => {
                                 each(connection.subscription_handlers, (subscription_handler, event_name) => {
                                     that.off(event_name, subscription_handler);
                                 })
@@ -414,6 +423,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
                         });
                     }
                 });
+                console.log('pre resolve');
                 resolve(true);
                 //callback(null, true);
             }
@@ -475,7 +485,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
         var process_subscription_event = (e) => {
             //console.log('server process_subscription_event', e);
             e.sub_msg_id = sub_msg_id++;
-
             callback_update(e);
         }
         var evt_name = 'put_kp_batch_' + b64_kp;
@@ -519,7 +528,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 count++;
             }).on('error', error).on('close', function () {
                 //console.log('Stream closed')
-            }).on('end', function () {
+            }).on('end', () => {
                 complete(count);
             });
             return [() => {
@@ -674,15 +683,8 @@ class NextLevelDB_Core_Server extends Evented_Class {
                         map_tables_by_kp[kp] = map_tables_by_id[id];
                     }
                     model_table = map_tables_by_kp[kp];
-
-
-
-
-
                 }
             });
-
-
             return [];
         }, callback);
     }
@@ -710,12 +712,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
         // get all records rows
         // get_all_records_rows_including_indexes
         //  gets the records, puts them through the indexing function.
-
-
-
-
-
-
 
         return prom_or_cb((resolve, reject) => {
             let ops = [];
@@ -768,9 +764,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
     //   will be changed to accept params / range
 
     count(callback) {
-
         // change to observable
-
 
         // how about an inner function that gets the argument sig, and has the internal definition for observable.
         // sig_obs
@@ -782,23 +776,19 @@ class NextLevelDB_Core_Server extends Evented_Class {
             let repeater = setInterval(() => {
                 //res.raise('next', count);
                 next(count);
-
                 //console.log('count', count);
-
             }, delay);
             //console.log('counting');
-
-            let stream = this.db.createKeyStream({}).on('data', function (key) {
-                count++;
-            }).on('error', error)
-                .on('close', function () {
+            let stream = this.db.createKeyStream({}).on('data', (key) => {
+                    count++;
+                }).on('error', error)
+                .on('close', () => {
                     //console.log('Stream closed')
                 })
-                .on('end', function () {
+                .on('end', () => {
                     clearInterval(repeater);
                     complete(count);
                 });
-
             return [];
         }, callback);
     }
@@ -864,7 +854,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
     load_model(callback) {
         // only loads the core system db rows for the moment.
-        var that = this;
+        //var that = this;
         // 
         this.get_system_db_rows((err, system_db_rows) => {
             // These system db rows could be wrong.
@@ -906,9 +896,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
                     console.log('diff.added.length', diff.added.length);
                     console.log('diff.deleted.length', diff.deleted.length);
 
-
                     //console.log('diff.added', diff.added);
-
                     //each(diff.changed, changed => console.log('changed', changed));
                     each(diff.added, added => {
                         //console.log('added', added);
@@ -926,7 +914,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
 
                     if (diff.same) {
-                        callback(null, that.model);
+                        callback(null, this.model);
                     } else {
                         console.log('Object.keys(diff)', Object.keys(diff));
 
@@ -938,7 +926,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
                         callback(new Error('Mismatch between core db rows and core rows obtained from model. '));
                     }
                 } else {
-                    callback(null, that.model);
+                    callback(null, this.model);
                 }
             }
         });
@@ -993,25 +981,20 @@ class NextLevelDB_Core_Server extends Evented_Class {
             //throw 'stop';
             this.db.batch(ops, (err) => {
                 if (err) {
-                    //callback(err);
                     reject(err);
                 } else {
                     resolve();
-
                     /*
                     this.raise('db_action', {
                         'type': 'arr_batch_put',
                         'value': ops
                     });
                     */
-
                     //callback(null, true);
                 }
             })
         }, callback);
     }
-
-
 
     // Records with incomplete keys...
     //  Could be a fine format for when we know the record will be assigned an id by the table.
@@ -1052,7 +1035,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
         return prom_or_cb((resolve, reject) => {
             let key = record_or_key.key;
             let buf_key = key.buffer;
-            this.db.get(buf_key, function (err, value) {
+            this.db.get(buf_key, (err, value) => {
                 if (err) {
                     if (err.notFound) {
                         // handle a 'NotFoundError' here
@@ -1302,9 +1285,20 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
 
 
+                // not just if the key is defined - check that there are no undefined fields within the key.
 
+                // only attempt lookups on indexed fields?
 
-                if (!def(key)) {
+                // check which value fields are indexed?
+
+                // Going further with constraint checking makes sense here
+                //  Make it impossible to put records if they violate constraints.
+
+                // ensure_key
+
+                let t_key = tof(key);
+
+                if (t_key === 'undefined') {
                     let lookup = {};
                     each(value, (value_item, i) => {
                         lookup[value_field_names[i]] = value_item;
@@ -1345,14 +1339,81 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
                         // Then need to put that record, including with its various index records.
                         //  Already have that code, I think.
-
                         let res_put = await this.put_table_record(table_id, b_record);
-
                         //console.log('res_put', res_put);
                         resolve(res_put);
                     } else {
                         resolve(res_lookup);
                     }
+                } else {
+
+                    // Should not have KP when adding data?
+                    //   should check if we have enough fields in the key to be adding the kp?
+
+                    // check for undefined fields
+
+                    if (t_key === 'array') {
+                        let undefined_count = 0,
+                            undefined_key_indexes = [];
+
+                        each(key, (i, idx) => {
+                            if (!def(i)) {
+                                undefined_key_indexes.push(idx);
+                                undefined_count++
+                            }
+                        });
+
+                        if (undefined_count === 0) {
+                            let exists = await this.has(b_record.key);
+                            //console.log('exists', exists);
+
+                            if (!exists) {
+                                let res_put = await this.put_table_record(table_id, b_record);
+                                //console.log('res_put', res_put);
+                                resolve(res_put);
+                            } else {
+                                resolve(b_record);
+                            }
+                        } else if (undefined_count === 1) {
+                            let idx = undefined_key_indexes[0];
+                            console.log('idx', idx);
+
+                            console.log('key_field_names.length', key_field_names.length);
+                            console.log('key.length', key.length);
+
+                            if (key.length === key_field_names.length + 1) {
+                                // we have been given the table pk
+
+                                // get a new key
+
+                                if (key.length === 2) {
+                                    let new_key = await this.generate_table_key(table_id);
+                                    console.log('new_key', new_key.decoded);
+
+                                    // set the key
+
+                                    //b_record.
+                                    let rec2 = new B_Record([new_key, b_record.value]);
+                                    console.log('rec2', rec2.decoded);
+
+                                    // put table record, where that record includes the kp.
+
+                                    let res_put = await this.put_table_record(table_id, rec2);
+                                    console.log('res_put', res_put);
+                                    console.log('res_put.record.decoded', res_put.record.decoded);
+                                    resolve(res_put);
+                                }
+                            }
+                        } else {
+                            throw 'too many undefined key fields (1 max)';
+                        }
+                    } else {
+                        throw 'unexpected key type'
+                    }
+                }
+                /*
+                if (!def(key)) {
+
                 } else {
                     // or just put the record
 
@@ -1361,19 +1422,9 @@ class NextLevelDB_Core_Server extends Evented_Class {
                     // try has by key
                     //console.log('have been given the key');
 
-                    let exists = await this.has(b_record.key);
-                    //console.log('exists', exists);
-
-                    if (!exists) {
-
-                        let res_put = await this.put_table_record(table_id, b_record);
-
-                        //console.log('res_put', res_put);
-                        resolve(res_put);
-                    } else {
-                        resolve(b_record);
-                    }
+                    
                 }
+                */
             })();
             // 
         }, callback);
@@ -1411,7 +1462,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
             })();
         });
     }
-
 
     // Others would have their keys made out of their data
     //  Will be easier to find as well.
@@ -1471,7 +1521,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
     //  could get other observables on the way to 
 
     ensure_table(arr_table, callback) {
-        //console.log('ensure_table');
+        console.log('ensure_table arr_table', arr_table);
         let table_name, table_def;
 
         // observable with last
@@ -1481,13 +1531,19 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
         return sig_obs_or_cb(arguments, (a, sig, next, complete, error, l) => {
             // not sure 
-            //console.log('sig', sig);
+            console.log('sig', sig);
             if (sig === '[s,a]') {
                 [table_name, table_def] = a;
             } else {
-                console.log('a', a);
-                console.trace();
-                throw 'NYI';
+
+                if (sig === '[a]') {
+
+                    [table_name, table_def] = a[0];
+                    console.log('[table_name, table_def]', [table_name, table_def]);
+                }
+                //console.log('a', a);
+                //console.trace();
+                //throw 'NYI';
             }
 
             (async () => {
@@ -1512,7 +1568,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
                     //  nice if rows were an iterable object.
                     //  just an array will be fine.
                     let old_model_rows = this.model.rows;
-
                     //console.log('model.rows', this.model.rows);
 
                     // that works OK now, at least externally.
@@ -1554,11 +1609,43 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 }
             })();
             return [];
-        });
+        }, callback);
     }
     // This one can definitely be improved greatly.
     // Definitely would like a sample / test database which does not have all that many records.
+
+
     ensure_tables(arr_tables, callback) {
+        console.log('ensure_tables', arr_tables);
+        return obs_or_cb((next, complete, error) => {
+            (async () => {
+                let ctu = true;
+                for (let arr_table of arr_tables) {
+                    let tres;
+                    console.log('arr_table', arr_table);
+                    try {
+                        //tres = await this.ensure_table(arr_table[0], arr_table[1]);
+                        tres = await this.ensure_table(arr_table);
+                        next(tres);
+                    } catch (err) {
+                        error(err);
+                        ctu = false;
+                        break;
+                    }
+                }
+                if (ctu) complete();
+            })();
+            return [];
+        }, callback);
+    }
+
+    /*
+
+    ensure_tables(arr_tables, callback) {
+
+        
+
+
         // Optional callback, otherwise return observable
         //  Could do this as an observable, but use optional_observable()
         // For of over the array of tables
@@ -1615,6 +1702,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
         // using an observable to return all the results along the way would be useful.
         //  observable function sequence
     }
+    */
 
     table_index_pk_lookup(table_id, idx_id, arr_values, callback) {
         return prom_or_cb((resolve, reject) => {
@@ -1772,8 +1860,52 @@ class NextLevelDB_Core_Server extends Evented_Class {
         return res;
     }
     // get table records of tables with indexes
-
     // get_table_records_by_table_ids
+
+
+    get_related_records_sing(key, callback) {
+        return prom_or_cb((resolve, reject) => {
+            // find the table from that key.
+
+            let table = this.model.map_tables_by_kp[key.kp];
+            console.log('table', table);
+
+            // then we key the incoming fk info for that table.
+
+            let table_map_incoming_fks = this.model.map_tables_incoming_fks[table.id];
+            console.log('table_map_incoming_fks', table_map_incoming_fks);
+
+        }, callback);
+    }
+
+    get_related_records_plur(keys) {
+        // key could be a Key_List
+        return obs_or_cb((next, complete, error) => {
+
+            (async () => {
+                if (keys instanceof Key_List) {
+                    let res = [];
+                    for (let key of keys) {
+                        //res.push(await this.get_related_records_sing(key));
+                        let related_records = await this.get_related_records_sing(key);
+                        next(related_records);
+                    }
+                    complete();
+                }
+            })
+
+            
+            return [];
+        });
+    }
+
+    get_related_records(key) {
+        if (key instanceof B_Key) {
+            return get_related_records_sing(key);
+        } else {
+            return get_related_records_plur(key);
+        }
+    }
 
     // Then will have some functions to shift some records around if something is not where it should be / misplaced.
     //  Maybe use a bit of reasoning to work out the way to shift things.
@@ -1831,8 +1963,8 @@ class NextLevelDB_Core_Server extends Evented_Class {
     get_all_db_keys(callback) {
         var res = [];
         this.db.createKeyStream({}).on('data', function (key) {
-            res.push(key);
-        })
+                res.push(key);
+            })
             .on('error', function (err) {
                 callback(err);
             })
@@ -1849,9 +1981,9 @@ class NextLevelDB_Core_Server extends Evented_Class {
         var res_records = [];
 
         this.db.createReadStream({}).on('data', function (record) {
-            //console.log('record', record);
-            res_records.push([record.key, record.value]);
-        })
+                //console.log('record', record);
+                res_records.push([record.key, record.value]);
+            })
             .on('error', function (err) {
                 callback(err);
             })
@@ -1946,10 +2078,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
     // get rid of remove_pks = false, decode = false to make simpler syntax
 
     get_first_and_last_keys_beginning(key_beginning, remove_pks = false, decode = false, callback) {
-
         // change to a promise.
-
-
         let a = arguments;
         let sig = get_a_sig(a);
         let buf_key_beginning;
@@ -1983,7 +2112,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
         }
 
         let [buf_l, buf_u] = kp_to_range(buf_key_beginning);
-
         let pr_res = this.get_first_and_last_keys_in_buf_range(buf_l, buf_u, remove_pks, decode);
 
         if (callback) {
@@ -2046,18 +2174,18 @@ class NextLevelDB_Core_Server extends Evented_Class {
         return prom_or_cb((resolve, reject) => {
             let res;
             this.db.createKeyStream({
-                'gte': arr_range[0],
-                'lte': arr_range[1],
-                'limit': 1
-            }).on('data', function (key) {
-                //console.log('key', key);
-                res = key;
-            })
+                    'gte': arr_range[0],
+                    'lte': arr_range[1],
+                    'limit': 1
+                }).on('data', key => {
+                    //console.log('key', key);
+                    res = key;
+                })
                 //.on('error', reject(err))
-                .on('close', function () {
+                .on('close', () => {
                     //console.log('Stream closed');
                 })
-                .on('end', function () {
+                .on('end', () => {
                     if (res) {
                         resolve(B_Key(res));
                     } else {
@@ -2104,12 +2232,12 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 throw 'stop';
             }
             let stream = this.db.createReadStream({
-                'gt': buf_l,
-                'lt': buf_u,
-                'limit': limit
-            }).on('data', data => {
-                next(new B_Record([data.key, data.value]));
-            }).on('error', error)
+                    'gt': buf_l,
+                    'lt': buf_u,
+                    'limit': limit
+                }).on('data', data => {
+                    next(new B_Record([data.key, data.value]));
+                }).on('error', error)
                 .on('close', function () {
                     //console.log('2) Stream closed')
                 }).on('end', complete)
@@ -2172,7 +2300,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
             }).on('data', data_key => {
                 //console.log('data_key', data_key);
                 next(new B_Key(data_key));
-            }).on('error', error).on('close', function () {
+            }).on('error', error).on('close', () => {
                 //console.log('2) Stream closed')
             }).on('end', complete)
 
@@ -2273,7 +2401,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
         });
     }
     // table.fields_info
-
 
     get_table_fields_info(table, callback) {
         let _table = this.model.map_tables_by_id[this.model.table_id(table)];
@@ -2382,7 +2509,6 @@ class NextLevelDB_Core_Server extends Evented_Class {
                     'type': 'arr_batch_put',
                     'value': arr_bufs
                 });
-
                 callback(null, true);
             }
         })
@@ -2397,7 +2523,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
             let indexes = model_table.indexes;
             // So it's worked out the record from the Model.
             //console.log('put_table_record', record);
-            //console.log('record instanceof B_Record', record instanceof B_Record);
+            console.log('record instanceof B_Record', record instanceof B_Record);
             //console.log('Array.isArray(record)', Array.isArray(record));
 
             if (record instanceof B_Record) {
@@ -2580,12 +2706,12 @@ class NextLevelDB_Core_Server extends Evented_Class {
         } else {
             put_without_prefix_alerts();
         }
-        var that = this;
-        db.batch(ops, function (err) {
+        //var that = this;
+        db.batch(ops, err => {
             if (err) {
                 callback(err);
             } else {
-                that.raise('db_action', {
+                this.raise('db_action', {
                     'type': 'batch_put',
                     'items': arr_pairs
                 });
@@ -2594,7 +2720,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
                     console.log('map_key_batch', map_key_batch);
                     var buf_encoded_batch = Model_Database.encode_model_rows(map_key_batch);
                     //console.log('buf_encoded_batch', buf_encoded_batch);
-                    that.raise('put_kp_batch_' + key, {
+                    this.raise('put_kp_batch_' + key, {
                         'type': 'batch_put',
                         'buffer': buf_encoded_batch
                     });
@@ -2698,6 +2824,8 @@ if (require.main === module) {
     //var docs_dir =
     var path_dbs = user_dir + '/NextLevelDB/dbs';
     // Would also be worth being able to choose db names
+
+    // mkdirp
 
     fs2.ensure_directory_exists(user_dir + '/NextLevelDB', (err, exists) => {
         if (err) {
@@ -2815,11 +2943,7 @@ if (require.main === module) {
 
 
                             // looks good so far.
-
-
                             // let's go through every record.
-
-
                             // //observe(ls.get_all_records, )
 
                             //ls.get_all_records.next(data => ...).catch(error => ...).complete(() => ...)
@@ -2863,8 +2987,6 @@ if (require.main === module) {
 
                             let obs = ls.select_from_table('bittrex currencies', [0, 1], decode);
                             obs.on('next', data => {
-
-
 
                                 console.log('obs data', data);
                             })
@@ -2952,11 +3074,8 @@ if (require.main === module) {
                                 });
                             }
 
-
-
                             start_with_core_model(() => {
                                 console.log('DB started');
-
 
                             });
                             */

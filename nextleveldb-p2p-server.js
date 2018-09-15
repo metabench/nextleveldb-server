@@ -1,4 +1,4 @@
-const lang = require('jsgui3');
+const lang = require('lang-mini');
 const tof = lang.tof;
 const each = lang.each;
 const is_array = lang.is_array;
@@ -1563,7 +1563,6 @@ if (require.main === module) {
     //var docs_dir =
     var path_dbs = user_dir + '/NextLevelDB/dbs';
     // Select all the listed dbs, then choose the selected source DBs.
-
     //let clients_info = [];
     let clients_info = {};
 
@@ -1592,19 +1591,10 @@ if (require.main === module) {
             'localhost': local_info
         }
     }
-
     //test_against_localhost();
-
-
-
-
     //throw 'stop';
-
     // then make them into client connection params
-
-
     //throw 'stop';
-
     // Would also be worth being able to choose db names
 
     fs2.ensure_directory_exists(user_dir + '/NextLevelDB', (err, exists) => {

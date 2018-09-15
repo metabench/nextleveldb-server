@@ -8,12 +8,12 @@
         "deep-diff": "^1.0.1",
         "deep-equal": "^1.0.1",
         "fnl": "^0.0.3",
-        "jsgui3": "^0.0.25",
-        "lang-mini": "^0.0.6",
-        "level": "^3.0.01",
+        "fnlfs": "^0.0.2",
+        "lang-mini": "^0.0.8",
+        "level": "^4.0.0",
         "my-config": "^2.0.0",
-        "nextleveldb-client": "^0.0.72",
-        "nextleveldb-model": "^0.0.68",
+        "nextleveldb-client": "^0.0.74",
+        "nextleveldb-model": "^0.0.71",
         "recursive-readdir": "^2.2.2",
         "rimraf": "^2.6.2",
         "single-line-log": "^1.1.2",
@@ -29,5 +29,5 @@
         "type": "git",
         "url": "https://github.com/metabench/nextleveldb-server.git"
     },
-    "version": "0.0.61"
+    "version": "0.0.62"
 }

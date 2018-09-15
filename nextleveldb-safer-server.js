@@ -1,4 +1,4 @@
-const lang = require('jsgui3');
+const lang = require('lang-mini');
 const tof = lang.tof;
 const each = lang.each;
 const is_array = lang.is_array;
@@ -13,6 +13,8 @@ const Evented_Class = lang.Evented_Class;
 
 const NextLevelDB_Server = require('./nextleveldb-server');
 const NextLevelDB_Client = require('nextleveldb-client');
+
+
 const fs2 = lang.fs2;
 
 

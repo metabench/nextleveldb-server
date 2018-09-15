@@ -1,5 +1,5 @@
 
-var jsgui = require('jsgui3');
+var jsgui = require('lang-mini');
 var tof = jsgui.tof;
 var each = jsgui.each;
 var is_array = jsgui.is_array;

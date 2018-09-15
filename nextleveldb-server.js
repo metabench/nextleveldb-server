@@ -1,4 +1,4 @@
-const jsgui = require('jsgui3');
+const jsgui = require('lang-mini');
 const tof = jsgui.tof;
 const each = jsgui.each;
 const is_array = jsgui.is_array;
@@ -35,7 +35,7 @@ const deep_equal = require('deep-equal');
 // Extra fs tools?
 //  That could be worth separating.
 
-const fs2 = jsgui.fs2;
+//const fs2 = jsgui.fs2;
 const handle_ws_binary = require('./handle-ws-binary');
 //var Binary_Encoding = require('binary-encoding');
 const Binary_Encoding = require('binary-encoding');
@@ -49,6 +49,7 @@ const levelup = require('level');
 const Model = require('nextleveldb-model');
 
 const fnl = require('fnl');
+const fnlfs = require('fnlfs');
 const observable = fnl.observable;
 
 const B_Record_List = Model.Record_List;
@@ -80,11 +81,7 @@ const CORE_MAX_PREFIX = 9;
 
 
 const execute_q_obs = fnl.seq;
-
-
 const NextlevelDB_Core_Server = require('./nextleveldb-core-server');
-
-
 
 const obs_to_cb = (obs, callback) => {
     let arr_all = [];
@@ -150,9 +147,6 @@ let obs_arrayified_call = (caller, fn, arr_params) => {
                     //  Raising 'complete'?
 
 
-
-
-
                 });
                 process_obs.on('complete', () => {
                     //res.raise('complete')
@@ -174,10 +168,7 @@ let obs_arrayified_call = (caller, fn, arr_params) => {
 
     }
     process();
-
     return res;
-
-
 }
 
 
@@ -296,11 +287,7 @@ class NextLevelDB_Server extends NextlevelDB_Core_Server {
         let inner = () => {
 
         }
-
-
     }
-
-
 
     // advanced get?
 
@@ -634,8 +621,6 @@ class NextLevelDB_Server extends NextlevelDB_Core_Server {
                     obs_complete = true;
                 })
 
-
-
             }
         }
 
@@ -913,6 +898,23 @@ class NextLevelDB_Server extends NextlevelDB_Core_Server {
     //  The seelction of data when it's encoded could be a bit more efficient.
     //   Decoding would take place at the last step.
 
+
+    // get a record, with all of the referring records.
+
+    // // get record by key with the associated records
+
+    // will also want to batch various requests like this.
+
+    // get the associated fk records from a record.
+    //  we have the record key.
+    //  need to then find records which refer to it.
+
+    // refer to the record's model table, then refer to the db model.
+    //  find fks that point to it.
+    //  then with double associative records would need to find the other record that they point to.
+
+
+
     // want parameter parsing to be much shorter.
     //  don't have decode, callback is optional.
     //  only 2 or 3 params.
@@ -953,9 +955,7 @@ class NextLevelDB_Server extends NextlevelDB_Core_Server {
 
 
             if (decode) {
-
                 //
-
                 obs_tr.on('next', data => res.raise('next', Binary_Encoding.decode(encoding.select_indexes_buffer_from_kv_pair_buffer(data, 1, arr_field_ids))));
             } else {
                 obs_tr.on('next', data => res.raise('next', encoding.select_indexes_buffer_from_kv_pair_buffer(data, 1, arr_field_ids)));
@@ -1019,11 +1019,11 @@ if (require.main === module) {
     var path_dbs = user_dir + '/NextLevelDB/dbs';
     // Would also be worth being able to choose db names
 
-    fs2.ensure_directory_exists(user_dir + '/NextLevelDB', (err, exists) => {
+    fnlfs.ensure_directory_exists(user_dir + '/NextLevelDB', (err, exists) => {
         if (err) {
             throw err
         } else {
-            fs2.ensure_directory_exists(path_dbs, (err, exists) => {
+            fnlfs.ensure_directory_exists(path_dbs, (err, exists) => {
                 if (err) {
                     throw err
                 } else {
@@ -1092,10 +1092,9 @@ if (require.main === module) {
                                 obs_ir = ls.get_all_index_records();
                                 obs_ir.on('next', data => {
                                     console.log('get_all_index_records data', data);
-                                })
+                                });
                             }
                             //test_get_all_index_records();
-
 
                             // view tables and fields
                             let show_tables = () => {
@@ -1103,11 +1102,7 @@ if (require.main === module) {
                             }
                             show_tables();
 
-
-
                             // looks good so far.
-
-
                             // let's go through every record.
 
 
@@ -1148,15 +1143,12 @@ if (require.main === module) {
                             // Need decoding option.
                             //  By default it will be decoded.
 
-                            //let decode = true;
+                            // let decode = true;
 
                             /*
 
                             let obs = ls.select_from_table('bittrex currencies', [0, 1], decode);
                             obs.on('next', data => {
-
-
-
                                 console.log('obs data', data);
                             })
                             obs.on('complete', () => {
@@ -1206,14 +1198,9 @@ if (require.main === module) {
                             // This will be used to greatly improve the sync speed, when syncing record ranges.
                             //  Want to test this over the client too, with the same API.
 
-
-
-
                             // testing get_records_in_ranges
 
                             // could test getting the incrementors (kp 0) and the kp3
-
-
 
                             /*
 
@@ -1242,8 +1229,6 @@ if (require.main === module) {
                                     }
                                 });
                             }
-
-
 
                             start_with_core_model(() => {
                                 console.log('DB started');
