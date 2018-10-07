@@ -52,7 +52,7 @@ The core of the DB could do with a nice bit of improvement, allowing for functio
 
 let log;
 if (!logging_enabled) {
-    log = () => { };
+    log = () => {};
 } else {
     log = console.log;
 }
@@ -151,13 +151,9 @@ const PAGING_TIMED = 4;
 // Keeping track of the other DBs that the DB is connected to would be a very useful thing.
 //  A peers table
 //   Could show a source db
-
 // Wipe and replace with a remote DB
 //  That's one instruction
-
 // To start with, a streaming and paging get_all_records will be useful.
-
-
 // A blockchain-like system would be very useful for ensuring all of the records get copied over.
 //  Could keep hashes of received data pages.
 //  The data would be sent in predictable pages, if they are already on the client, they don't need to be copied.
@@ -174,31 +170,17 @@ const PAGING_TIMED = 4;
 
 // Blockchain copy would have some setup time, as it goes through the records, but once it is running, we get better feedback on the progress of the copy.
 //  It's a nice way to verify the copying of data.
-
-
 // Could create a blockchain out of a series of ordered db records, and use that to transfer the data to another db in a way where the data intrgrity can be checked in such a way that we know
 //  the records synced correctly match the records from the original DB.
 
 // DB properties will be useful for this.
 
-
-
-
-
-
-
-
 // All low level functions, operating on the core db.
 // Higher level functions could do things like put a record, where the db system automatically creates the index records too.
 
 // A way to LL put a single record?
-
-
 // Will do some significant expansion of the lower level capabilities.
-
-
 // A wider variety of basic functions, and continuing the improved streaming of existing functionality.
-
 // There will be more functionality in the standard server codebase, upon which an API could make it available to clients, which would make that API available locally.
 //  Want structure and index verification available server-side.
 //  Still stuck on problems to do with adding, ensuring and looking up Bittrex currencies :(
@@ -211,10 +193,6 @@ const PAGING_TIMED = 4;
 // Before DB records are copied over, it could verify that it's the same table structure.
 //  I expect the copying of records will work quickly, but I want to see and measure how many MB/s it goes at, and how many records/s get transferred.
 
-
-
-
-
 /*
 
 LL_GET_TABLE_ID_BY_NAME
@@ -226,12 +204,7 @@ These will have versions in the nextleveldb-server codebase, and here the remote
 table_index_value_lookup
 TABLE_INDEX_VALUE_LOOKUP
 
-
 */
-
-
-
-
 
 // 05/03/2018 - Will have much more functionality moved into this lower level part, because this part handles the communications, and that is becoming more complicated / advanced.
 
@@ -259,13 +232,8 @@ const LL_PUT_RECORDS = 1;
 // USING PAGING OPTION
 const LL_GET_ALL_KEYS = 2;
 const LL_GET_ALL_RECORDS = 3;
-
-
-
 const LL_GET_KEYS_IN_RANGE = 4;
 const LL_GET_RECORDS_IN_RANGE = 5;
-
-
 const LL_GET_RECORDS_IN_RANGES = 50;
 
 
@@ -280,17 +248,9 @@ const LL_GET_RECORDS_IN_RANGES = 50;
 // Want the level above ll to be coded in a way that makes more code reuse on both the client and server for decoding / modifying these observable data results.
 
 
-
-
-
-
-
-
-
-
-
 const LL_COUNT_KEYS_IN_RANGE = 6;
 const LL_GET_FIRST_LAST_KEYS_IN_RANGE = 7;
+const LL_GET_FIRST_LAST_RECORDS_IN_RANGE = 27;
 
 const LL_GET_FIRST_LAST_KEYS_BEGINNING = 36; // Maybe don't implement yet.
 const LL_GET_FIRST_KEY_BEGINNING = 37;
@@ -308,15 +268,7 @@ const GET_TABLE_RECORDS_BY_KEYS = 17;
 const LL_COUNT_KEYS_IN_RANGE_UP_TO = 9;
 const LL_GET_RECORDS_IN_RANGE_UP_TO = 10;
 
-
-
-
-
 // Or have further handlers in other files?
-
-
-
-
 
 // Has paging option.
 //  Number of records per page
@@ -331,13 +283,10 @@ const LL_GET_RECORDS_IN_RANGE_UP_TO = 10;
 const LL_FIND_COUNT_TABLE_RECORDS_INDEX_MATCH = 11;
 //const LL_PUT_RECORD_INDEX_IT = 12;
 
-
-
 // Change to 'Put'?
 // Could make 12 polymorphic so it checks if it is given an array?
 const INSERT_TABLE_RECORD = 12;
 const INSERT_RECORDS = 13;
-
 
 const ENSURE_RECORD = 14;
 const ENSURE_TABLE_RECORD = 15;
@@ -361,8 +310,6 @@ const ENSURE_TABLE_RECORD = 15;
 //     Copy those backups to cloud storage too.
 //      Work on restoring a new database from the cloud backups.
 
-
-
 // Think we need get the data automatically indexed on the server.
 
 // Could have a lower level db function to index a table.
@@ -381,11 +328,6 @@ const TABLE_ID_BY_NAME = 23;
 // RENAME_TABLE
 const GET_TABLE_FIELDS_INFO = 24;
 const GET_TABLE_KEY_SUBDIVISIONS = 25;
-
-
-
-
-
 
 // Could have SELECT_FROM_KEYS_IN_RANGE
 //  More versitile than table, and reads through those keys, selecting out fields from them.
@@ -411,13 +353,6 @@ const SELECT_FROM_TABLE = 41;
 //  Or it's just an array?
 //   Just returning an array looks a bit more sensible.
 //   An array for each row. It's not keys and values separated.
-
-
-
-
-
-
-
 
 
 
@@ -456,12 +391,6 @@ const SELECT_FROM_TABLE = 41;
 // Some higher level lower level functions?
 //  Put records using table indexes?
 
-
-
-
-
-
-
 const LL_SUBSCRIBE_ALL = 60;
 const LL_SUBSCRIBE_KEY_PREFIX_PUTS = 61;
 const LL_UNSUBSCRIBE_SUBSCRIPTION = 62;
@@ -484,14 +413,6 @@ const LL_MESSAGE_STOP = 121;
 const LL_MESSAGE_PAUSE = 122;
 const LL_MESSAGE_RESUME = 123;
 
-
-
-
-
-
-
-
-
 // Subscribe
 //  Subscribe by key prefix
 //   Would mean extra processing in batch puts.
@@ -505,8 +426,6 @@ var map_subscription_event_types = {
     'batch_put': SUB_RES_TYPE_BATCH_PUT
 
 }
-
-
 
 // Then could have client app that downloads all of the data / the recent data, then subscribes to updates.
 //  Also worth making use of local leveldb server.
@@ -528,22 +447,7 @@ var map_subscription_event_types = {
 // Want to load a relatively large dataset to the client, have it use underlying typed arrays.
 //  For the moment, may deal with megabytes of data.
 
-
-
-
-
-
-
-
-
 // Optional parameters could help...
-
-
-
-
-
-
-
 
 var client_subscriptions = {};
 
@@ -728,8 +632,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         //  It won't always be.
 
         //log('Binary_Encoding.encode_to_buffer(res)', Binary_Encoding.encode_to_buffer([res]));
-
-
         //let message = new Command_Response_Message(message_id, BINARY_PAGING_NONE, Binary_Encoding.encode_to_buffer(res));
         let message = new Command_Response_Message(message_id, BINARY_PAGING_NONE, Binary_Encoding.encode_to_buffer([res]));
         //log('message', message);
@@ -850,230 +752,254 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
         //log('paging_option', paging_option);
 
-        if (paging_option === PAGING_COUNT) {
-            let c = 0;
-            let arr_page = new Array(page_size);
-            let page_number = 0;
+        if (obs_call instanceof Promise) {
+            // No paging I think
 
-            let response_type = obs_call.response_type;
+            obs_call.then(res => {
+                console.log('obs_call instanceof Promise res', res);
+                let crm = new Command_Response_Message(message_id, res);
+                console.log('crm.value', crm.value);
+                connection.sendBytes(crm.buffer);
+            }, err => {
+                throw 'Promise execution error';
+            });
+        } else {
+            if (paging_option === PAGING_COUNT) {
+                let c = 0;
+                let arr_page = new Array(page_size);
+                let page_number = 0;
 
-            // Default response type being records?
+                // else {
+                let response_type = obs_call.response_type;
 
-            if (!response_type) {
+                // Default response type being records?
 
-                // use command response mesages
+                if (!response_type) {
 
+                    // use command response mesages
 
-
-                obs_call.on('next', data => {
-                    //log('!response_type binary send has data ' + data);
-
-                    //log('data', data);
-
-                    arr_page[c++] = data;
-
-
-                    //let crm = new Command_Response_Message(message_id, data);
-
-                    //log('crm', crm);
-
-                    // RECORD_PAGING_FLOW
-                    if (c === page_size) {
-                        let crm = new Command_Response_Message(message_id, RECORD_PAGING_FLOW, page_number++, arr_page);
-                        connection.sendBytes(crm.buffer);
-                        c = 0;
-                    }
-
-                    /*
-
-                    let buf_arr_page_item = Buffer.concat([xas2(ARRAY).buffer, xas2(data.length).buffer, data]);
-                    arr_page[c++] = buf_arr_page_item;
-                    if (c === page_size) {
-                        let buf_page_data = Binary_Encoding.encode_to_buffer([arr_page]);
-                        let buf_message = Buffer.concat([buf_msg_id, buf_binary_paging_flow, xas2(page_number).buffer, buf_page_data]);
-                        connection.sendBytes(buf_message);
-                        c = 0;
-                    }
-                    */
-                });
-
-                obs_call.on('complete', () => {
-                    //log('obs_call complete');
-                    if (c > 0) {
-                        let small_page = arr_page.slice(0, c);
-
-                        let crm = new Command_Response_Message(message_id, RECORD_PAGING_LAST, page_number++, small_page);
-                        //log('last buf_page_data.length', buf_page_data.length);
-                        //let buf_message = Buffer.concat([buf_msg_id, buf_binary_paging_last, xas2(page_number).buffer, buf_page_data]);
-                        log('crm', crm);
-
-                        connection.sendBytes(crm.buffer);
-                    }
-                });
-
-
-
-
-
-                //console.trace();
-                //log('send communication_options', communication_options);
-                //throw 'response_type needs to be set in the observable returned previously. Acceptable values are "keys", "records", "array"';
-            } else {
-
-                // The old way, should remove this.
-
-                log('response_type', response_type);
-
-                // Need to do this differently depending on response type, it seems.
-                //  Since they are records, need to encode and send them as records.
-
-                // No response type set - we need to look at the objects being returned.
-                //  Can return records by encoding the messages through the OO means.
-
-                if (response_type === 'array') {
                     obs_call.on('next', data => {
-                        log('binary send has data ' + send);
+                        //log('!response_type binary send has data ' + data);
 
+                        //log('data', data);
+
+                        arr_page[c++] = data;
+
+
+                        //let crm = new Command_Response_Message(message_id, data);
+
+                        //log('crm', crm);
+
+                        // RECORD_PAGING_FLOW
+                        if (c === page_size) {
+                            let crm = new Command_Response_Message(message_id, RECORD_PAGING_FLOW, page_number++, arr_page);
+                            connection.sendBytes(crm.buffer);
+                            c = 0;
+                        }
+
+                        /*
+    
                         let buf_arr_page_item = Buffer.concat([xas2(ARRAY).buffer, xas2(data.length).buffer, data]);
                         arr_page[c++] = buf_arr_page_item;
                         if (c === page_size) {
                             let buf_page_data = Binary_Encoding.encode_to_buffer([arr_page]);
-                            let buf_message = Buffer.concat([buf_msg_id, buf_binary_paging_flow, xas2(page_number++).buffer, buf_page_data]);
+                            let buf_message = Buffer.concat([buf_msg_id, buf_binary_paging_flow, xas2(page_number).buffer, buf_page_data]);
                             connection.sendBytes(buf_message);
                             c = 0;
                         }
-                    })
+                        */
+                    });
+
                     obs_call.on('complete', () => {
                         //log('obs_call complete');
                         if (c > 0) {
-                            let buf_page_data = Buffer.concat(arr_page.slice(0, c));
+                            let small_page = arr_page.slice(0, c);
+
+                            let crm = new Command_Response_Message(message_id, RECORD_PAGING_LAST, page_number++, small_page);
                             //log('last buf_page_data.length', buf_page_data.length);
-                            let buf_message = Buffer.concat([buf_msg_id, buf_binary_paging_last, xas2(page_number++).buffer, buf_page_data]);
-                            connection.sendBytes(buf_message);
+                            //let buf_message = Buffer.concat([buf_msg_id, buf_binary_paging_last, xas2(page_number).buffer, buf_page_data]);
+                            log('crm', crm);
+
+                            connection.sendBytes(crm.buffer);
                         }
                     });
-                } else if (response_type === 'binary') {
-                    // Will not need to do much to encode the data to a buffer.
-                    //  Should not require extra encoding?
-                    //  Or it's that some results will 
-
-                    // Not handling the error paths right now.
-
-                    obs_call.on('next', data => {
-                        let buf_data;
-                        // The data could be as an array.
-                        //  If so, need to join them up
-                        let t_data = tof(data);
-                        //log('t_data', t_data);
-                        if (t_data === 'array') {
-                            throw '8 stop';
-                            buf_data = Binary_Encoding.array_join_encoded_buffers([Binary_Encoding.array_join_encoded_buffers(data)]);
-                        } else {
-                            // It would already be an array buffer, I think
-                            //log('** data', data);
-
-                            buf_data = data;
-
-                            //log('pre try stop');
-                            //throw 'stop';
-
-                            //buf_data = Binary_Encoding.encode_buffer_as_array_buffer(data);
-                        }
-                        arr_page[c++] = buf_data;
-                        if (c === page_size) {
-                            //let buf_page_data = Binary_Encoding.array_join_encoded_buffers(arr_page);
-
-                            // join encoded buffers, but don't specifically say it's encoded as an array
-                            //  it's encoded as an array by default if it's not contained within anything else.
-
-                            //log('arr_page', arr_page);
-                            //throw 'stop';
-
-
-                            // encode_buffers_as_buffers
-                            let buf_page_data = Binary_Encoding.encode_buffers_as_buffers(arr_page);
 
 
 
-                            //let buf_page_data = Buffer.concat(arr_page);
 
 
-                            let buf_message = Buffer.concat([buf_msg_id, buf_binary_paging_last, xas2(page_number++).buffer, buf_page_data]);
-                            connection.sendBytes(buf_message);
-                            c = 0;
-                        }
-                    })
-                    obs_call.on('complete', () => {
-                        if (c > 0) {
-                            let sliced_page = arr_page.slice(0, c);
+                    //console.trace();
+                    //log('send communication_options', communication_options);
+                    //throw 'response_type needs to be set in the observable returned previously. Acceptable values are "keys", "records", "array"';
+                } else {
 
-                            //log('sliced_page', sliced_page);
-                            //throw 'stop';
+                    // The old way, should remove this.
+
+                    log('response_type', response_type);
+
+                    // Need to do this differently depending on response type, it seems.
+                    //  Since they are records, need to encode and send them as records.
+
+                    // No response type set - we need to look at the objects being returned.
+                    //  Can return records by encoding the messages through the OO means.
+
+                    if (response_type === 'array') {
+                        obs_call.on('next', data => {
+                            log('binary send has data ' + send);
+
+                            let buf_arr_page_item = Buffer.concat([xas2(ARRAY).buffer, xas2(data.length).buffer, data]);
+                            arr_page[c++] = buf_arr_page_item;
+                            if (c === page_size) {
+                                let buf_page_data = Binary_Encoding.encode_to_buffer([arr_page]);
+                                let buf_message = Buffer.concat([buf_msg_id, buf_binary_paging_flow, xas2(page_number++).buffer, buf_page_data]);
+                                connection.sendBytes(buf_message);
+                                c = 0;
+                            }
+                        })
+                        obs_call.on('complete', () => {
+                            //log('obs_call complete');
+                            if (c > 0) {
+                                let buf_page_data = Buffer.concat(arr_page.slice(0, c));
+                                //log('last buf_page_data.length', buf_page_data.length);
+                                let buf_message = Buffer.concat([buf_msg_id, buf_binary_paging_last, xas2(page_number++).buffer, buf_page_data]);
+                                connection.sendBytes(buf_message);
+                            }
+                        });
+                    } else if (response_type === 'binary') {
+                        // Will not need to do much to encode the data to a buffer.
+                        //  Should not require extra encoding?
+                        //  Or it's that some results will 
+
+                        // Not handling the error paths right now.
+
+                        obs_call.on('next', data => {
+                            let buf_data;
+                            // The data could be as an array.
+                            //  If so, need to join them up
+                            let t_data = tof(data);
+                            //log('t_data', t_data);
+                            if (t_data === 'array') {
+                                throw '8 stop';
+                                buf_data = Binary_Encoding.array_join_encoded_buffers([Binary_Encoding.array_join_encoded_buffers(data)]);
+                            } else {
+                                // It would already be an array buffer, I think
+                                //log('** data', data);
+
+                                buf_data = data;
+
+                                //log('pre try stop');
+                                //throw 'stop';
+
+                                //buf_data = Binary_Encoding.encode_buffer_as_array_buffer(data);
+                            }
+                            arr_page[c++] = buf_data;
+                            if (c === page_size) {
+                                //let buf_page_data = Binary_Encoding.array_join_encoded_buffers(arr_page);
+
+                                // join encoded buffers, but don't specifically say it's encoded as an array
+                                //  it's encoded as an array by default if it's not contained within anything else.
+
+                                //log('arr_page', arr_page);
+                                //throw 'stop';
+
+
+                                // encode_buffers_as_buffers
+                                let buf_page_data = Binary_Encoding.encode_buffers_as_buffers(arr_page);
 
 
 
-                            // And they wind up encoded as buffers so they can be stored in the envelope.
-                            let buf_page_data = Binary_Encoding.encode_to_buffer((sliced_page));
-                            //let buf_page_data = Binary_Encoding.encode_to_marked_buffer((sliced_page));
+                                //let buf_page_data = Buffer.concat(arr_page);
 
-                            // Multiple buffers, all to get encoded into one buffer
 
-                            //log('buf_page_data', buf_page_data);
+                                let buf_message = Buffer.concat([buf_msg_id, buf_binary_paging_last, xas2(page_number++).buffer, buf_page_data]);
+                                connection.sendBytes(buf_message);
+                                c = 0;
+                            }
+                        })
+                        obs_call.on('complete', () => {
+                            if (c > 0) {
+                                let sliced_page = arr_page.slice(0, c);
 
-                            let buf_message = Buffer.concat([buf_msg_id, buf_binary_paging_last, xas2(page_number++).buffer, buf_page_data]);
-                            connection.sendBytes(buf_message);
-                        }
-                    });
-                } else if (response_type === 'records') {
-                    // Needs to be decoded differently, only difference in the response here is giving the paging type (and this will maybe be changed soon).
+                                //log('sliced_page', sliced_page);
+                                //throw 'stop';
 
-                    // 
-                    obs_call.on('next', data => {
-                        log('records send has data ', data);
 
-                        // Binary_Encoding.join_buffer_pair([data.key, data.value]);
 
+                                // And they wind up encoded as buffers so they can be stored in the envelope.
+                                let buf_page_data = Binary_Encoding.encode_to_buffer((sliced_page));
+                                //let buf_page_data = Binary_Encoding.encode_to_marked_buffer((sliced_page));
+
+                                // Multiple buffers, all to get encoded into one buffer
+
+                                //log('buf_page_data', buf_page_data);
+
+                                let buf_message = Buffer.concat([buf_msg_id, buf_binary_paging_last, xas2(page_number++).buffer, buf_page_data]);
+                                connection.sendBytes(buf_message);
+                            }
+                        });
+                    } else if (response_type === 'records') {
+                        // Needs to be decoded differently, only difference in the response here is giving the paging type (and this will maybe be changed soon).
 
                         // 
+                        obs_call.on('next', data => {
+                            log('records send has data ', data);
 
-                        // This encodes each record within an array. Less efficient down the wire. Maybe better becuase it's more standard.
-                        //let buf_arr_page_item = Buffer.concat([xas2(ARRAY).buffer, xas2(data.length).buffer, Binary_Encoding.join_buffer_pair(data)]);
+                            // Binary_Encoding.join_buffer_pair([data.key, data.value]);
 
 
-                        // var buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
+                            // 
 
-                        let buf_arr_page_item = Binary_Encoding.join_buffer_pair(data);
-                        // No, don't encode them as an array.
-                        //  Just as it is when sending records elsewhere.
+                            // This encodes each record within an array. Less efficient down the wire. Maybe better becuase it's more standard.
+                            //let buf_arr_page_item = Buffer.concat([xas2(ARRAY).buffer, xas2(data.length).buffer, Binary_Encoding.join_buffer_pair(data)]);
 
-                        arr_page[c++] = buf_arr_page_item;
-                        if (c === page_size) {
-                            let buf_page_data = Binary_Encoding.encode_to_buffer([arr_page]);
-                            let buf_message = Buffer.concat([buf_msg_id, buf_record_paging_flow, xas2(page_number++).buffer, buf_page_data]);
-                            connection.sendBytes(buf_message);
-                            c = 0;
-                        }
-                    })
-                    obs_call.on('complete', () => {
-                        //log('obs_call complete');
-                        if (c > 0) {
-                            let buf_page_data = Buffer.concat(arr_page.slice(0, c));
-                            //log('last buf_page_data.length', buf_page_data.length);
-                            let buf_message = Buffer.concat([buf_msg_id, buf_record_paging_last, xas2(page_number++).buffer, buf_page_data]);
-                            connection.sendBytes(buf_message);
-                        }
-                    });
-                } else {
-                    throw 'response_type ' + response_type + ' unsupported';
+
+                            // var buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
+
+                            let buf_arr_page_item = Binary_Encoding.join_buffer_pair(data);
+                            // No, don't encode them as an array.
+                            //  Just as it is when sending records elsewhere.
+
+                            arr_page[c++] = buf_arr_page_item;
+                            if (c === page_size) {
+                                let buf_page_data = Binary_Encoding.encode_to_buffer([arr_page]);
+                                let buf_message = Buffer.concat([buf_msg_id, buf_record_paging_flow, xas2(page_number++).buffer, buf_page_data]);
+                                connection.sendBytes(buf_message);
+                                c = 0;
+                            }
+                        })
+                        obs_call.on('complete', () => {
+                            //log('obs_call complete');
+                            if (c > 0) {
+                                let buf_page_data = Buffer.concat(arr_page.slice(0, c));
+                                //log('last buf_page_data.length', buf_page_data.length);
+                                let buf_message = Buffer.concat([buf_msg_id, buf_record_paging_last, xas2(page_number++).buffer, buf_page_data]);
+                                connection.sendBytes(buf_message);
+                            }
+                        });
+                    } else {
+                        throw 'response_type ' + response_type + ' unsupported';
+                    }
+
                 }
 
+                //}
+
+
+
+
+            } else {
+                console.trace();
+                log('obs_call', obs_call);
+                log('paging_option', paging_option);
+                throw 'NYI';
             }
 
-        } else {
-            console.trace();
-            log('paging_option', paging_option);
-            throw 'NYI';
+
         }
+
+
+
+
     }
 
 
@@ -1305,6 +1231,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
 
 
+        // Send on an observable should be fine.
 
 
 
@@ -1363,14 +1290,14 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             var count = 0;
             //var res = [];
             db.createKeyStream({
-                'gt': s_buf[0],
-                'lt': s_buf[1]
-            }).on('data', function (key) {
-                //arr_res.push(x(key.length).buffer);
-                //log('key', key);
-                //arr_res.push(key);
-                count++;
-            })
+                    'gt': s_buf[0],
+                    'lt': s_buf[1]
+                }).on('data', function (key) {
+                    //arr_res.push(x(key.length).buffer);
+                    //log('key', key);
+                    //arr_res.push(key);
+                    count++;
+                })
                 .on('error', function (err) {
                     //log('Oh my!', err)
                     callback(err);
@@ -1388,7 +1315,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     connection.sendBytes(buf_res);
                 });
 
-        // Record count being substitute for timed because it does timed counts anyway.
+            // Record count being substitute for timed because it does timed counts anyway.
         } else if (paging_option === PAGING_TIMED || paging_option === PAGING_RECORD_COUNT) {
             // A timed pager.
             log('paging_option === PAGING_TIMED');
@@ -1402,15 +1329,15 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             let interval;
 
             let key_stream = db.createKeyStream({
-                'gt': s_buf[0],
-                'lt': s_buf[1]
-            }).on('data', function (key) {
-                //arr_res.push(x(key.length).buffer);
-                //log('key', key);
-                //arr_res.push(key);
+                    'gt': s_buf[0],
+                    'lt': s_buf[1]
+                }).on('data', function (key) {
+                    //arr_res.push(x(key.length).buffer);
+                    //log('key', key);
+                    //arr_res.push(key);
 
-                count++;
-            })
+                    count++;
+                })
                 .on('error', function (err) {
                     //log('Oh my!', err)
                     callback(err);
@@ -1665,17 +1592,8 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         // cb_send
 
         // this.cb_send(what the normal cb would be)
-
-
-
         //send_cb(nldb.get_last_key_beginning)
-
-
-
         // then get the buffer key beginning param...
-
-
-
     }
 
 
@@ -1714,7 +1632,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         // then the count range query with those
         if (paging_option === NO_PAGING) {
             //var arr_res = [buf_msg_id];
-
             if (return_message_type) {
                 // Though paging is an option, this is not a paged or pagable response.
                 var arr_res = [buf_msg_id, buf_binary_paging_none];
@@ -1737,6 +1654,44 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             });
         }
     }
+
+    // LL_GET_FIRST_LAST_RECORDS_IN_RANGE
+
+    if (i_query_type === LL_GET_FIRST_LAST_RECORDS_IN_RANGE) {
+        log('LL_GET_FIRST_LAST_RECORDS_IN_RANGE');
+        console.log('message_binary', message_binary);
+
+        let command_message = new Command_Message(message_binary);
+        let communication_options = command_message.paging;
+        log('communication_options', communication_options);
+        let msg_params = command_message.inner;
+
+        log('msg_params', msg_params);
+
+        let thing_to_send = nldb.get_first_last_records_in_range(msg_params);
+        console.log('thing_to_send', thing_to_send);
+
+        send(communication_options, thing_to_send);
+    }
+
+    /*
+
+    let command_message = new Command_Message(message_binary);
+        let communication_options = command_message.paging;
+        log('communication_options', communication_options);
+        let msg_params = command_message.inner;
+
+        log('msg_params', msg_params);
+
+        let obs_res = nldb.get_records_in_ranges(msg_params);
+
+        send(communication_options, obs_res);
+
+        */
+
+
+
+
 
     // LL_COUNT_GET_FIRST_LAST_KEYS_IN_RANGE
 
@@ -1783,9 +1738,9 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
             //var res = [];
             db.createKeyStream({}).on('data', function (key) {
-                arr_res.push(x(key.length).buffer);
-                arr_res.push(key);
-            })
+                    arr_res.push(x(key.length).buffer);
+                    arr_res.push(key);
+                })
                 .on('error', function (err) {
                     //log('Oh my!', err)
                     callback(err);
@@ -1809,14 +1764,14 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 page_number = 0,
                 arr_res, buf_combined;
             db.createKeyStream({}).on('data', (key) => {
-                arr_page[c++] = Buffer.concat([xas2(key.length).buffer, key]);
-                if (c === page_records_max) {
-                    connection.sendBytes(Buffer.concat([buf_msg_id, buf_key_paging_flow, xas2(page_number++).buffer].concat(arr_page)));
-                    c = 0;
-                    // Could empty that array, would that be faster than GC?
-                    arr_page = new Array(page_records_max);
-                }
-            })
+                    arr_page[c++] = Buffer.concat([xas2(key.length).buffer, key]);
+                    if (c === page_records_max) {
+                        connection.sendBytes(Buffer.concat([buf_msg_id, buf_key_paging_flow, xas2(page_number++).buffer].concat(arr_page)));
+                        c = 0;
+                        // Could empty that array, would that be faster than GC?
+                        arr_page = new Array(page_records_max);
+                    }
+                })
                 .on('error', function (err) {
                     //log('Oh my!', err)
                     callback(err);
@@ -1887,10 +1842,10 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             }
             //var res = [];
             db.createReadStream({}).on('data', function (data) {
-                let buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
-                //log('buf_combined', buf_combined);
-                arr_res.push(buf_combined);
-            })
+                    let buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
+                    //log('buf_combined', buf_combined);
+                    arr_res.push(buf_combined);
+                })
                 .on('error', function (err) {
                     //log('Oh my!', err)
 
@@ -1966,31 +1921,31 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 page_number = 0,
                 arr_res, buf_combined;
             db.createReadStream({}).on('data', (data) => {
-                buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
-                //log('buf_combined', buf_combined);
-                // include it into the paged records.
-                arr_page[c++] = buf_combined;
+                    buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
+                    //log('buf_combined', buf_combined);
+                    // include it into the paged records.
+                    arr_page[c++] = buf_combined;
 
-                if (c === page_records_max) {
-                    // Send back a page
-                    //  Would need to encode the page, try using binary encoding to put a bunch of records together.
-                    // encoding the records together.
-                    //  can concat the separate records together as with non-paging.
-                    //log('page_number', page_number);
+                    if (c === page_records_max) {
+                        // Send back a page
+                        //  Would need to encode the page, try using binary encoding to put a bunch of records together.
+                        // encoding the records together.
+                        //  can concat the separate records together as with non-paging.
+                        //log('page_number', page_number);
 
-                    //arr_res = [buf_msg_id, buf_record_paging_flow, xas2(page_number++).buffer].concat(arr_page);
-                    //buf_res = Buffer.concat(arr_res);
-                    //connection.sendBytes(buf_res);
+                        //arr_res = [buf_msg_id, buf_record_paging_flow, xas2(page_number++).buffer].concat(arr_page);
+                        //buf_res = Buffer.concat(arr_res);
+                        //connection.sendBytes(buf_res);
 
-                    connection.sendBytes(Buffer.concat([buf_msg_id, buf_record_paging_flow, xas2(page_number++).buffer].concat(arr_page)));
+                        connection.sendBytes(Buffer.concat([buf_msg_id, buf_record_paging_flow, xas2(page_number++).buffer].concat(arr_page)));
 
-                    //log('buf_res.length', buf_res.length);
-                    //let buf_encoded_page = Binary_Encoding.flexi_encode()
-                    c = 0;
-                    // Could empty that array, would that be faster than GC?
-                    arr_page = new Array(page_records_max);
-                }
-            })
+                        //log('buf_res.length', buf_res.length);
+                        //let buf_encoded_page = Binary_Encoding.flexi_encode()
+                        c = 0;
+                        // Could empty that array, would that be faster than GC?
+                        arr_page = new Array(page_records_max);
+                    }
+                })
                 .on('error', function (err) {
                     //log('Oh my!', err)
                     callback(err);
@@ -2102,28 +2057,28 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
             //var res = [];
             db.createKeyStream({
-                'gt': b_l,
-                'lt': b_u
-            }).on('data', function (key) {
-                // will be both the key and the value
-                // will need to combine them as buffers.
+                    'gt': b_l,
+                    'lt': b_u
+                }).on('data', function (key) {
+                    // will be both the key and the value
+                    // will need to combine them as buffers.
 
-                //var buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
-                // key is a buffer.
+                    //var buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
+                    // key is a buffer.
 
-                // log('buf_combined', buf_combined);
+                    // log('buf_combined', buf_combined);
 
-                // A keys paging return type?
-                //  Could just use Binary_Encoding.
+                    // A keys paging return type?
+                    //  Could just use Binary_Encoding.
 
-                // Possibly going through ws-binary and changing to Binary_Encoding where possible would be best.
+                    // Possibly going through ws-binary and changing to Binary_Encoding where possible would be best.
 
-                arr_res.push(xas2(key.length).buffer);
-                arr_res.push(key);
-                //arr_res.push(x(key.length).buffer);
-                //arr_res.push(key);
+                    arr_res.push(xas2(key.length).buffer);
+                    arr_res.push(key);
+                    //arr_res.push(x(key.length).buffer);
+                    //arr_res.push(key);
 
-            })
+                })
                 .on('error', function (err) {
                     //log('Oh my!', err)
                     callback(err);
@@ -2148,108 +2103,108 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             let page_number = 0;
 
             let read_stream = db.createKeyStream({
-                'gt': b_l,
-                'lt': b_u
-            }).on('data', function (key) {
+                    'gt': b_l,
+                    'lt': b_u
+                }).on('data', function (key) {
 
-                //arr_page.push(xas2(key.length).buffer);
-                //arr_page.push(key);
-                // This needs to slow down sending if a receipt backlog builds up.
+                    //arr_page.push(xas2(key.length).buffer);
+                    //arr_page.push(key);
+                    // This needs to slow down sending if a receipt backlog builds up.
 
-                arr_page[c++] = (Buffer.concat([xas2(key.length).buffer, key]));
+                    arr_page[c++] = (Buffer.concat([xas2(key.length).buffer, key]));
 
-                // This should also have flow control.
+                    // This should also have flow control.
 
-                // Having flow control here will enable many keys to be read, and as they get read, if they are not in the db, to get requested.
-                //  One way copy sync.
-                //  copy_table_records_from
+                    // Having flow control here will enable many keys to be read, and as they get read, if they are not in the db, to get requested.
+                    //  One way copy sync.
+                    //  copy_table_records_from
 
-                // copy_table_from
-                // copy_table_structure_from
+                    // copy_table_from
+                    // copy_table_structure_from
 
-                // (_from)
+                    // (_from)
 
-                // Have a system where a DB server can be told of other clients to connect to.
-                //  Then it can do connected operations, such as copy_remote_table
+                    // Have a system where a DB server can be told of other clients to connect to.
+                    //  Then it can do connected operations, such as copy_remote_table
 
-                // A copy_remote_table system would be great to be able to call from the client.
-                //  Gets progress updates, as client is not copying it itself, but instructing the server to copy it.
+                    // A copy_remote_table system would be great to be able to call from the client.
+                    //  Gets progress updates, as client is not copying it itself, but instructing the server to copy it.
 
-                // Once copy_remote_table works nicely, including on the client, a lot can be done on the xeon.
-                //  it will be useful for syncing because it won't copy records it does not need to copy.
+                    // Once copy_remote_table works nicely, including on the client, a lot can be done on the xeon.
+                    //  it will be useful for syncing because it won't copy records it does not need to copy.
 
-                // Would get more complex if it needs to translate any records.
-                //  It could download denormalised records.
-                //  Denormalizaton and renormalization would then be extra features.
+                    // Would get more complex if it needs to translate any records.
+                    //  It could download denormalised records.
+                    //  Denormalizaton and renormalization would then be extra features.
 
-                // Will get the remote DBs copying / syncing to local.
-                //  Having a local server will help.
-                //  Need to get the data closer to data analysis form.
+                    // Will get the remote DBs copying / syncing to local.
+                    //  Having a local server will help.
+                    //  Need to get the data closer to data analysis form.
 
-                // Being able to export the data to disk, on the server will be very useful.
-                //  Will be nicest to keep data within the network and the app for the moment though.
+                    // Being able to export the data to disk, on the server will be very useful.
+                    //  Will be nicest to keep data within the network and the app for the moment though.
 
-                // Want to get all 3 dbs streaming to a local machine soon.
-                //  Then get them streaming to the Xeon
-                //  Then streaming from xeon to workstation.
+                    // Want to get all 3 dbs streaming to a local machine soon.
+                    //  Then get them streaming to the Xeon
+                    //  Then streaming from xeon to workstation.
 
-                // Will have commands to get a server to subscribe to table updates from another
-                //  But may have to validate the table structure is the same.
-                //  Would likely need to update incrementors too as they change.
+                    // Will have commands to get a server to subscribe to table updates from another
+                    //  But may have to validate the table structure is the same.
+                    //  Would likely need to update incrementors too as they change.
 
 
-                // Quite a lot more to do to get full syncing.
+                    // Quite a lot more to do to get full syncing.
 
-                // The streaming looks fairly powerful so far, and we would before long have the capability to shard data puts, and the streaming from each would
-                //  be a bit tricky to coordinate, but possible. Could get some to slow down or pause if they get ahead. Then merge results and send them to a client.
-                //   Or the client could stream results from multiple servers.
+                    // The streaming looks fairly powerful so far, and we would before long have the capability to shard data puts, and the streaming from each would
+                    //  be a bit tricky to coordinate, but possible. Could get some to slow down or pause if they get ahead. Then merge results and send them to a client.
+                    //   Or the client could stream results from multiple servers.
 
-                if (c === page_size) {
+                    if (c === page_size) {
 
-                    let latest_received_page = map_received_page[message_id];
-                    //log('map_received_page', map_received_page);
-                    let delay = 0,
-                        pages_diff = 0;
+                        let latest_received_page = map_received_page[message_id];
+                        //log('map_received_page', map_received_page);
+                        let delay = 0,
+                            pages_diff = 0;
 
-                    if (typeof latest_received_page !== 'undefined') {
-                        pages_diff = page_number - latest_received_page;
-                        if (pages_diff > 2) {
-                            delay = 250;
+                        if (typeof latest_received_page !== 'undefined') {
+                            pages_diff = page_number - latest_received_page;
+                            if (pages_diff > 2) {
+                                delay = 250;
+                            }
+                            if (pages_diff > 4) {
+                                delay = 500;
+                            }
+                            if (pages_diff > 6) {
+                                delay = 1000;
+                            }
+                            if (pages_diff > 8) {
+                                delay = 2000;
+                            }
                         }
-                        if (pages_diff > 4) {
-                            delay = 500;
+
+                        if (pages_diff > 20) {
+                            key_stream.destroy();
+                            clearInterval(interval);
+                        } else {
+                            if (delay > 0) {
+                                //log('pages_diff', pages_diff);
+                                read_stream.pause();
+                                setTimeout(() => {
+                                    read_stream.resume();
+                                }, delay);
+                            }
                         }
-                        if (pages_diff > 6) {
-                            delay = 1000;
-                        }
-                        if (pages_diff > 8) {
-                            delay = 2000;
-                        }
+
+                        connection.sendBytes(Buffer.concat([buf_msg_id, buf_key_paging_flow, xas2(page_number++).buffer].concat(arr_page)));
+                        //log('sent page ' + (page_number - 1));
+                        c = 0;
+                        // Could empty that array, would that be faster than GC?
+                        arr_page = new Array(page_size);
                     }
-
-                    if (pages_diff > 20) {
-                        key_stream.destroy();
-                        clearInterval(interval);
-                    } else {
-                        if (delay > 0) {
-                            //log('pages_diff', pages_diff);
-                            read_stream.pause();
-                            setTimeout(() => {
-                                read_stream.resume();
-                            }, delay);
-                        }
-                    }
-
-                    connection.sendBytes(Buffer.concat([buf_msg_id, buf_key_paging_flow, xas2(page_number++).buffer].concat(arr_page)));
-                    //log('sent page ' + (page_number - 1));
-                    c = 0;
-                    // Could empty that array, would that be faster than GC?
-                    arr_page = new Array(page_size);
-                }
-                //Binary_Encoding.join_buffer_pair([data.key, data.value])
-                //arr_res.push(x(key.length).buffer);
-                //arr_res.push(key);
-            })
+                    //Binary_Encoding.join_buffer_pair([data.key, data.value])
+                    //arr_res.push(x(key.length).buffer);
+                    //arr_res.push(key);
+                })
                 .on('error', function (err) {
                     //log('Oh my!', err) 
 
@@ -2376,7 +2331,9 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 [page_size, pos] = x.read(buf_the_rest, pos);
             }
 
+            console.log('pre get cm inner');
             let [b_l, b_u] = cm.inner;
+            console.log('post get cm inner');
 
 
             if (paging_option === NO_PAGING) {
@@ -2393,21 +2350,21 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
                 //var res = [];
                 db.createReadStream({
-                    'gt': b_l,
-                    'lt': b_u
-                }).on('data', function (data) {
-                    //arr_page[c++] = (Buffer.concat([xas2(key.length).buffer, key]));
+                        'gt': b_l,
+                        'lt': b_u
+                    }).on('data', function (data) {
+                        //arr_page[c++] = (Buffer.concat([xas2(key.length).buffer, key]));
 
-                    // will be both the key and the value
-                    // will need to combine them as buffers.
-                    var buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
-                    //arr_page[c++] = buf_combined;
-                    //log('buf_combined', buf_combined);
-                    arr_res.push(buf_combined);
-                    //arr_res.push(x(key.length).buffer);
-                    //arr_res.push(key);
+                        // will be both the key and the value
+                        // will need to combine them as buffers.
+                        var buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
+                        //arr_page[c++] = buf_combined;
+                        //log('buf_combined', buf_combined);
+                        arr_res.push(buf_combined);
+                        //arr_res.push(x(key.length).buffer);
+                        //arr_res.push(key);
 
-                })
+                    })
                     .on('error', function (err) {
                         //log('Oh my!', err)
                         callback(err);
@@ -2442,99 +2399,99 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                 //  
 
                 let read_stream = db.createReadStream({
-                    'gt': b_l,
-                    'lt': b_u
-                }).on('data', function (data) {
+                        'gt': b_l,
+                        'lt': b_u
+                    }).on('data', function (data) {
 
-                    // will be both the key and the value
-                    // will need to combine them as buffers.
-                    buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
-                    //log('buf_combined', buf_combined);
-                    //arr_res.push(buf_combined);
-                    arr_page[c++] = buf_combined;
+                        // will be both the key and the value
+                        // will need to combine them as buffers.
+                        buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
+                        //log('buf_combined', buf_combined);
+                        //arr_res.push(buf_combined);
+                        arr_page[c++] = buf_combined;
 
-                    if (c === page_size) {
+                        if (c === page_size) {
 
-                        //log('sending page', page_number);
-                        //log('pre read_stream.pause');
+                            //log('sending page', page_number);
+                            //log('pre read_stream.pause');
 
-                        // Check the current page number to see how far behind it is.
+                            // Check the current page number to see how far behind it is.
 
-                        let latest_received_page = map_received_page[message_id];
-                        //log('map_received_page', map_received_page);
-                        let delay = 0,
-                            pages_diff = 0;
-                        if (typeof latest_received_page !== 'undefined') {
-                            pages_diff = page_number - latest_received_page;
+                            let latest_received_page = map_received_page[message_id];
+                            //log('map_received_page', map_received_page);
+                            let delay = 0,
+                                pages_diff = 0;
+                            if (typeof latest_received_page !== 'undefined') {
+                                pages_diff = page_number - latest_received_page;
 
-                            if (pages_diff > 2) {
-                                delay = 250;
+                                if (pages_diff > 2) {
+                                    delay = 250;
+                                }
+                                if (pages_diff > 4) {
+                                    delay = 500;
+                                }
+                                if (pages_diff > 6) {
+                                    delay = 1000;
+                                }
+                                if (pages_diff > 8) {
+                                    delay = 2000;
+                                }
+
+                                // if it gets too high, then stop the stream?
+                                //  ie the client has 
+
                             }
-                            if (pages_diff > 4) {
-                                delay = 500;
-                            }
-                            if (pages_diff > 6) {
-                                delay = 1000;
-                            }
-                            if (pages_diff > 8) {
-                                delay = 2000;
-                            }
+                            //log('pages_diff', pages_diff);
 
-                            // if it gets too high, then stop the stream?
-                            //  ie the client has 
+                            read_stream.pause();
+                            setTimeout(() => {
+                                read_stream.resume();
+                            }, delay);
 
+                            // Possibility of applying a compression algorythm to the arr_page?
+                            //  Compressing the data could raise the throughput to the client.
+                            //   Currently data seems about 5 times the size when over the wire rather than in the DB.
+
+                            // Could have a compressed data format for record paging.
+                            //  Maybe use Binary_Encoding's buffer compression?
+
+                            // Or have a different Buffer_Compression module available.
+                            //  Don't want streaming compression, as we compress parts of the stream, ie some messages within it.
+
+                            // record paging flow, with compression?
+                            //  then read another xas2 number, or maybe read a CompressionInfo object.
+
+                            // For the moment could have most basic compression options, with sensible defaults.
+
+                            //  The client could request compression too.
+                            //  Reading compression info from the request would be sensible.
+
+                            connection.sendBytes(Buffer.concat([buf_msg_id, buf_record_paging_flow, xas2(page_number++).buffer].concat(arr_page)));
+                            c = 0;
+                            // Could empty that array, would that be faster than GC?
+                            arr_page = new Array(page_size);
+
+
+                            // On the client-side, don't want to pause the whole socket.
+
+                            // Try pausing the reading of the stream for 1s.
+                            //  Will be able to pause streams when the client-side receive buffer becomes too large.
+                            //   Could have a client-side message to say which is the last message received and processed.
+                            //    Then if it gets out of sync by more than n (ie 4), it waits until the client has caught up.
+
+                            // Would need client-side acknowledgement of receiving the messages.
+                            //  Client-side and server-side pause commands would be useful.
+
+                            // Important to be able to correctly sync large amounts of data, fast, or at least fast enough while also reliably.
+                            //  The sender's internet connection may be much faster than the receiver's.
+
+                            // Some small messages in the protocol to say the last message number in a message chain could help.
+                            //  Small receive packets would be sent back to the server.
                         }
-                        //log('pages_diff', pages_diff);
+                        //arr_res.push(x(key.length).buffer);
+                        //arr_res.push(key);
 
-                        read_stream.pause();
-                        setTimeout(() => {
-                            read_stream.resume();
-                        }, delay);
-
-                        // Possibility of applying a compression algorythm to the arr_page?
-                        //  Compressing the data could raise the throughput to the client.
-                        //   Currently data seems about 5 times the size when over the wire rather than in the DB.
-
-                        // Could have a compressed data format for record paging.
-                        //  Maybe use Binary_Encoding's buffer compression?
-
-                        // Or have a different Buffer_Compression module available.
-                        //  Don't want streaming compression, as we compress parts of the stream, ie some messages within it.
-
-                        // record paging flow, with compression?
-                        //  then read another xas2 number, or maybe read a CompressionInfo object.
-
-                        // For the moment could have most basic compression options, with sensible defaults.
-
-                        //  The client could request compression too.
-                        //  Reading compression info from the request would be sensible.
-
-                        connection.sendBytes(Buffer.concat([buf_msg_id, buf_record_paging_flow, xas2(page_number++).buffer].concat(arr_page)));
-                        c = 0;
-                        // Could empty that array, would that be faster than GC?
-                        arr_page = new Array(page_size);
-
-
-                        // On the client-side, don't want to pause the whole socket.
-
-                        // Try pausing the reading of the stream for 1s.
-                        //  Will be able to pause streams when the client-side receive buffer becomes too large.
-                        //   Could have a client-side message to say which is the last message received and processed.
-                        //    Then if it gets out of sync by more than n (ie 4), it waits until the client has caught up.
-
-                        // Would need client-side acknowledgement of receiving the messages.
-                        //  Client-side and server-side pause commands would be useful.
-
-                        // Important to be able to correctly sync large amounts of data, fast, or at least fast enough while also reliably.
-                        //  The sender's internet connection may be much faster than the receiver's.
-
-                        // Some small messages in the protocol to say the last message number in a message chain could help.
-                        //  Small receive packets would be sent back to the server.
-                    }
-                    //arr_res.push(x(key.length).buffer);
-                    //arr_res.push(key);
-
-                })
+                    })
                     .on('error', function (err) {
                         //log('Oh my!', err)
                         callback(err);
@@ -2597,20 +2554,7 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
         send(communication_options, obs_res);
 
-
-
-
-
-
-
-
-
-
     }
-
-
-
-
 
 
     // Selecting from records in range may keep the table kp as an option.
@@ -2639,7 +2583,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
         // then want a nicer way to output a result stream from the server.
         //  page_result_stream(connection, message_id, nldb.select_from_table(table_id, fields));
-
 
         // Don't want to decode it on the server.
         //  Should remove the kp by default.
@@ -2713,15 +2656,12 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
                     throw 'NYI';
                 }
 
-
                 //console.trace();
                 //log('err', err);
                 //log('Object.keys(err)', Object.keys(err));
                 //log('buf_key', buf_key);
 
                 // error return.
-
-
 
             } else {
                 //log('buf_value', buf_value);
@@ -2745,10 +2685,8 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
     if (i_query_type === GET_RELATED_RECORDS) {
         console.log('GET_RELATED_RECORDS');
 
-        
+
     }
-
-
 
     // const GET_TABLE_RECORD_BY_KEY = 16;
     // const GET_TABLE_RECORDS_BY_KEYS = 17;
@@ -2790,11 +2728,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
         send(cm.paging, nldb.get_table_records_by_keys(table, keys));
     }
-
-
-
-
-
 
     // Multiple records
     //  Will need to send them back in pages.
@@ -2865,23 +2798,23 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
             //var res = [];
             let stream = db.createReadStream({
-                'gt': b_l,
-                'lt': b_u,
-                'limit': count_limit
-            }).on('data', data => {
-                // will be both the key and the value
-                // will need to combine them as buffers.
-                var buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
-                //log('buf_combined', buf_combined);
-                arr_res.push(buf_combined);
-                //arr_res.push(x(key.length).buffer);
-                //arr_res.push(key);
-                count++;
-                if (count > count_limit) {
-                    stream.destroy();
-                }
+                    'gt': b_l,
+                    'lt': b_u,
+                    'limit': count_limit
+                }).on('data', data => {
+                    // will be both the key and the value
+                    // will need to combine them as buffers.
+                    var buf_combined = Binary_Encoding.join_buffer_pair([data.key, data.value]);
+                    //log('buf_combined', buf_combined);
+                    arr_res.push(buf_combined);
+                    //arr_res.push(x(key.length).buffer);
+                    //arr_res.push(key);
+                    count++;
+                    if (count > count_limit) {
+                        stream.destroy();
+                    }
 
-            })
+                })
                 .on('error', err => {
                     //log('Oh my!', err)
                     callback(err);
@@ -2972,7 +2905,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
             //log('buf_res', buf_res);
             //log('no response sent (still developing)');
             connection.sendBytes(buf_res);
-
         });
 
         // then store the unsubscribe function.
@@ -3005,7 +2937,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         var msg_response = [buf_msg_id, xas2(sub_msg_id).buffer, xas2(BOOL_TRUE).buffer];
         buf_res = Buffer.concat(msg_response);
         connection.sendBytes(buf_res);
-
     }
 
 
@@ -3025,7 +2956,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         // Do this in order to see which bittrex currencies or markets match the given index values of records we have just downloaded
 
         // Just doing it a single record at a time for the moment.
-
 
         log('LL_FIND_COUNT_TABLE_RECORDS_INDEX_MATCH');
 
@@ -3146,7 +3076,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         buf_the_rest.copy(buf_2, 0, pos);
         */
 
-
         // We should be able to tell from the model what fields there are.
         // Want the count of primary keys for that table.
         //log('table_id', table_id);
@@ -3174,7 +3103,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
             // Seems like the incrementors have not been set up on the server side model.
             //  When loading the model, need to make sure that the server side incrementor gets set up properly.
-
 
             let model_record = model_table.new_record(record);
             //  That model record could have funtionality to encode itself as a buffer.
@@ -3230,7 +3158,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         }
     }
 
-
     // This is a way around not having unique constraints right now.
     //   Checks if the record exists based on indexed info.
     if (i_query_type === ENSURE_RECORD) {
@@ -3244,18 +3171,13 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
 
         let cm = new Command_Message(message_binary);
         //log('cm', cm);
-
-
     }
 
 
     if (i_query_type === ENSURE_TABLE_RECORD) {
-
         // could suppress overall logging.
 
-
-
-        log('ENSURE_TABLE_RECORD');
+        //log('ENSURE_TABLE_RECORD');
 
         // Does the record already exist based on index lookups
         // Is the key complete?
@@ -3307,8 +3229,6 @@ var handle_ws_binary = function (connection, nextleveldb_server, message_binary)
         // decode inner buffer.
         //  more like we want the command args.
     }
-
-
 
     if (i_query_type === TABLE_EXISTS) {
         // Decode the table name

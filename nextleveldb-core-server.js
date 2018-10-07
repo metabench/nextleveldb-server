@@ -8,8 +8,6 @@ const Fns = jsgui.Fns;
 const def = jsgui.is_defined;
 //const clone = jsgui.clone;
 
-
-
 const Evented_Class = jsgui.Evented_Class;
 const crypto = require('crypto');
 const http = require('http');
@@ -73,34 +71,7 @@ const CORE_MAX_PREFIX = 9;
 const obs_to_cb = fnl.obs_to_cb;
 const obs_or_cb = fnl.obs_or_cb;
 
-/*
 
-const obs_to_cb = (obs, callback) => {
-    let arr_all = [];
-    obs.on('next', data => arr_all.push(data));
-    obs.on('error', err => callback(err));
-    obs.on('complete', () => callback(null, arr_all));
-}
-
-const obs_or_cb = (obs, callback) => {
-    let _obs;
-    if (typeof obs === 'function') {
-        _obs = observable(obs);
-    } else {
-        _obs = obs;
-    }
-
-    // then if a[0] is a function, make a new Observable with that function.
-
-
-    if (callback) {
-        obs_to_cb(_obs, callback);
-    } else {
-        return _obs;
-    }
-}
-
-*/
 
 let obs_map = (obs, fn_data) => {
     let res = new Evented_Class();
@@ -1394,12 +1365,12 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
                                     //b_record.
                                     let rec2 = new B_Record([new_key, b_record.value]);
-                                    console.log('rec2', rec2.decoded);
+                                    //console.log('rec2', rec2.decoded);
 
                                     // put table record, where that record includes the kp.
 
                                     let res_put = await this.put_table_record(table_id, rec2);
-                                    console.log('res_put', res_put);
+                                    //console.log('res_put', res_put);
                                     console.log('res_put.record.decoded', res_put.record.decoded);
                                     resolve(res_put);
                                 }
@@ -1539,7 +1510,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 if (sig === '[a]') {
 
                     [table_name, table_def] = a[0];
-                    console.log('[table_name, table_def]', [table_name, table_def]);
+                    //console.log('[table_name, table_def]', [table_name, table_def]);
                 }
                 //console.log('a', a);
                 //console.trace();
@@ -1622,7 +1593,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 let ctu = true;
                 for (let arr_table of arr_tables) {
                     let tres;
-                    console.log('arr_table', arr_table);
+                    //console.log('arr_table', arr_table);
                     try {
                         //tres = await this.ensure_table(arr_table[0], arr_table[1]);
                         tres = await this.ensure_table(arr_table);
@@ -1894,7 +1865,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 }
             })
 
-            
+
             return [];
         });
     }
@@ -2075,7 +2046,42 @@ class NextLevelDB_Core_Server extends Evented_Class {
         }
     }
 
+
+    get_first_and_last_keys_beginning(key_beginning, callback) {
+        // change to a promise.
+        let a = arguments;
+        let sig = get_a_sig(a);
+        let buf_key_beginning;
+        // Yet more arguments... will have decode (or not) option
+        //console.log('get_first_and_last_keys_beginning sig', sig);
+        if (sig === '[B,b]') {
+            buf_key_beginning = key_beginning;
+        } else if (sig === '[B,f]') {
+            buf_key_beginning = key_beginning;
+            callback = a[1];
+        } else if (sig === '[a,f]') {
+            buf_key_beginning = Model.encoding.encode_key(key_beginning);
+            callback = a[1];
+        } else {
+            throw 'get_first_and_last_keys_beginning unexpected signature:', sig;
+        }
+
+        let [buf_l, buf_u] = kp_to_range(buf_key_beginning);
+        let pr_res = this.get_first_and_last_keys_in_buf_range(buf_l, buf_u);
+
+        if (callback) {
+            pr_res.then(res => callback(null, res), err => callback(err)).catch(err => {
+                callback(err);
+            });
+        } else {
+            return pr_res;
+        }
+    }
+
+
     // get rid of remove_pks = false, decode = false to make simpler syntax
+
+    /*
 
     get_first_and_last_keys_beginning(key_beginning, remove_pks = false, decode = false, callback) {
         // change to a promise.
@@ -2123,6 +2129,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
         }
     }
     // key_beginning_to_range = kp_to_range
+    */
 
     get_first_key_beginning(buf_beginning, callback) {
         let range = kp_to_range(buf_beginning);
@@ -2143,6 +2150,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
     //  no decoding - but the Key is a class that can decode the buffer.
 
 
+
     get_first_key_in_range(arr_range, callback) {
         return prom_or_cb((resolve, reject) => {
             let res;
@@ -2157,9 +2165,10 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 //console.log('Stream closed');
             }).on('end', function () {
                 if (res) {
-                    resolve(B_Key(res));
+                    resolve(new B_Key(res));
                 } else {
-                    reject();
+                    //reject();
+                    resolve(undefined);
                 }
             });
         }, callback);
@@ -2176,26 +2185,119 @@ class NextLevelDB_Core_Server extends Evented_Class {
             this.db.createKeyStream({
                     'gte': arr_range[0],
                     'lte': arr_range[1],
-                    'limit': 1
+                    'limit': 1,
+                    'reverse': true
                 }).on('data', key => {
-                    //console.log('key', key);
                     res = key;
-                })
-                //.on('error', reject(err))
-                .on('close', () => {
+                }).on('error', reject(err)).on('close', () => {
                     //console.log('Stream closed');
                 })
                 .on('end', () => {
                     if (res) {
-                        resolve(B_Key(res));
+                        resolve(new B_Key(res));
+                    } else {
+                        //callback(null, undefined);
+                        // key not found.
+                        //reject();
+                        resolve(undefined);
+                    }
+                });
+        }, callback);
+    }
+
+    get_first_record_in_range(arr_range, callback) {
+        console.log('get_first_record_in_range arr_range', arr_range);
+        return prom_or_cb((resolve, reject) => {
+            let res;
+            this.db.createReadStream({
+                'gte': arr_range[0],
+                'lte': arr_range[1],
+                'limit': 1
+            }).on('data', function (data) {
+                //console.log('key', key);
+                res = data;
+            }).on('error', err => reject(err)).on('close', function () {
+                //console.log('Stream closed');
+            }).on('end', function () {
+                if (res) {
+                    resolve(new B_Record([res.key, res.value]));
+                } else {
+                    //reject();
+                    resolve(undefined);
+                }
+            });
+        }, callback);
+    }
+    // Should make decoding faslse by default in various places.
+
+    get_last_record_in_range(arr_range, callback) {
+        console.log('get_last_record_in_range arr_range', arr_range);
+        // again, promisify, remove remove_kp, decode, cb optional
+        //console.log('buf_l', buf_l);
+        //console.log('buf_u', buf_u);
+        return prom_or_cb((resolve, reject) => {
+            let res;
+            this.db.createReadStream({
+                    'gte': arr_range[0],
+                    'lte': arr_range[1],
+                    'limit': 1,
+                    'reverse': true
+                }).on('data', data => {
+                    res = data;
+                }).on('error', err => reject(err)).on('close', () => {
+                    //console.log('Stream closed');
+                })
+                .on('end', () => {
+                    if (res) {
+                        resolve(new B_Record([res.key, res.value]));
+                    } else {
+                        //callback(null, undefined);
+                        // key not found.
+                        //reject();
+                        resolve(undefined);
+                    }
+                });
+        }, callback);
+    }
+
+    get_first_last_records_in_range(arr_range, callback) {
+        return prom_or_cb((resolve, reject) => {
+
+
+            (async () => {
+                console.log('get_first_last_records_in_range !!callback', !!callback);
+                let res = [await this.get_first_record_in_range(arr_range), await this.get_last_record_in_range(arr_range)];
+                console.log('res', res);
+                resolve(res);
+            })();
+
+
+
+            /*
+            this.db.createReadStream({
+                    'gte': arr_range[0],
+                    'lte': arr_range[1],
+                    'limit': 1,
+                    'reverse ': true
+                }).on('data', key => {
+                    res = key;
+                }).on('error', reject(err)).on('close', () => {
+                    //console.log('Stream closed');
+                })
+                .on('end', () => {
+                    if (res) {
+                        resolve(new B_Record([data.key, data.value]));
                     } else {
                         //callback(null, undefined);
                         // key not found.
                         reject();
                     }
                 });
+            */
         }, callback);
     }
+
+
 
     // can use above fn because we know range
 
@@ -2523,7 +2625,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
             let indexes = model_table.indexes;
             // So it's worked out the record from the Model.
             //console.log('put_table_record', record);
-            console.log('record instanceof B_Record', record instanceof B_Record);
+            //console.log('record instanceof B_Record', record instanceof B_Record);
             //console.log('Array.isArray(record)', Array.isArray(record));
 
             if (record instanceof B_Record) {
@@ -2594,7 +2696,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
                     });
                     each(map_key_batches, (map_key_batch, key) => {
                         //console.log('1) key', key);
-                        console.log('map_key_batch', map_key_batch);
+                        //console.log('map_key_batch', map_key_batch);
                         var buf_encoded_batch = Model_Database.encode_model_rows(map_key_batch);
                         //console.log('buf_encoded_batch', buf_encoded_batch);
                         this.raise('put_kp_batch_' + key, {
@@ -2647,7 +2749,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 });
                 each(map_key_batches, (map_key_batch, key) => {
                     //console.log('1) key', key);
-                    console.log('map_key_batch', map_key_batch);
+                    //console.log('map_key_batch', map_key_batch);
                     var buf_encoded_batch = Model_Database.encode_model_rows(map_key_batch);
                     //console.log('buf_encoded_batch', buf_encoded_batch);
                     this.raise('put_kp_batch_' + key, {

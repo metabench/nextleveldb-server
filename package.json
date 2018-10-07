@@ -7,17 +7,17 @@
         "command-line-args": "^5.0.2",
         "deep-diff": "^1.0.1",
         "deep-equal": "^1.0.1",
-        "fnl": "^0.0.3",
-        "fnlfs": "^0.0.2",
+        "fnl": "^0.0.6",
+        "fnlfs": "^0.0.6",
         "lang-mini": "^0.0.8",
         "level": "^4.0.0",
         "my-config": "^2.0.0",
-        "nextleveldb-client": "^0.0.74",
-        "nextleveldb-model": "^0.0.71",
+        "nextleveldb-client": "^0.0.76",
+        "nextleveldb-model": "^0.0.72",
         "recursive-readdir": "^2.2.2",
         "rimraf": "^2.6.2",
         "single-line-log": "^1.1.2",
-        "websocket": "^1.0.26",
+        "websocket": "^1.0.28",
         "xas2": "^0.0.17"
     },
     "engines": {
@@ -29,5 +29,5 @@
         "type": "git",
         "url": "https://github.com/metabench/nextleveldb-server.git"
     },
-    "version": "0.0.62"
+    "version": "0.0.63"
 }

@@ -15,13 +15,11 @@ const NextLevelDB_Server = require('./nextleveldb-server');
 const NextLevelDB_Client = require('nextleveldb-client');
 
 
-const fs2 = lang.fs2;
+//const fs2 = lang.fs2;
 
 
 const os = require('os');
 const path = require('path');
-
-
 const Model = require('nextleveldb-model');
 
 const BB_Record = Model.BB_Record;
@@ -32,6 +30,7 @@ const database_encoding = Model.encoding;
 
 
 const fnl = require('fnl');
+const fnlfs = require('fnlfs');
 const observable = fnl.observable;
 const execute_q_obs = fnl.seq;
 const sig_obs_or_cb = fnl.sig_obs_or_cb;
@@ -2032,11 +2031,11 @@ if (require.main === module) {
 
     // Would also be worth being able to choose db names
 
-    fs2.ensure_directory_exists(user_dir + '/NextLevelDB', (err, exists) => {
+    fnlfs.ensure_directory_exists(user_dir + '/NextLevelDB', (err, exists) => {
         if (err) {
             throw err
         } else {
-            fs2.ensure_directory_exists(path_dbs, (err, exists) => {
+            fnlfs.ensure_directory_exists(path_dbs, (err, exists) => {
                 if (err) {
                     throw err
                 } else {
