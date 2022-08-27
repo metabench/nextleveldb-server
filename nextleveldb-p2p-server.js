@@ -1766,3 +1766,5 @@ if (require.main === module) {
 } else {
     //console.log('required as a module');
 }
+
+module.exports = NextLevelDB_P2P_Server;
