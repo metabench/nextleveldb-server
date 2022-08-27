@@ -13,8 +13,8 @@
         "leveldown": "^6.1.1",
         "levelup": "^5.1.1",
         "my-config": "^2.0.0",
-        "nextleveldb-client": "^0.0.76",
-        "nextleveldb-model": "^0.0.72",
+        "nextleveldb-client": "^0.0.77",
+        "nextleveldb-model": "^0.0.73",
         "recursive-readdir": "^2.2.2",
         "rimraf": "^3.0.2",
         "single-line-log": "^1.1.2",
@@ -30,5 +30,5 @@
         "type": "git",
         "url": "https://github.com/metabench/nextleveldb-server.git"
     },
-    "version": "0.0.64"
+    "version": "0.0.65"
 }
