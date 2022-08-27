@@ -467,7 +467,11 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
 
 
         obs_all_table_records.on('complete', () => {
-            callback(null, true);
+
+            if (tof(callback) === 'function') {
+                callback(null, true);
+            }
+            
         })
         //console.trace();
         //throw 'stop';
@@ -1117,7 +1121,12 @@ class NextLevelDB_Safer_Server extends NextLevelDB_Server {
         });
         obs_all_indexes.on('complete', () => {
             console.log('obs_all_indexes complete');
-            callback(null, true);
+
+            if (tof(callback) === 'function') {
+                callback(null, true);
+            }
+
+            
         })
     }
 
@@ -1983,93 +1992,111 @@ if (require.main === module) {
 
     // Want to be able to get a full path from the command line
 
-    const option_definitions = [{
-        name: 'path',
-        alias: 'p',
-        type: String
-    }];
+    (async() => {
 
+        const option_definitions = [{
+            name: 'path',
+            alias: 'p',
+            type: String
+        }];
+    
+    
+        const commandLineArgs = require('command-line-args');
+    
+        const options = commandLineArgs(option_definitions);
+    
+        // Maybe better not to (try to) access user's directory.
+    
+    
+        /*
+        var config = require('my-config').init({
+            //path: path.resolve('../../config/config.json') //,
+            path: path.resolve('./config/config.json') //,
+            //env : process.env['NODE_ENV']
+            //env : process.env
+        });
+    
+        */
+    
+        const config = await fnlfs.load(path.resolve('./config/config.json'));
+    
+        console.log('path.resolve(\'./config/config.json\')', path.resolve('./config/config.json'));
+    
+        //console.log('options', options);
+    
+        //throw 'stop';
+    
+        var user_dir = os.homedir();
+        console.log('OS User Directory:', user_dir);
+        //var docs_dir =
+        var path_dbs = user_dir + '/NextLevelDB/dbs';
+        console.log('config', config);
+    
+        let access_token = config.nextleveldb_access.root[0];
+        console.log('access_token', access_token);
+    
+        // Select all the listed dbs, then choose the selected source DBs.
+    
+        //let clients_info = [];
+    
+    
+    
+        //throw 'stop';
+    
+        // then make them into client connection params
+    
+    
+    
+    
+    
+    
+        //throw 'stop';
+    
+        // Would also be worth being able to choose db names
+    
+        fnlfs.ensure_directory_exists(user_dir + '/NextLevelDB', (err, exists) => {
+            if (err) {
+                throw err
+            } else {
+                fnlfs.ensure_directory_exists(path_dbs, (err, exists) => {
+                    if (err) {
+                        throw err
+                    } else {
+                        var db_path = options.path || path_dbs + '/default';
+                        //var db_path = 'db';
+                        var port = 420;
+                        // Is the first one the node executable?
+    
+                        console.log('db_path', db_path);
+    
+                        var ls = new NextLevelDB_Safer_Server({
+                            'db_path': db_path,
+                            'port': port,
+                            'access_token': access_token
+                        });
+    
+    
+    
+                        // There could be a web admin interface too.
+    
+                        ls.start((err, res_started) => {
+                            if (err) {
+                                console.trace();
+                                throw err;
+                            } else {
+                                console.log('NextLevelDB_Safer_Server Started');
+    
+    
+                            }
+                        });
+                    }
+                });
+            }
+        });
 
-    const commandLineArgs = require('command-line-args');
+    })();
 
-    const options = commandLineArgs(option_definitions);
-
-    var config = require('my-config').init({
-        path: path.resolve('../../config/config.json') //,
-        //env : process.env['NODE_ENV']
-        //env : process.env
-    });
-
-    console.log('options', options);
-
-    //throw 'stop';
-
-    var user_dir = os.homedir();
-    console.log('OS User Directory:', user_dir);
-    //var docs_dir =
-    var path_dbs = user_dir + '/NextLevelDB/dbs';
-
-    let access_token = config.nextleveldb_access.root[0];
-    console.log('access_token', access_token);
-
-    // Select all the listed dbs, then choose the selected source DBs.
-
-    //let clients_info = [];
-
-
-
-    //throw 'stop';
-
-    // then make them into client connection params
-
-
-
-
-
-
-    //throw 'stop';
-
-    // Would also be worth being able to choose db names
-
-    fnlfs.ensure_directory_exists(user_dir + '/NextLevelDB', (err, exists) => {
-        if (err) {
-            throw err
-        } else {
-            fnlfs.ensure_directory_exists(path_dbs, (err, exists) => {
-                if (err) {
-                    throw err
-                } else {
-                    var db_path = options.path || path_dbs + '/default';
-                    //var db_path = 'db';
-                    var port = 420;
-                    // Is the first one the node executable?
-
-                    console.log('db_path', db_path);
-
-                    var ls = new NextLevelDB_Safer_Server({
-                        'db_path': db_path,
-                        'port': port,
-                        'access_token': access_token
-                    });
-
-
-
-                    // There could be a web admin interface too.
-
-                    ls.start((err, res_started) => {
-                        if (err) {
-                            console.trace();
-                            throw err;
-                        } else {
-                            console.log('NextLevelDB_Safer_Server Started');
-
-
-                        }
-                    });
-                }
-            });
-        }
-    });
+    
 } else {
     //console.log('required as a module');
 }

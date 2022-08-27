@@ -1539,7 +1539,8 @@ if (require.main === module) {
     const options = commandLineArgs(option_definitions);
 
     var config = require('my-config').init({
-        path: path.resolve('../../config/config.json') //,
+        //path: path.resolve('../../config/config.json') //,
+        path: path.resolve('./config/config.json') //,
         //env : process.env['NODE_ENV']
         //env : process.env
     });

@@ -41,7 +41,8 @@ const Binary_Encoding_Record = Binary_Encoding.Record;
 const recursive_readdir = require('recursive-readdir');
 const Running_Means_Per_Second = require('./running-means-per-second');
 
-const levelup = require('level');
+const levelup = require('levelup');
+const leveldown = require('leveldown');
 
 const Model = require('nextleveldb-model');
 const B_Record_List = Model.Record_List;
@@ -193,7 +194,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
     }
     start(callback) {
         //console.log('start');
-        return prom_or_cb((resolve, reject) => {
+        return prom_or_cb(async(resolve, reject) => {
             var options = this.db_options = {
                 'keyEncoding': 'binary',
                 'valueEncoding': 'binary'
@@ -234,12 +235,27 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
             this.map_access_tokens = {};
 
-            let load_config_access_tokens = () => {
+            let load_config_access_tokens = async () => {
+
+
+
+                // ensure that path exists?
+                // skip / switch off access tokens for the moment?
+
+                /*
+
                 var config = require('my-config').init({
-                    path: path.resolve('../../config/config.json') //,
+                    //path: path.resolve('../../config/config.json') //,
+                    path: path.resolve('./config/config.json') //,
                     //env : process.env['NODE_ENV']
                     //env : process.env
                 });
+
+                */
+
+                const config = await fnlfs.load(path.resolve('./config/config.json'));
+                console.log('config', config);
+
                 let root_tokens = config.nextleveldb_access.root;
                 console.log('root_tokens', root_tokens);
                 //this.map_access_tokens.root = root_tokens;
@@ -250,7 +266,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
                 //this.map_access_tokens[]
                 //console.log('this.map_access_tokens.root', this.map_access_tokens.root);
             }
-            load_config_access_tokens();
+            await load_config_access_tokens();
 
             let check_access_token = access_token => {
                 let username = this.map_access_tokens[access_token];
@@ -289,7 +305,7 @@ class NextLevelDB_Core_Server extends Evented_Class {
 
             var proceed = () => {
 
-                db = db || levelup(this.db_path, this.db_options);
+                db = db || levelup(leveldown(this.db_path), this.db_options);
                 this.db = db;
                 //console.log('db_already_exists', db_already_exists);
 

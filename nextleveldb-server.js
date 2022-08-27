@@ -44,7 +44,7 @@ const Binary_Encoding_Record = Binary_Encoding.Record;
 const recursive_readdir = require('recursive-readdir');
 const Running_Means_Per_Second = require('./running-means-per-second');
 
-const levelup = require('level');
+const levelup = require('levelup');
 
 const Model = require('nextleveldb-model');
 

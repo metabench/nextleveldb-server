@@ -4,20 +4,21 @@
     "license": "MIT",
     "dependencies": {
         "binary-encoding": "^0.0.57",
-        "command-line-args": "^5.0.2",
-        "deep-diff": "^1.0.1",
-        "deep-equal": "^1.0.1",
-        "fnl": "^0.0.6",
-        "fnlfs": "^0.0.6",
-        "lang-mini": "^0.0.8",
-        "level": "^4.0.0",
+        "command-line-args": "^5.2.1",
+        "deep-diff": "^1.0.2",
+        "deep-equal": "^2.0.5",
+        "fnl": "^0.0.22",
+        "fnlfs": "^0.0.25",
+        "lang-mini": "^0.0.26",
+        "leveldown": "^6.1.1",
+        "levelup": "^5.1.1",
         "my-config": "^2.0.0",
         "nextleveldb-client": "^0.0.76",
         "nextleveldb-model": "^0.0.72",
         "recursive-readdir": "^2.2.2",
-        "rimraf": "^2.6.2",
+        "rimraf": "^3.0.2",
         "single-line-log": "^1.1.2",
-        "websocket": "^1.0.28",
+        "websocket": "^1.0.34",
         "xas2": "^0.0.17"
     },
     "engines": {
@@ -29,5 +30,5 @@
         "type": "git",
         "url": "https://github.com/metabench/nextleveldb-server.git"
     },
-    "version": "0.0.63"
+    "version": "0.0.64"
 }
